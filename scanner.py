@@ -1,20 +1,33 @@
 """Daglig aktiescanner. Kör: python scanner.py  (cron / GitHub Actions kl 14:00 svensk tid, före USA-öppning)
 pip install yfinance pandas requests lxml
 Valfritt: export BENZINGA_KEY=...  (Benzinga news API)"""
-import json, os, datetime as dt
+import json, os, io, datetime as dt
 import pandas as pd, requests, yfinance as yf
-
+ 
 OMXS = ["VOLV-B.ST","ERIC-B.ST","HM-B.ST","ABB.ST","ATCO-A.ST","SEB-A.ST","SWED-A.ST","INVE-B.ST","SAND.ST","ASSA-B.ST",
         "EVO.ST","SINCH.ST","NIBE-B.ST","HEXA-B.ST","ALFA.ST","ESSITY-B.ST","BOL.ST","SKA-B.ST","TELIA.ST","SHB-A.ST"]  # utöka
+SP500_FALLBACK = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","BRK-B","AVGO","TSLA","LLY","JPM","V","XOM",
+    "UNH","MA","COST","HD","PG","NFLX","JNJ","CRM","ABBV","BAC","ORCL","KO","AMD","PEP","WMT","CVX","TMO","ADBE",
+    "MRK","LIN","CSCO","ACN","MCD","ABT","WFC","GE","IBM","PM","NOW","INTU","TXN","CAT","ISRG","DIS","VZ","QCOM","AMAT"]
+ 
 def sp500():
     h = {"User-Agent": "Mozilla/5.0"}
-    html = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", headers=h).text
-    return [s.replace(".", "-") for s in pd.read_html(html)[0]["Symbol"]]
-
+    try:
+        r = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", headers=h, timeout=15)
+        r.raise_for_status()
+        tables = pd.read_html(io.StringIO(r.text), flavor="lxml")
+        tickers = [s.replace(".", "-") for s in tables[0]["Symbol"]]
+        if len(tickers) < 400:          # sanity check – sidan kan ha ändrats
+            raise ValueError(f"Fick bara {len(tickers)} tickers, förväntade ~500")
+        return tickers
+    except Exception as e:
+        print("Varning: kunde inte hämta S&P 500-listan från Wikipedia (", e, "). Använder inbyggd reservlista.")
+        return SP500_FALLBACK
+ 
 def rsi(c, n=14):
     d = c.diff(); u = d.clip(lower=0).rolling(n).mean(); l = (-d.clip(upper=0)).rolling(n).mean()
     return float(100 - 100 / (1 + u.iloc[-1] / l.iloc[-1]))
-
+ 
 def news(t):
     pos = ("beat","upgrade","raises","surge","record","growth","strong","buy")
     neg = ("miss","downgrade","cuts","falls","probe","lawsuit","weak","sell")
@@ -29,20 +42,20 @@ def news(t):
     except Exception: pass
     s = sum(any(w in h.lower() for w in pos) - any(w in h.lower() for w in neg) for h, _ in items)
     return [{"h": h, "src": s_} for h, s_ in items], max(-1, min(1, s / 3))
-
+ 
 def fib_levels(c, lookback=126):
     seg = c.iloc[-lookback:]
     hi, lo = float(seg.max()), float(seg.min())
     rng = hi - lo or 1
     return {r: hi - rng * r for r in (0.236, 0.382, 0.5, 0.618, 0.786)}
-
+ 
 def graham(info):
     pe, pb = info.get("trailingPE"), info.get("priceToBook")
     de = info.get("debtToEquity")
     eg = (info.get("earningsGrowth") or 0) * 100
     if not pe or not pb or pe <= 0 or pb <= 0: return False
     return pe < 15 and pb < 1.5 and pe * pb < 22.5 and (de is None or de < 100) and eg > 0
-
+ 
 def magic_formula(info):
     ev, ebitda = info.get("enterpriseValue"), info.get("ebitda")
     roa = info.get("returnOnAssets")
@@ -50,7 +63,7 @@ def magic_formula(info):
     ey = ebitda / ev * 100           # earnings yield-proxy
     roc = roa * 100                  # return on capital-proxy
     return (ey > 8 and roc > 12), round(ey, 1), round(roc, 1)
-
+ 
 def analyse(t):
     d = yf.Ticker(t).history(period="1y", interval="1d")
     if len(d) < 200: return None
@@ -66,7 +79,7 @@ def analyse(t):
     r1, r3 = (px / float(c.iloc[-21]) - 1) * 100, (px / float(c.iloc[-63]) - 1) * 100
     volx = float(v.iloc[-1] / v.rolling(20).mean().iloc[-1])
     info = yf.Ticker(t).info
-
+ 
     # --- Tekniska larm ---
     alerts = []
     sma50_y, sma50_t = float(sma50.iloc[-2]), float(sma50.iloc[-1])
@@ -94,7 +107,7 @@ def analyse(t):
     return dict(t=t.replace(".ST", ""), name=info.get("shortName", t), px=round(px, 2), chg=round(chg, 2), score=score, rsi=round(rsi(c), 0),
                 r1m=round(r1, 1), r3m=round(r3, 1), volx=round(volx, 1), above200=bool(px > sma200.iloc[-1]), eg=round(eg, 0), rg=round(rg, 0),
                 pe=info.get("trailingPE"), news=nws, sent=sent, hit=bool(hit), dt=[bool(x) for x in dtc], alerts=alerts)
-
+ 
 def run(tickers):
     out = []
     for t in tickers:
@@ -103,8 +116,9 @@ def run(tickers):
         except Exception as e: print("skip", t, e)
     pri = [r for r in out if r["hit"]] or out
     return sorted(pri, key=lambda r: r["score"], reverse=True)[:25]
-
+ 
 if __name__ == "__main__":
     data = {"updated": dt.datetime.now().isoformat(timespec="minutes"), "OMXS": run(OMXS), "SP500": run(sp500())}
     json.dump(data, open("data.json", "w"), ensure_ascii=False)
     print("Klart:", {k: len(v) for k, v in data.items() if isinstance(v, list)})
+ 
