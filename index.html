@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="sv"><head><meta charset="utf-8"><title>MomentumMate</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f6fa;--card:#fff;--tx:#111827;--mu:#6b7280;--bd:#e5e7eb;--up:#059669;--dn:#dc2626;--ac:#4f46e5;--gd:#f59e0b}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0b0f17;--card:#151b27;--tx:#f3f4f6;--mu:#9ca3af;--bd:#252d3d;--up:#34d399;--dn:#f87171;--ac:#818cf8}}
+:root[data-theme=dark]{--bg:#0b0f17;--card:#151b27;--tx:#f3f4f6;--mu:#9ca3af;--bd:#252d3d;--up:#34d399;--dn:#f87171;--ac:#818cf8}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
+header{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:14px 14px 8px;z-index:5}
+h1{margin:0;font-size:20px}small,.mu{color:var(--mu);font-size:12px}
+.tabs{display:flex;gap:6px;margin-top:10px;background:var(--card);padding:4px;border-radius:12px;border:1px solid var(--bd)}
+.tabs button{flex:1;border:0;background:none;color:var(--mu);padding:9px;border-radius:9px;font-weight:600;font-size:14px}
+.tabs button.on{background:var(--ac);color:#fff}
+.chip{margin-top:8px;display:inline-block;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 12px;border-radius:99px;font-size:13px}
+.chip.on{border-color:var(--gd);color:var(--gd);font-weight:600}
+main{padding:4px 14px 40px;max-width:640px;margin:auto}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;margin-bottom:8px;overflow:hidden}
+.r{display:flex;align-items:center;gap:10px;padding:12px}
+.n{width:28px;height:28px;border-radius:8px;background:var(--bg);display:grid;place-items:center;font-weight:700;font-size:13px}
+.c:nth-child(-n+3) .n{background:var(--ac);color:#fff}
+.m{flex:1;min-width:0}.m b{font-size:16px}.m div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p{text-align:right}.up{color:var(--up)}.dn{color:var(--dn)}
+.bar{height:4px;background:var(--bd)}.bar i{display:block;height:100%;background:var(--ac)}
+.tag{background:var(--gd);color:#000;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;margin-left:6px}
+.d{display:none;padding:0 12px 12px;border-top:1px solid var(--bd)}.c.o .d{display:block}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.g div{background:var(--bg);border-radius:8px;padding:6px 8px}.g b{display:block;font-size:14px}
+h4{margin:10px 0 4px;font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.5px}
+.k{font-size:13px;padding:2px 0}.news{font-size:13px;padding:3px 0}
+.demo{background:#fef3c7;color:#78350f;padding:8px 12px;border-radius:10px;font-size:12px;margin:4px 0 10px}
+footer{padding:0 14px 30px;text-align:center}
+
+:root{color-scheme:dark;--bg:#080b1a;--card:#121734;--tx:#f5f7ff;--mu:#8a93b8;--bd:#1f2648;--up:#34d399;--dn:#f87171;--ac:#4d8dff;--gd:#fbbf24}
+body{background:radial-gradient(120% 60% at 80% -10%,#1b2a6b 0,transparent 60%),var(--bg);background-attachment:fixed}
+header{position:static;background:none;padding:14px 18px 0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.hb{font-size:24px}
+.av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4d8dff,#9ec1ff);display:grid;place-items:center;font-weight:700;color:#08102a;font-size:13px}
+h1{font-size:38px;letter-spacing:-1px;margin:2px 0}
+.pill{font-size:12px;background:#1c2a5c;padding:3px 9px;border-radius:99px;margin-left:10px;vertical-align:middle;letter-spacing:0;font-weight:600}
+.hero{background:linear-gradient(180deg,#121a3d,#0d1230);border-radius:18px;margin-top:10px;padding:8px 10px 6px}
+.hero svg{width:100%;height:58px;display:block;filter:drop-shadow(0 0 8px #4d8dff)}.ax{display:flex;justify-content:space-between;padding:4px 6px 0}
+main{padding:14px 14px 100px}.c{border:0;border-radius:20px}
+.sm{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:20px;padding:16px;margin-bottom:14px}
+.ring{--p:0;width:92px;height:92px;border-radius:50%;background:conic-gradient(#4d8dff calc(var(--p)*1%),#1f2648 0);display:grid;place-items:center;box-shadow:0 0 22px #4d8dff55;position:relative;flex:none}
+.ring:after{content:"";position:absolute;inset:9px;border-radius:50%;background:var(--card)}.ring b{position:relative;z-index:1;font-size:22px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#0d1230ee;backdrop-filter:blur(12px);border-top:1px solid var(--bd);padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));z-index:9}
+nav button{flex:1;background:none;border:0;color:var(--mu);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button i{font-style:normal;font-size:20px}nav button.on{color:var(--ac)}nav #f.on{color:var(--gd)}
+.sp{width:64px;height:26px;flex:none}.bar i{background:linear-gradient(90deg,#4d8dff,#9ec1ff)}
+
+:root{--bg:#000;--card:#0f0d09;--tx:#f8f3e8;--mu:#a3977f;--bd:#2b2314;--ac:#e8b64a;--gd:#ffd166;--up:#7ddc9b;--dn:#f0846f}
+body{background:radial-gradient(110% 50% at 85% -8%,#3a2a0a 0,transparent 62%),#000;background-attachment:fixed}
+.hb svg{display:block}
+.av{background:linear-gradient(135deg,#b8862b,#ffd98a);color:#1a1200}
+.pill{background:#2a2010;color:var(--gd)}
+.hero{background:linear-gradient(180deg,#1a1408,#0a0805);border:1px solid var(--bd)}
+.hero svg{filter:drop-shadow(0 0 9px #e8b64a99)}
+.c,.sm{border:1px solid var(--bd)}
+.ring{background:conic-gradient(from 0deg,#8a5a12,#ffd166 calc(var(--p)*1%),#2b2314 0);box-shadow:0 0 24px #e8b64a44}
+.c:nth-child(-n+3) .n{background:linear-gradient(135deg,#b8862b,#ffd166);color:#1a1200}
+.n{color:var(--gd)}
+.bar i{background:linear-gradient(90deg,#8a5a12,#ffd166)}
+.tag{background:linear-gradient(135deg,#d4a537,#ffd166);color:#1a1200}
+h4{color:var(--ac)}.g div{background:#17130b}
+nav{background:#000000ee;border-top:1px solid var(--bd)}nav button.on,nav #f.on{color:var(--gd)}
+nav button.on i svg{filter:drop-shadow(0 0 5px #e8b64a)}
+.demo{background:#2a2010;color:var(--gd)}
+
+.brand{font-weight:600;letter-spacing:.3px}.brand b,#sp h2 b{color:var(--gd)}
+#sp{position:fixed;inset:0;z-index:50;background:radial-gradient(90% 45% at 75% 10%,#3a2a0a 0,transparent 65%),#000;display:flex;flex-direction:column;overflow:hidden;transition:opacity .5s,transform .5s;padding-top:env(safe-area-inset-top,0px)}
+#sp.gone{opacity:0;transform:scale(1.04)}
+#sp svg{width:100%;flex:1;min-height:0;filter:drop-shadow(0 0 16px #e8b64a66)}
+#sp .face{animation:bob 4s ease-in-out infinite}@keyframes bob{50%{transform:translateY(6px)}}
+#sp .eye{transform-box:fill-box;transform-origin:center;animation:bl 5s infinite}@keyframes bl{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+#sp .txt{padding:0 28px calc(34px + env(safe-area-inset-bottom,0px))}
+#sp h2{font-size:34px;line-height:1.1;margin:0 0 10px;letter-spacing:-.5px}
+#sp p{color:var(--mu);margin:0 0 22px;max-width:320px}
+#go{border:0;border-radius:14px;padding:14px 26px;font-weight:700;font-size:16px;color:#1a1200;background:linear-gradient(135deg,#d4a537,#ffd166);box-shadow:0 0 22px #e8b64a55}
+
+#sp .txt{padding:0 24px calc(26px + env(safe-area-inset-bottom,0px));text-align:left}
+#sp h2{font-size:20px;margin:0 0 4px}
+#sp p{font-size:12.5px;margin:0 0 14px;max-width:230px;line-height:1.35}
+#go{padding:10px 22px;border-radius:12px;display:inline-flex}
+
+#sp h2{margin:0 0 14px}
+#go{width:170px;height:60px;padding:0;border-radius:18px;justify-content:center;align-items:center}
+
+#sp .face,#sp .ring2{transform-box:fill-box;transform-origin:center}
+#sp .face{animation:bob 3.6s ease-in-out infinite}
+#sp .ring2{animation:fl 5s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(12px) rotate(-4deg)}}
+@keyframes fl{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-12px) rotate(6deg)}}
+
+#sp h2{font-size:27px;margin:0 0 14px}
+#go{width:128px;height:52px;border-radius:16px;background:linear-gradient(135deg,#7a4d0e 0%,#e8b64a 55%,#ffe7a8 100%);box-shadow:0 0 22px #e8b64a55}
+#go svg{width:54px;height:34px}
+#sp .eye{animation:eyes 4s ease-in-out infinite}
+@keyframes eyes{0%,38%,100%{transform:translateX(0) scaleY(1)}46%{transform:translateX(5px) scaleY(1)}60%{transform:translateX(-5px) scaleY(1)}72%{transform:translateX(0) scaleY(1)}86%{transform:translateX(0) scaleY(1)}89%{transform:translateX(0) scaleY(.1)}92%{transform:translateX(0) scaleY(1)}}
+
+#sp .face{animation:bob2 2s ease-in-out infinite}
+#sp .eye{animation:bl2 2.4s infinite}
+#sp .ring2{animation:fl2 2.6s ease-in-out infinite}
+@keyframes bob2{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+@keyframes bl2{0%,86%,100%{transform:scaleY(1)}93%{transform:scaleY(.1)}}
+@keyframes fl2{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+#sp .face,#sp .eye,#sp .ring2{animation:none!important}
+
+#go{width:106px;height:44px;border-radius:14px}
+#go svg{width:44px;height:28px}
+
+#go{justify-content:flex-end;padding:0 14px 0 0}
+#sp #go svg{flex:none;width:46px;height:29px;filter:none}
+
+[data-i]{cursor:pointer}#big::after,.hero::after,.sm::after{content:"ⓘ";color:var(--ac);font-size:14px;font-weight:400;vertical-align:super;margin-left:6px}
+.hero,.sm{position:relative}.hero::after,.sm::after{position:absolute;top:10px;right:14px;margin:0;font-size:16px;vertical-align:baseline}
+#sh{position:fixed;inset:0;z-index:40;visibility:hidden;transition:visibility .3s}#sh.on{visibility:visible}
+#sh .bk{position:absolute;inset:0;background:#000b;opacity:0;transition:opacity .25s}#sh.on .bk{opacity:1}
+#sh .pn{position:absolute;left:0;right:0;bottom:0;max-width:640px;margin:auto;background:#14110b;border:1px solid var(--bd);border-bottom:0;border-radius:24px 24px 0 0;padding:10px 22px calc(28px + env(safe-area-inset-bottom,0px));transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);box-shadow:0 -10px 40px #e8b64a22;touch-action:pan-x}
+#sh.on .pn{transform:none}
+#sh .gr{width:44px;height:5px;border-radius:9px;background:#3a3226;margin:0 auto 16px}
+#sh h3{margin:0 0 8px;color:var(--gd);font-size:19px}#sh p{margin:0 0 10px;font-size:14.5px;line-height:1.5}
+
+.al{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.ab{font-size:10.5px;padding:2px 7px;border-radius:7px;background:#1b1710;border:1px solid var(--bd);color:var(--mu);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.ab.graham,.ab.magic{color:var(--gd);border-color:#5a4418}
+h4[data-i]{cursor:pointer}
+</style></head><body>
+<section id="sp"><svg viewBox="0 0 360 470" preserveAspectRatio="xMidYMin meet">
+<defs><linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a4d0e"/><stop offset=".55" stop-color="#e8b64a"/><stop offset="1" stop-color="#ffe7a8"/></linearGradient></defs>
+<g transform="translate(-4,-8) translate(245 130) scale(1.18) rotate(18) translate(-245 -130)"><g class="face"><animateTransform attributeName="transform" type="translate" values="0 0;0 8;0 0" keyTimes="0;.5;1" dur="2s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/>
+<path d="M131.7 77.2A125 125 0 0 1 358.3 77.2" fill="none" stroke="#e8b64a" stroke-opacity=".16" stroke-width="44" stroke-linecap="round"/>
+<path d="M358.3 182.8A125 125 0 0 1 131.7 182.8" fill="none" stroke="url(#sg)" stroke-width="44" stroke-linecap="round"/>
+<rect class="eye" x="189" y="72" width="22" height="46" rx="11" fill="#ffd166"><animate attributeName="height" values="46;46;5;46" keyTimes="0;.86;.93;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="y" values="72;72;92.5;72" keyTimes="0;.86;.93;1" dur="2.4s" repeatCount="indefinite"/></rect><rect class="eye" x="264" y="72" width="22" height="46" rx="11" fill="#ffd166"><animate attributeName="height" values="46;46;5;46" keyTimes="0;.86;.93;1" dur="2.4s" repeatCount="indefinite"/><animate attributeName="y" values="72;72;92.5;72" keyTimes="0;.86;.93;1" dur="2.4s" repeatCount="indefinite"/></rect></g></g>
+<g transform="translate(-20 36) translate(50 400) scale(1.18) translate(-50 -400)"><path class="ring2" d="M102.5 309.1A105 105 0 1 1 -48.7 364.1" fill="none" stroke="url(#sg)" stroke-opacity=".9" stroke-width="44" stroke-linecap="round"><animateTransform attributeName="transform" type="translate" values="0 0;0 -8;0 0" keyTimes="0;.5;1" dur="2.6s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .55 1;.45 0 .55 1"/></path></g></svg>
+<div class="txt"><h2>Momentum<b>Mate</b></h2><button id="go" aria-label="Logga in"><svg width="54" height="34" viewBox="0 0 54 34" fill="none" stroke="url(#ag)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="ag" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a2c05"/><stop offset="1" stop-color="#1a1200"/></linearGradient></defs><path d="M6 17h40M32 5l14 12-14 12"/></svg></button></div></section>
+<header><div class="top" style="align-items:center"><span class="hb"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#e8b64a" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h16"/></svg></span><span class="brand">Momentum<b>Mate</b></span><span class="av">MM</span></div>
+<div class="mu" id="gr"></div><h1 id="big" data-i="score"></h1><small id="up"></small>
+<div class="hero" data-i="graf"><svg id="cv" viewBox="0 0 300 100" preserveAspectRatio="none"></svg><div class="mu ax"><span>Rank 25</span><span>Rank 1</span></div></div></header>
+<nav><button data-m="OMXS" class="on"><i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></i>OMXS</button><button data-m="SP500"><i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></i>S&amp;P 500</button><button id="f"><i><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></i>Daghandel</button></nav>
+<main><div id="demo" class="demo" hidden>Demodata – slumpade siffror för att visa designen. Kör scanner.py och lägg <code>data.json</code> på DATA_URL för riktig data.</div><div id="sum"></div><div id="l"></div></main>
+<footer><small>Ej finansiell rådgivning. Horisont 1–3 månader. Daghandelsfilter kräver alla 5 kriterier.</small></footer>
+<div id="sh"><div class="bk"></div><div class="pn"><div class="gr"></div><h3 id="sht"></h3><div id="shb"></div></div></div>
+<script>
+let H={};
+const DATA_URL="data.json";
+const CR=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
+let D=null,mk="OMXS",only=false;
+function demo(){let s=7;const R=()=>(s=(s*16807)%2147483647)/2147483647;
+const ALERT_POOL=[{k:"sma50",t:"Bröt upp genom SMA50"},{k:"rsi",t:"RSI översåld (28)"},{k:"rsi",t:"RSI överköpt (74)"},{k:"fib",t:"Pris vid Fibonacci 61.8%"},{k:"graham",t:"Graham Screener-kandidat"},{k:"magic",t:"Magic Formula-kandidat"}];
+const L={OMXS:["Evolution","Sinch","Volvo B","Ericsson B","H&M B","ABB","Atlas Copco A","SEB A","Investor B","Sandvik","Assa Abloy B","NIBE B","Hexagon B","Alfa Laval","Essity B","Boliden","Skanska B","Telia","Swedbank A","Handelsbanken A","Saab B","Getinge B","Epiroc A","Kinnevik B","Lifco B"],
+SP500:["NVDA","PLTR","SMCI","META","AVGO","TSLA","NFLX","AMD","CRWD","UBER","ANET","LLY","GE","ORCL","PANW","NOW","AMZN","MSFT","COST","V","JPM","DELL","APP","VST","AXON"]};
+const o={updated:new Date().toISOString().slice(0,16).replace("T"," ")};
+for(const m in L)o[m]=L[m].map((n,i)=>{const sc=96-i*2.6-R()*2;return{t:m=="OMXS"?n.slice(0,4).toUpperCase():n,name:n,px:+(50+R()*400).toFixed(2),chg:+(R()*8-1).toFixed(2),score:+sc.toFixed(1),rsi:Math.round(55+R()*25),r1m:+(R()*30).toFixed(1),r3m:+(R()*60).toFixed(1),volx:+(1+R()*2.5).toFixed(1),above200:R()>.1,eg:Math.round(R()*50),rg:Math.round(R()*30),pe:+(12+R()*40).toFixed(1),sent:R()>.3?1:0,news:[{h:"Analytiker höjer riktkursen efter stark rapport",src:"Benzinga"},{h:"Ökad orderingång signalerar fortsatt tillväxt",src:"Reuters"}],dt:[0,0,0,0,0].map(()=>R()>.3),alerts:ALERT_POOL.filter(()=>R()>.68)}});
+return o}
+async function load(){try{const r=await fetch(DATA_URL);if(!r.ok)throw 0;D=await r.json()}catch(e){D=demo();document.getElementById("demo").hidden=false}render()}
+const ok=a=>a.dt.every(Boolean);
+const $=i=>document.getElementById(i);
+const sp=x=>{const v=[0,.3*x.r3m,.22*x.r3m,x.r3m-x.r1m,x.r3m-.4*x.r1m,x.r3m],m=Math.max(...v)||1;return`<svg class="sp" viewBox="0 0 64 26"><polyline points="${v.map((y,i)=>i*12.8+","+(24-y/m*22)).join(" ")}" fill="none" stroke="#e8b64a" stroke-width="2" stroke-linecap="round"/></svg>`};
+function hero(){const a=D[mk],n=a.length,av=a.reduce((t,x)=>t+x.score,0)/n,cg=a.reduce((t,x)=>t+x.chg,0)/n,tr=Math.round(a.filter(x=>x.above200).length/n*100),dc=a.filter(ok).length;
+H={av,cg,tr,dc,n,ab:a.filter(x=>x.above200).length};$("gr").textContent="Hej! Snittpoäng topp 25 · "+(mk=="OMXS"?"OMXS":"S&P 500");
+$("big").innerHTML=av.toFixed(1)+`<span class="pill ${cg>=0?"up":"dn"}">${cg>=0?"+":""}${cg.toFixed(2)}% idag</span>`;
+const r=[...a].reverse(),mn=Math.min(...r.map(x=>x.score))-2,mx=Math.max(...r.map(x=>x.score))+2;
+const P=r.map((x,i)=>[i/(n-1)*290+5,46-(x.score-mn)/(mx-mn)*38]);let d="M"+P[0];
+for(let i=1;i<n;i++){const m=(P[i-1][0]+P[i][0])/2;d+=`C${m},${P[i-1][1]} ${m},${P[i][1]} ${P[i]}`}
+$("cv").innerHTML=`<defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#8a5a12"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs><path d="${d}" fill="none" stroke="url(#gg)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${P[n-1][0]}" cy="${P[n-1][1]}" r="5" fill="#ffe7a8"/>`;
+$("sum").innerHTML=`<div class="sm" data-i="trend"><div class="ring" style="--p:${tr}"><b>${tr}%</b></div><div><b>Trendstyrka</b><div class="mu">Andel över SMA200</div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${dc}</span> <span class="mu">daghandelskandidater</span></div></div></div>`}
+function ic(k){return {sma50:"📈 ",rsi:"⚡ ",fib:"📐 ",graham:"🛡️ ",magic:"✨ "}[k]||"• "}
+function shortA(a){return {sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.includes("över")?"RSI hög":"RSI låg",fib:"Fibonacci",graham:"Graham",magic:"Magic Formula"}[a.k]||a.t}
+function render(){hero();document.getElementById("up").textContent="Uppdaterad "+D.updated+" · rankad efter momentum";
+let a=D[mk];if(only)a=a.filter(ok);
+document.getElementById("l").innerHTML=a.map((x,i)=>{const cur=mk=="OMXS"?" kr":" $";
+return`<div class="c" onclick="this.classList.toggle('o')"><div class="r"><div class="n">${D[mk].indexOf(x)+1}</div>
+<div class="m"><div><b>${x.t}</b>${ok(x)?'<span class="tag">DAGHANDEL</span>':""}</div><div class="mu">${x.name} · RSI ${x.rsi} · vol ${x.volx}×</div>${x.alerts&&x.alerts.length?'<div class="al">'+x.alerts.slice(0,2).map(a=>'<span class="ab '+a.k+'">'+ic(a.k)+shortA(a)+'</span>').join("")+(x.alerts.length>2?'<span class="ab mu">+'+(x.alerts.length-2)+'</span>':'')+'</div>':''}</div>
+${sp(x)}<div class="p"><b>${x.px}${cur}</b><div class="${x.chg>=0?"up":"dn"}">${x.chg>=0?"+":""}${x.chg}%</div></div></div>
+<div class="bar"><i style="width:${x.score}%"></i></div>
+<div class="d"><div class="g"><div><small>Momentumpoäng</small><b>${x.score}</b></div><div><small>1 mån</small><b class="up">+${x.r1m}%</b></div><div><small>3 mån</small><b class="up">+${x.r3m}%</b></div>
+<div><small>Vinst-tillv.</small><b>${x.eg}%</b></div><div><small>Omsätt.-tillv.</small><b>${x.rg}%</b></div><div><small>P/E</small><b>${x.pe??"–"}</b></div></div>
+<h4>Teknik</h4><div class="k">${x.above200?"✅":"❌"} Över SMA200 · RSI ${x.rsi} · volym ${x.volx}× snitt</div>
+<h4>Daghandelsfilter (${x.dt.filter(Boolean).length}/5)</h4>${CR.map((c,j)=>`<div class="k">${x.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}
+<h4 data-i="signaler">Signaler ⓘ</h4>${x.alerts&&x.alerts.length?x.alerts.map(a=>'<div class="k">'+ic(a.k)+' '+a.t+'</div>').join(""):'<div class="mu">Inga aktiva signaler</div>'}
+<h4>Nyheter</h4>${x.news.map(n=>`<div class="news">• ${n.h} <span class="mu">– ${n.src}</span></div>`).join("")||'<div class="mu">Inga nyheter</div>'}</div></div>`}).join("")||'<p class="mu" style="text-align:center;margin-top:30px">Inga daghandelskandidater just nu.</p>'}
+document.querySelectorAll("nav button[data-m]").forEach(b=>b.onclick=()=>{mk=b.dataset.m;document.querySelectorAll("nav button[data-m]").forEach(x=>x.classList.toggle("on",x==b));render()});
+document.getElementById("f").onclick=e=>{only=!only;e.currentTarget.classList.toggle("on",only);render()};
+const F=" <p class='mu'>Modell – inte en prognos eller finansiell rådgivning.</p>";
+const INFO={
+score:()=>["Snittpoäng","<p>Medelvärdet av momentumpoängen (0–100) för de "+H.n+" aktierna på listan. Nu: <b>"+H.av.toFixed(1)+"</b>.</p><p>Poängen väger <b>teknik 60 %</b> (avkastning 1 och 3 mån, SMA50/200, MACD, volym), <b>fundamentals 25 %</b> (vinst- och omsättningstillväxt, marginal) och <b>nyheter 15 %</b>.</p><p>Högt tal = starkt momentum brett i toppen. Lågt tal = även de bästa aktierna är svaga.</p><p>Pillen visar medelrörelsen sedan gårdagens stängning: <b>"+(H.cg>=0?"+":"")+H.cg.toFixed(2)+" %</b>.</p>"+F],
+graf:()=>["Poängkurvan","<p>Grafen är <b>inte en kurs över tid</b>. Varje punkt är en aktie i rankingen, från plats 25 längst till vänster till <b>plats 1 längst till höger</b> (den vita punkten).</p><p><b>Brant mot slutet:</b> få aktier sticker ut. <b>Jämn kurva:</b> momentumet är brett och många ligger nära toppen.</p>"],
+trend:()=>["Trendstyrka","<p>Andelen av aktierna på listan som ligger över sitt <b>200-dagars glidande medelvärde (SMA200)</b>: <b>"+H.tr+" %</b> ("+H.ab+" av "+H.n+").</p><p><b>Över 80 %:</b> uppgången vilar på en stabil långsiktig trend. <b>Under 50 %:</b> många rusar kortsiktigt men ligger under sin långa trend – en studs snarare än en etablerad uppgång, högre risk.</p>"+F],
+signaler:()=>["Signaler","<p>Appen bevakar varje aktie löpande och flaggar automatiskt när något av följande inträffar:</p><p>📈 <b>SMA50-brott:</b> priset korsar det 50-dagars glidande medelvärdet upp eller ner – tidigt tecken på trendskifte.</p><p>⚡ <b>RSI översåld/överköpt:</b> RSI under 30 (möjlig studs uppåt) eller över 70 (möjlig rekyl nedåt).</p><p>📐 <b>Fibonacci-nivå:</b> priset ligger nära en Fibonacci-retracement (23,6/38,2/50/61,8/78,6 %) av den senaste rörelsen – vanliga stöd-/motståndsnivåer.</p><p>🛡️ <b>Graham Screener:</b> uppfyller Benjamin Grahams klassiska värdekriterier (lågt P/E, lågt P/B, P/E×P/B under 22,5, rimlig skuldsättning, positiv vinsttillväxt).</p><p>✨ <b>Magic Formula:</b> Joel Greenblatts modell – hög avkastning på kapital kombinerat med hög \"earnings yield\" (vinst i förhållande till börsvärde).</p>"+F],
+dag:()=>["Daghandelskandidater","<p><b>"+H.dc+" av "+H.n+"</b> aktier klarar alla fem kriterier:</p><p>1. Pris över gårdagens high<br>2. Gårdagens stängning över SMA200<br>3. Pris över dagens pre-market high<br>4. Pris över dagens öppning<br>5. Pre-market volym ≥ 50K</p><p>Tryck på <b>Daghandel</b> i menyn för att bara se dem.</p>"+F]};
+const SH=$("sh"),PN=SH.querySelector(".pn");let y0=null,dy=0;
+function openI(k){const r=INFO[k]();$("sht").textContent=r[0];$("shb").innerHTML=r[1];SH.classList.add("on")}
+function closeI(){PN.style.transform="";SH.classList.remove("on")}
+document.addEventListener("click",e=>{if(e.target.closest("#sh .pn"))return;if(e.target.classList.contains("bk"))return closeI();const t=e.target.closest("[data-i]");if(t&&INFO[t.dataset.i])openI(t.dataset.i)});
+document.addEventListener("keydown",e=>{if(e.key=="Escape")closeI()});
+PN.addEventListener("touchstart",e=>{y0=e.touches[0].clientY;dy=0;PN.style.transition="none"});
+PN.addEventListener("touchmove",e=>{dy=Math.max(0,e.touches[0].clientY-y0);PN.style.transform="translateY("+dy+"px)"});
+PN.addEventListener("touchend",()=>{PN.style.transition="";dy>80?closeI():PN.style.transform=""});
+$("go").onclick=()=>{$("sp").classList.add("gone");setTimeout(()=>$("sp").style.display="none",500)};
+load();
+</script></body></html>
