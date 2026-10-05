@@ -1,0 +1,8 @@
+# Egna tickers som ska tas med i skanningen (en per rad, Yahoo Finance-symboler).
+# Behövs för aktier du vill ha i portföljen eller i sökningen men som inte ingår i
+# OMXS, S&P 500, Nasdaq-100 eller Dow Jones. Rader som börjar med # ignoreras.
+#
+# Exempel (ta bort # för att aktivera):
+# NOKIA.HE
+# SAP.DE
+# NOVO-B.CO
