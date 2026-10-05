@@ -1,0 +1,40 @@
+name: Daytrade live
+
+# Snabb uppdatering av daghandelslistan och diagrammen var 5:e minut under börstid (mån–fre).
+# GitHub skjuter ibland upp schemalagda körningar några minuter – det är ingen realtidsdata.
+on:
+  schedule:
+    - cron: "*/5 12-21 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daytrade
+  cancel-in-progress: true
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Hämta live-data
+        run: |
+          if [ -f data.json ]; then python scanner.py --daytrade; else echo "data.json saknas – kör dagsskanningen först"; exit 0; fi
+      - name: Publicera på grenen live (en enda commit, ingen historik)
+        run: |
+          [ -f daytrade.json ] || exit 0
+          mkdir /tmp/live && cp daytrade.json /tmp/live/ && cd /tmp/live
+          git init -q -b live
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add daytrade.json
+          git commit -qm "live $(date -u +%H:%M)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin live

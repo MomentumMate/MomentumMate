@@ -1,0 +1,40 @@
+name: Slå upp aktie
+
+# Startas från appen (eller manuellt via "Run workflow"). Hämtar aktiedata och börs från Yahoo Finance och sparar lookup.json.
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: "Aktienamn eller Yahoo-ticker, t.ex. Nokia eller NOKIA.HE"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lookup
+  cancel-in-progress: false
+
+jobs:
+  lookup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: python scanner.py --lookup "$QUERY"
+        env:
+          QUERY: ${{ github.event.inputs.query }}
+      - name: Spara lookup.json
+        run: |
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add lookup.json
+          git diff --quiet --cached || git commit -m "Uppslag: $QUERY"
+          git pull --rebase
+          git push
+        env:
+          QUERY: ${{ github.event.inputs.query }}
