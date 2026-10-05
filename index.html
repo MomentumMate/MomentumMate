@@ -274,10 +274,15 @@ function feed(scope){
   const src=[],add=(set,tag)=>set.forEach(t=>(D.news[t]||[]).forEach(n=>src.push(Object.assign({},n,{t,tag}))));
   if(scope==="mom"||scope==="all"||scope==="home")add(mom,"mom");
   if(scope==="port"||scope==="all"||scope==="home")add(port,"port");
-  if(scope==="mkt"||scope==="all")(D.feed||[]).forEach(n=>src.push(Object.assign({},n,{tag:"mkt"})));
+  if(scope==="mkt"||scope==="all"||(scope==="home"&&src.length<8))(D.feed||[]).forEach(n=>src.push(Object.assign({},n,{tag:"mkt"})));
   const seen=new Set(),out=[];
   src.sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(n=>{const k=n.u||n.h;if(seen.has(k))return;seen.add(k);out.push(n)});
   return out
+}
+function newsDiag(){
+  if(DEMO)return"Inga nyheter ännu.";const st=D.stats;
+  if(!st)return"Inga nyheter i datan ännu. Kör “Daily momentum scan” med den senaste scanner.py så hämtas nyheter.";
+  return`Inga nyheter hämtades vid senaste körningen: ${st.news_tickers||0} av ${st.ok} aktier fick nyheter (Yahoo ${st.news_yahoo||0}, reserv ${st.news_fallback||0}) och ${st.feed_items||0} marknadsartiklar.${st.news_last_err?" Senaste fel: "+st.news_last_err+".":""} Se raden som börjar med “Nyheter:” i loggen (Actions → Run python scanner.py).`
 }
 const tchip=n=>n.t&&S[n.t]?`<span class="nt" data-go="#/stock/${encodeURIComponent(n.t)}">${esc(S[n.t].d)}</span>`:"";
 const nitem=n=>`<a class="nw" ${n.u?`href="${esc(n.u)}" target="_blank" rel="noopener"`:""}><div class="nh">${esc(n.h)}</div>${n.s?`<div class="ns">${esc(n.s)}</div>`:""}<div class="nm">${tchip(n)}${esc(n.src||"")}${n.ts?" · "+ago(n.ts):""}</div></a>`;
@@ -342,7 +347,7 @@ addEventListener("hashchange",()=>route());
 /* ---------- HEM ---------- */
 function vHome(){
   const T=allTotals(),ms=D.markets.filter(m=>!m.hidden),top=(D.rank.ALL?D.rank.ALL.mom:[]).slice(0,3).map(t=>S[t]).filter(Boolean);
-  const dtc=(D.rank.DT?D.rank.DT.cand:[]).map(t=>S[t]).filter(Boolean),pk=dayPick(),ps=pk&&S[pk],pdx=pk&&D.dtx&&D.dtx[pk];
+  const dth=usHint(),dtn=(D.rank.DT?D.rank.DT.near:[]).map(t=>S[t]).filter(Boolean),dtc=(D.rank.DT?D.rank.DT.cand:[]).map(t=>S[t]).filter(Boolean),pk=dayPick(),ps=pk&&S[pk],pdx=pk&&D.dtx&&D.dtx[pk];
   const items=feed("home").slice(0,16),upd=D.updated?new Date(D.updated).toLocaleString("sv-SE",{dateStyle:"short",timeStyle:"short"}):"";
   let rotN=0,badN=0;P.ps.forEach(p=>{const cc=calc(p);rotN+=rotation(cc.rows).length;badN+=cc.rows.filter(r=>r.hl).length});
   const sigN=T.sg.SELL+T.sg.TRIM,buyN=T.sg.BUY,watchN=T.sg.WATCH;
@@ -358,9 +363,10 @@ function vHome(){
    ${top.length?`<div style="margin-top:10px"><small>Dagens starkaste momentum</small>${top.map(s=>`<div class="sr" data-go="#/stock/${enc(s.t)}"><div class="m"><div><b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`:""}</div>
   <div class="mod" data-go="#/daytrade"><div class="mh"><div class="ico">⚡</div><h2>DAGHANDEL</h2><span class="go">›</span></div>
    ${ps?`<div class="stat ${pdx?pdx.st.k:"WAIT"}" style="margin-top:0"><b>★ DIN AKTIE IDAG: ${esc(ps.d)}</b>${pdx?esc(pdx.st.t):ps.px+" "+ps.cur+" "+sg(ps.chg)}</div>`:""}
-   ${dtc.length?`<div class="mu">${dtc.length} kandidater klarar alla 5 kriterier${D.liveAt?" · live "+hhmm(D.liveAt):""}</div>${dtc.slice(0,3).map((s,i)=>`<div class="sr" data-go="#/daytrade/${enc(s.t)}"><div class="n">${i+1}</div><div class="m"><div><b>${esc(s.d)}</b><span class="tag">DAGHANDEL</span></div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div><div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>`).join("")}`:'<div class="mu">Inga aktier klarar alla fem kriterier just nu.</div>'}</div>
+   ${dtc.length?`<div class="mu">${dtc.length} kandidater klarar alla 5 kriterier${D.liveAt?" · live "+hhmm(D.liveAt):""}</div>${dtc.slice(0,3).map((s,i)=>`<div class="sr" data-go="#/daytrade/${enc(s.t)}"><div class="n">${i+1}</div><div class="m"><div><b>${esc(s.d)}</b><span class="tag">DAGHANDEL</span></div><div class="mu">${esc(s.n)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div><div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>`).join("")}`
+   :`<div class="mu">0 aktier klarar alla 5 kriterier just nu.</div>${dth.t?`<div class="mu" style="margin-top:6px">${esc(dth.t)}</div>`:""}${dtn.length?`<div style="margin-top:8px"><small>Närmast (klarar övriga kriterier)</small>${dtn.slice(0,3).map(s=>`<div class="sr" data-go="#/daytrade/${enc(s.t)}"><div class="m"><div><b>${esc(s.d)}</b><span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/${s.dte}</span></div><div class="mu">${esc(s.n)}</div></div><div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>`).join("")}</div>`:""}`}</div>
   <div class="mod" data-go="#/news"><div class="mh"><div class="ico">▤</div><h2>NYHETER</h2><span class="go">›</span></div>
-   ${items.length?`<div class="tk"><div class="in" id="tkin">${[0,1].map(()=>items.map(n=>`<div class="tl">${tchip(n)}${esc(n.h)}</div>`).join("")).join("")}</div></div>`:'<div class="mu">Inga nyheter ännu.</div>'}</div>
+   ${items.length?`<div class="tk"><div class="in" id="tkin">${[0,1].map(()=>items.map(n=>`<div class="tl">${tchip(n)}${esc(n.h)}</div>`).join("")).join("")}</div></div>`:'<div class="mu">'+newsDiag()+'</div>'}</div>
   <div class="mod"><div class="mh"><div class="ico">⌕</div><h2>SÖK</h2></div>
    <div class="srch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="hq" placeholder="Sök aktie eller ticker…" autocomplete="off" autocapitalize="off" enterkeyhint="search"></div><div id="hres"></div></div>`)
 }
@@ -436,7 +442,7 @@ function vMarket(k){
 /* ---------- NYHETER / SÖK / AKTIE ---------- */
 function vNews(){
   const sc=Ui.news,items=feed(sc).slice(0,80),lab={all:"Alla",mom:"Momentum",port:"Min portfölj",mkt:"Marknaden"};
-  view(`${topbar("Nyheter",false)}<div class="chips scrollx">${Object.keys(lab).map(k=>`<span class="chip${k===sc?" on":""}" data-act="news" data-v="${k}">${lab[k]}</span>`).join("")}</div><div style="margin-top:10px">${items.length?items.map(nitem).join(""):`<div class="empty">${sc==="port"?"Inga nyheter för dina innehav ännu.":"Inga nyheter ännu."}</div>`}</div><div class="mu" style="text-align:center;padding:8px">Klicka på en nyhet för att läsa den hos källan.</div>`)
+  view(`${topbar("Nyheter",false)}<div class="chips scrollx">${Object.keys(lab).map(k=>`<span class="chip${k===sc?" on":""}" data-act="news" data-v="${k}">${lab[k]}</span>`).join("")}</div><div style="margin-top:10px">${items.length?items.map(nitem).join(""):`<div class="empty">${sc==="port"?"Inga nyheter för dina innehav ännu.":newsDiag()}</div>`}</div><div class="mu" style="text-align:center;padding:8px">Klicka på en nyhet för att läsa den hos källan.</div>`)
 }
 function vSearch(q){
   view(`${topbar("Sök",false)}<div class="srch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="sq" value="${esc(q)}" placeholder="Sök aktie eller ticker…" autocomplete="off" autocapitalize="off" enterkeyhint="search"></div><div id="sres" style="margin-top:8px">${q?resHtml(q,30):'<div class="mu" style="padding:12px 2px">Skriv ett namn eller en ticker, t.ex. “Volvo” eller “NVDA”. Tryck + för att lägga till aktien i en portfölj.</div>'}</div>`);
@@ -559,6 +565,8 @@ function act(a,d){
     case"addx":addExchangeSheet();break;
     case"introtoggle":{const off=!introOff();try{localStorage.setItem("mm_intro_off",off?"1":"0")}catch(e){}toast(off?"Introt är av":"Introt är på");settingsSheet();break}
     case"introplay":introReplay();break;
+    case"dtm":Ui.dtm=d.k;route(true);break;
+    case"dtl":Ui.dtl=+d.v;route(true);break;
     case"lvstart":unlockAudio();liveStart(curT(),"ws");break;
     case"lvsim":unlockAudio();liveStart(curT(),"sim");break;
     case"lvstop":{const t=curT();liveStop();toast("Realtid stoppad");route(true);break}
@@ -597,22 +605,40 @@ const DP="mm_daypick";
 function dayPick(){try{const j=JSON.parse(localStorage.getItem(DP));return j&&j.d===todayISO()?j.t:null}catch(e){return null}}
 function setPick(t){try{t?localStorage.setItem(DP,JSON.stringify({t,d:todayISO()})):localStorage.removeItem(DP)}catch(e){}}
 function intraCloses(t){const x=D.dtx&&D.dtx[t];if(!x||!x.bars||x.bars.length<3)return null;const c=x.bars.map(b=>b[4]),k=Math.ceil(c.length/45);return c.filter((v,i)=>i%k===0||i===c.length-1)}
+Ui.dtm="ALL";Ui.dtl=5;
+const mktMembers=k=>{const m=D.markets.find(x=>x.k===k);return m&&m.group?D.markets.filter(x=>x.reg===k).map(x=>x.k):[k]};
+const inMkt=(s,k)=>k==="ALL"||s.m.some(x=>mktMembers(k).includes(x));
+function usHint(){
+  try{const now=new Date(),ny=new Date(now.toLocaleString("en-US",{timeZone:"America/New_York"})),se=new Date(now.toLocaleString("en-US",{timeZone:"Europe/Stockholm"})),dif=Math.round((se-ny)/36e5),mins=ny.getHours()*60+ny.getMinutes(),dow=ny.getDay(),sv=h=>String(h+dif).padStart(2,"0");
+    if(dow===0||dow===6)return{k:"weekend",t:"Börsen är stängd (helg). Listan visar senaste handelsdagens läge."};
+    if(mins<570)return{k:"pre",t:`USA öppnar kl ${sv(9)}:30 svensk tid. Före öppning kan kriteriet “pris över dagens öppning” inte bedömas, så listan över kandidater är tom tills dess – “Nästan kandidater” visar vilka som klarar övriga kriterier.`};
+    if(mins>=960)return{k:"closed",t:"USA-börsen är stängd. Listan visar dagens sista läge."};
+    return{k:"open",t:""}}catch(e){return{k:"open",t:""}}
+}
 function dcard(s,i,near){
   const need=CRIT.filter((c,j)=>s.dt[j]===false),wait=CRIT.filter((c,j)=>s.dt[j]==null),x=D.dtx&&D.dtx[s.t],m=MK(s.m[0]);
   return`<div class="c${open.has("d:"+s.t)?" o":""}${i<=3&&!near?" t3":""}" data-t="d:${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div><b>${esc(s.d)}</b>${near?`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/${s.dte}</span>`:'<span class="tag">DAGHANDEL</span>'}${dayPick()===s.t?" ★":""}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
+  <div class="m"><div><b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${esc(s.n)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
   ${spark(intraCloses(s.t)||s.sp)}<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>
   <div class="al2"><span class="mu">${m.flag} ${esc(m.n)}</span>${x?`<span class="sig ${STC[x.st.k]}">${STL[x.st.k]}</span>`:""}${need.length?`<span class="ab">Saknar: ${esc(need[0])}${need.length>1?" +"+(need.length-1):""}</span>`:""}${!need.length&&wait.length?`<span class="ab">Ej bedömbart: ${esc(wait[0])}${wait.length>1?" +"+(wait.length-1):""}</span>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,s.dts||0)}%"></i></div>${detail(s,s.m[0],`<button class="btn sm" data-go="#/daytrade/${enc(s.t)}">Handla idag ›</button>`)}</div>`
 }
 function vDT(){
-  const dt=D.rank.DT||{cand:[],near:[]},C=dt.cand.map(t=>S[t]).filter(Boolean),N=dt.near.map(t=>S[t]).filter(Boolean),pk=dayPick(),ps=pk&&S[pk],px=ps&&D.dtx&&D.dtx[pk];
+  const dt=D.rank.DT||{cand:[],near:[]},mk=Ui.dtm,L=Ui.dtl,pk=dayPick(),ps=pk&&S[pk],px=ps&&D.dtx&&D.dtx[pk],hint=usHint(),ms=D.markets.filter(m=>!m.hidden);
+  let C=[],N=[],single=[];
+  if(L>=5){C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,25);N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,Math.max(0,25-C.length))}
+  else single=SL.filter(s=>inMkt(s,mk)&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||b.dts-a.dts).slice(0,25);
+  const mn=MK(mk);
   view(`${topbar("Daghandel")}
-  <div class="mu" style="margin:0 2px 8px">${C.length} kandidater klarar alla 5 kriterier · ${D.liveAt?"live-uppdaterad "+hhmm(D.liveAt):"dagsskanning "+hhmm(D.updated)} <span class="ii" data-i="dt">ⓘ</span></div>
+  <div class="chips scrollx" style="margin-bottom:6px">${ms.map(m=>`<span class="chip${m.k===mk?" on":""}" data-act="dtm" data-k="${m.k}">${m.flag} ${esc(m.n)}</span>`).join("")}</div>
+  <div class="chips" style="margin:8px 0"><span class="mu" style="align-self:center">Strikthet:</span>${[[5,"Alla 5"],[4,"Minst 4"],[3,"Minst 3"]].map(x=>`<span class="chip${x[0]===L?" on":""}" data-act="dtl" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>
+  <div class="mu" style="margin:0 2px 8px">${L>=5?`${C.length} kandidater klarar alla 5 kriterier`:`${single.length} aktier uppfyller minst ${L} av 5 kriterier`} · ${esc(mn.n)} · ${D.liveAt?"live-uppdaterad "+hhmm(D.liveAt):"dagsskanning "+hhmm(D.updated)} <span class="ii" data-i="dt">ⓘ</span></div>
+  ${hint.t&&(L<5||!C.length)?`<div class="stat WAIT"><b>${hint.k==="pre"?"INNAN ÖPPNING":"MARKNADSLÄGE"}</b>${esc(hint.t)}</div>`:""}
   ${ps?`<div class="mod" data-go="#/daytrade/${enc(pk)}"><div class="mh"><div class="ico">★</div><h2>DIN AKTIE IDAG</h2><span class="go">›</span></div><div><b style="font-size:18px">${esc(ps.d)}</b> <span class="mu">${esc(ps.n)}</span></div><div><b>${ps.px} ${ps.cur}</b> <span class="${cls(ps.chg)}">${sg(ps.chg)}</span>${px?` <span class="sig ${STC[px.st.k]}">${STL[px.st.k]}</span>`:""}</div>${px?`<div class="mu" style="margin-top:4px">${esc(px.st.t)}</div>`:""}</div>`:""}
-  <div class="mh" style="margin:12px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">KANDIDATER 1–${Math.max(C.length,1)}</h2></div>
-  ${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="empty">Inga aktier klarar alla fem kriterier just nu. Före USA-öppning kan “pris över öppning” inte bedömas – kolla igen efter 15:30 svensk tid.</div>'}
-  ${N.length?`<div class="mh" style="margin:16px 2px 4px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">NÄSTAN KANDIDATER</h2></div><div class="mu" style="margin:0 2px 8px">Uppfyller alla bedömbara kriterier utom ett (t.ex. 4 av 5), eller – för svenska aktier utan pre-market – alla tre bedömbara.</div>${N.map((s,i)=>dcard(s,C.length+i+1,true)).join("")}`:""}`)
+  ${L>=5?`<div class="mh" style="margin:12px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">KANDIDATER${C.length?" 1–"+C.length:""}</h2></div>
+   ${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="empty" style="padding:18px 10px">Inga aktier klarar alla fem kriterier på den här börsen just nu.<br><span class="lnk" data-act="dtl" data-v="4">Visa minst 4 av 5 ›</span></div>'}
+   ${N.length?`<div class="mh" style="margin:16px 2px 4px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">NÄSTAN KANDIDATER</h2></div><div class="mu" style="margin:0 2px 8px">Klarar alla bedömbara kriterier utom ett (t.ex. 4 av 5), eller – för aktier utan pre-market-data – alla tre bedömbara.</div>${N.map((s,i)=>dcard(s,C.length+i+1,true)).join("")}`:""}`
+  :`<div class="mh" style="margin:12px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">MINST ${L} AV 5 KRITERIER</h2></div>${single.length?single.map((s,i)=>dcard(s,i+1,!s.dok)).join(""):'<div class="empty">Inga aktier uppfyller det här på vald börs.</div>'}`}`)
 }
 const CAPK="mm_dtcalc";
 const getCalc=()=>{try{return Object.assign({cap:100000,rk:1},JSON.parse(localStorage.getItem(CAPK))||{})}catch(e){return{cap:100000,rk:1}}};
@@ -1053,7 +1079,7 @@ function demo(){
   const EUS=[["NOVO-B.CO","Novo Nordisk B","OMXC","DKK","kr"],["DSV.CO","DSV","OMXC","DKK","kr"],["EQNR.OL","Equinor","OSE","NOK","kr"],["DNB.OL","DNB Bank","OSE","NOK","kr"],["RHM.DE","Rheinmetall","DAX","EUR","€"],["SAP.DE","SAP","DAX","EUR","€"],["SIE.DE","Siemens","DAX","EUR","€"],["MC.PA","LVMH","CAC","EUR","€"],["OR.PA","L'Oréal","CAC","EUR","€"],["AIR.PA","Airbus","CAC","EUR","€"],["AZN.L","AstraZeneca","FTSE","GBX","p"],["SHEL.L","Shell","FTSE","GBX","p"],["HSBA.L","HSBC","FTSE","GBX","p"]];
   EUS.forEach(x=>mk(x[0],x[1],[x[2]],x[3],x[4]));SE.forEach(x=>{stocks[x[0]].reg=1});
   const EUK=["OMXS","OMXC","OSE","DAX","CAC","FTSE"];
-  const markets=[{k:"ALL",n:"Alla marknader",flag:"🌍",cur:"",ccy:""},{k:"EU",n:"Europa",flag:"🇪🇺",cur:"",ccy:"",group:true},{k:"OMXS",n:"OMX Stockholm",flag:"🇸🇪",cur:"kr",ccy:"SEK"},{k:"OMXC",n:"OMX Köpenhamn",flag:"🇩🇰",cur:"kr",ccy:"DKK"},{k:"OSE",n:"Oslo Børs",flag:"🇳🇴",cur:"kr",ccy:"NOK"},{k:"DAX",n:"Frankfurt (XETRA)",flag:"🇩🇪",cur:"€",ccy:"EUR"},{k:"CAC",n:"Paris (Euronext)",flag:"🇫🇷",cur:"€",ccy:"EUR"},{k:"FTSE",n:"London (LSE)",flag:"🇬🇧",cur:"p",ccy:"GBX"},{k:"NASDAQ",n:"Nasdaq-100",flag:"🇺🇸",cur:"$",ccy:"USD"},{k:"DOW",n:"Dow Jones",flag:"🇺🇸",cur:"$",ccy:"USD"},{k:"SP500",n:"S&P 500",flag:"🇺🇸",cur:"$",ccy:"USD"}];
+  const markets=[{k:"ALL",n:"Alla marknader",flag:"🌍",cur:"",ccy:""},{k:"EU",n:"Europa",flag:"🇪🇺",cur:"",ccy:"",group:true},{k:"OMXS",n:"OMX Stockholm",flag:"🇸🇪",cur:"kr",ccy:"SEK",reg:"EU"},{k:"OMXC",n:"OMX Köpenhamn",flag:"🇩🇰",cur:"kr",ccy:"DKK",reg:"EU"},{k:"OSE",n:"Oslo Børs",flag:"🇳🇴",cur:"kr",ccy:"NOK",reg:"EU"},{k:"DAX",n:"Frankfurt (XETRA)",flag:"🇩🇪",cur:"€",ccy:"EUR",reg:"EU"},{k:"CAC",n:"Paris (Euronext)",flag:"🇫🇷",cur:"€",ccy:"EUR",reg:"EU"},{k:"FTSE",n:"London (LSE)",flag:"🇬🇧",cur:"p",ccy:"GBX",reg:"EU"},{k:"NASDAQ",n:"Nasdaq-100",flag:"🇺🇸",cur:"$",ccy:"USD"},{k:"DOW",n:"Dow Jones",flag:"🇺🇸",cur:"$",ccy:"USD"},{k:"SP500",n:"S&P 500",flag:"🇺🇸",cur:"$",ccy:"USD"}];
   const rank={};
   markets.forEach(m=>{const mem=Object.values(stocks).filter(s=>m.k==="ALL"||s.m.includes(m.k)||(m.group&&s.m.some(k=>EUK.includes(k)))).sort((a,b)=>b.sc-a.sc);
     const val=mem.filter(s=>s.gr||(s.mfr[m.k]!=null&&s.mfr[m.k]<=.2)||m.k==="ALL"&&s.mf);mem.forEach(s=>{if(val.includes(s)){s.vs=s.vs||{};s.vs[m.k]=+(s.grn/6*50+(1-(s.mfr[m.k]!=null?s.mfr[m.k]:s.mfr.ALL))*50).toFixed(1)}});

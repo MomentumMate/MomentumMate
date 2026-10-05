@@ -108,6 +108,8 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
     ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
     ("Dagens industri", "https://www.di.se/rss"),
+    ("Google News – marknaden", "https://news.google.com/rss/search?q=stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – börsen", "https://news.google.com/rss/search?q=b%C3%B6rsen+aktier+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
 ]
 
 def read_extra():
@@ -177,6 +179,9 @@ def _ts(s):
 def _clean(s, n=170):
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", s or "")).strip()[:n]
 
+NEWS_DIAG = {"err": 0, "last": ""}
+FEED_STATS = {}
+
 def get_news(t):
     items = []
     try:
@@ -188,7 +193,8 @@ def get_news(t):
             src = (c.get("provider") or {}).get("displayName") or c.get("publisher") or "Yahoo Finance"
             ts = _ts(c["pubDate"]) if c.get("pubDate") else int(c.get("providerPublishTime") or 0)
             items.append({"h": title, "s": _clean(c.get("summary") or c.get("description")), "src": src, "u": url, "ts": int(ts)})
-    except Exception: pass
+    except Exception as e:
+        NEWS_DIAG["err"] += 1; NEWS_DIAG["last"] = f"{type(e).__name__}: {e}"[:140]
     if BENZ and is_us(t):
         try:
             r = requests.get("https://api.benzinga.com/api/v2/news", timeout=10, headers={"accept": "application/json"},
@@ -208,22 +214,70 @@ def get_news(t):
 def enrich(t):
     return t, get_info(t), get_news(t)
 
-def fetch_feeds():
+def google_rss(url):
+    """Google News RSS (gratis, ingen nyckel). Titeln har formen 'Rubrik - Källa'."""
+    r = requests.get(url, headers=UA, timeout=12); r.raise_for_status()
     out = []
-    for name, url in FEEDS:
+    for it in ET.fromstring(r.content).iter("item"):
+        title = (it.findtext("title") or "").strip()
+        if not title: continue
+        src = (it.findtext("source") or "").strip()
+        if " - " in title:
+            head, tail = title.rsplit(" - ", 1)
+            title, src = head, (src or tail)
+        try: ts = int(parsedate_to_datetime(it.findtext("pubDate")).timestamp())
+        except Exception: ts = 0
+        out.append({"h": title, "s": "", "src": src or "Google News", "u": (it.findtext("link") or "").strip(), "ts": ts})
+    return out
+
+def google_news(q, hl="en-US", gl="US", ceid="US:en"):
+    from urllib.parse import quote_plus
+    return google_rss(f"https://news.google.com/rss/search?q={quote_plus(q)}&hl={hl}&gl={gl}&ceid={ceid}")[:NEWS_KEEP]
+
+def fill_news(recs, news, rank):
+    """Reservkälla: hämtar Google News för rankade aktier som saknar nyheter från Yahoo."""
+    ids = []
+    for k, r in rank.items():
+        ids += (r["cand"][:30] + r["near"][:30]) if k == "DT" else (r["mom"] + r["val"])
+    ids = [t for t in dict.fromkeys(ids) if t in recs and not news.get(t)][:250]
+    def one(t):
+        name = re.sub(r"\b(Inc|Corp|Corporation|Ltd|plc|AB|ASA|SE|NV|AG|SA|Holdings?|Company)\b\.?", "", recs[t]["n"]).strip(" ,.")
+        sv = t.endswith(".ST")
         try:
-            r = requests.get(url, headers=UA, timeout=10); r.raise_for_status()
-            root = ET.fromstring(r.content)
-            for it in root.iter("item"):
-                title = (it.findtext("title") or "").strip()
-                if not title: continue
-                try: ts = int(parsedate_to_datetime(it.findtext("pubDate")).timestamp())
-                except Exception: ts = 0
-                out.append({"h": title, "s": _clean(it.findtext("description")), "src": name, "u": (it.findtext("link") or "").strip(), "ts": ts})
+            return t, (google_news(name + " aktie", "sv", "SE", "SE:sv") if sv else google_news(name + " stock"))
+        except Exception:
+            return t, []
+    ok = 0
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for t, items in ex.map(one, ids):
+            if items: news[t] = items; ok += 1
+    return len(ids), ok
+
+def fetch_feeds():
+    out = []; FEED_STATS.clear()
+    for name, url in FEEDS:
+        n0 = len(out)
+        try:
+            if url.startswith("https://news.google.com/"):
+                out += [dict(x, src=x["src"] if x["src"] != "Google News" else name) for x in google_rss(url)]
+            else:
+                r = requests.get(url, headers=UA, timeout=10); r.raise_for_status()
+                root = ET.fromstring(r.content)
+                for it in root.iter("item"):
+                    title = (it.findtext("title") or "").strip()
+                    if not title: continue
+                    try: ts = int(parsedate_to_datetime(it.findtext("pubDate")).timestamp())
+                    except Exception: ts = 0
+                    out.append({"h": title, "s": _clean(it.findtext("description")), "src": name, "u": (it.findtext("link") or "").strip(), "ts": ts})
+            FEED_STATS[name] = len(out) - n0
         except Exception as e:
+            FEED_STATS[name] = 0
             print("Varning: RSS-källa misslyckades:", name, e)
-    out.sort(key=lambda x: -x["ts"])
-    return out[:60]
+    seen, res = set(), []
+    for x in sorted(out, key=lambda x: -x["ts"]):
+        k = x["u"] or x["h"]
+        if k not in seen: seen.add(k); res.append(x)
+    return res[:80]
 
 def fx_rates(ccys):
     out = {"SEK": 1.0}
@@ -443,11 +497,11 @@ def finalize(recs, markets):
 
 def rank_dt(recs, ids=None):
     ids = list(ids if ids is not None else recs)
-    cand = sorted([t for t in ids if recs[t]["dok"]], key=lambda t: -recs[t]["dts"])[:25]
+    cand = sorted([t for t in ids if recs[t]["dok"]], key=lambda t: -recs[t]["dts"])[:300]
     def near_ok(r):
         miss = r["dte"] - r["dtn"]
         return (not r["dok"]) and ((miss == 0 and 3 <= r["dte"] < 5) or (miss == 1 and r["dte"] == 5))
-    near = sorted([t for t in ids if near_ok(recs[t])], key=lambda t: -recs[t]["dts"])[:max(0, 25 - len(cand))]
+    near = sorted([t for t in ids if near_ok(recs[t])], key=lambda t: -recs[t]["dts"])[:300]
     return {"cand": cand, "near": near}
 
 def clean(o):
@@ -557,6 +611,16 @@ def make_dtx(t, df, rec):
         print("make_dtx misslyckades för", t, "–", e)
         return None
 
+def dtx_targets(rk, recs):
+    """Vilka aktier som får intradagsdiagram: topp 25 totalt + topp 8 per börs (så att börsfiltret i appen har diagram)."""
+    top = list(rk["cand"][:25]); top += [t for t in rk["near"] if t not in top][:max(0, 25 - len(top))]
+    by_m = {}
+    for t in rk["cand"] + rk["near"]:
+        for m in recs[t]["m"]: by_m.setdefault(m, []).append(t)
+    for lst in by_m.values():
+        top += [t for t in lst[:8] if t not in top]
+    return top[:130]
+
 LIVE_KEYS = ("px", "chg", "dt", "dok", "pmv", "pmh", "dts", "vx", "rsi", "a50", "a200", "macd", "bo", "pdh", "pdl", "pdc", "atr", "dtn", "dte", "hit")
 
 def live():
@@ -583,7 +647,7 @@ def live():
             print("Hoppar över", t, "–", e)
     rk = rank_dt(recs, list(upd))
     dtx = {}
-    for t in (rk["cand"] + rk["near"])[:40]:
+    for t in dtx_targets(rk, recs):
         if t in intra:
             x = make_dtx(t, intra[t], recs[t])
             if x: dtx[t] = x
@@ -671,8 +735,13 @@ def main():
         sys.exit(1)
 
     rank = finalize(recs, markets_used)
+    n_yahoo = sum(1 for t in recs if news.get(t))
+    fb_try, fb_ok = fill_news(recs, news, rank)
+    feed = fetch_feeds()
+    print(f"Nyheter: Yahoo gav nyheter för {n_yahoo}/{len(recs)} aktier (fel: {NEWS_DIAG['err']}, senast: {NEWS_DIAG['last'] or '–'}); "
+          f"reserv Google News: {fb_ok}/{fb_try}; marknadsflöde: {len(feed)} artiklar {dict(FEED_STATS)}")
     dtx = {}
-    dt_ids = (rank["DT"]["cand"] + rank["DT"]["near"])[:40]
+    dt_ids = dtx_targets(rank["DT"], recs)
     need = [t for t in dt_ids if t not in intra]
     if need: intra.update(dl(need, period="5d", interval="5m", prepost=False))
     for t in dt_ids:
@@ -688,7 +757,10 @@ def main():
            "fail": [t for t in tickers if t not in recs][:400],
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
-           "feed": fetch_feeds()}
+           "feed": feed,
+           "stats": {"universe": len(tickers), "ok": len(recs), "news_yahoo": n_yahoo, "news_fallback": fb_ok,
+                     "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
+                     "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(clean(out), f, ensure_ascii=False, separators=(",", ":"))
     print(f"Klart: {len(recs)} aktier, {sum(len(v['mom']) for v in rank.values() if 'mom' in v)} i momentumlistor – {time.time() - t0:.0f} s")
