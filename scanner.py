@@ -73,6 +73,9 @@ PRESETS = {
         "TSCO.L","RR.L","BA.L","PRU.L","AAL.L","ANTO.L","EXPN.L","IMB.L","SSE.L","STAN.L","III.L","LGEN.L","AV.L","BT-A.L","NXT.L","WPP.L","IAG.L","ABF.L","FLTR.L",
         "RKT.L","HLMA.L","CNA.L","SGE.L","SMT.L","SPX.L","WTB.L","MNG.L","AHT.L","BNZL.L","EDV.L","PSON.L","RMV.L","SDR.L","SMIN.L","SN.L","SVT.L","UU.L","WEIR.L",
         "BKG.L","LAND.L","BLND.L","DPLM.L","ENT.L","HIK.L","ICG.L","INF.L","ITRK.L","JD.L","KGF.L","MKS.L","PHNX.L","TW.L"]},
+    "CRYPTO": {"n": "Krypto", "flag": "🪙", "cur": "$", "ccy": "USD", "reg": None, "tickers": [
+        "BTC-USD","ETH-USD","BNB-USD","XRP-USD","SOL-USD","DOGE-USD","ADA-USD","AVAX-USD","LINK-USD","DOT-USD","LTC-USD","BCH-USD",
+        "XLM-USD","ATOM-USD","NEAR-USD","TRX-USD","SHIB-USD","HBAR-USD","ETC-USD","XMR-USD"]},
     "AEX": {"n": "Euronext Amsterdam", "flag": "🇳🇱", "cur": "€", "ccy": "EUR", "reg": "EU", "tickers": [
         "ASML.AS","PRX.AS","INGA.AS","HEIA.AS","AD.AS","WKL.AS","PHIA.AS","ADYEN.AS","DSFIR.AS","MT.AS","RAND.AS","NN.AS","AKZA.AS","BESI.AS","IMCD.AS","ASM.AS",
         "ABN.AS","KPN.AS","EXO.AS","UMG.AS","BFIT.AS","SBMO.AS","AALB.AS"]},
@@ -157,7 +160,10 @@ def dl(tickers, **kw):
         print(f"  nedladdat {min(i + CHUNK, len(tickers))}/{len(tickers)}", flush=True)
     return out
 
-def is_us(t): return "." not in t
+CUR_SYM = {"USD": "$", "EUR": "€", "SEK": "kr", "DKK": "kr", "NOK": "kr", "GBP": "£", "GBX": "p", "CHF": "CHF", "CAD": "$"}
+def norm_ccy(c): return {"GBp": "GBX", "GBX": "GBX"}.get(c, c)
+def is_crypto(t): return t.endswith("-USD")
+def is_us(t): return "." not in t and not is_crypto(t)
 SESS = {".L": ("Europe/London", 480), ".SW": ("Europe/Zurich", 540), ".HE": ("Europe/Helsinki", 600), ".CO": ("Europe/Copenhagen", 540),
         ".OL": ("Europe/Oslo", 540), ".ST": ("Europe/Stockholm", 540), ".DE": ("Europe/Berlin", 540), ".PA": ("Europe/Paris", 540),
         ".AS": ("Europe/Amsterdam", 540), ".MC": ("Europe/Madrid", 540), ".MI": ("Europe/Rome", 540)}
@@ -195,21 +201,47 @@ def get_news(t):
             items.append({"h": title, "s": _clean(c.get("summary") or c.get("description")), "src": src, "u": url, "ts": int(ts)})
     except Exception as e:
         NEWS_DIAG["err"] += 1; NEWS_DIAG["last"] = f"{type(e).__name__}: {e}"[:140]
-    if BENZ and is_us(t):
-        try:
-            r = requests.get("https://api.benzinga.com/api/v2/news", timeout=10, headers={"accept": "application/json"},
-                             params={"token": BENZ, "tickers": t.replace("-", "."), "pageSize": 5, "displayOutput": "abstract"}).json()
-            for n in r:
-                try: ts = int(parsedate_to_datetime(n["created"]).timestamp())
-                except Exception: ts = 0
-                items.append({"h": n.get("title", ""), "s": _clean(n.get("teaser") or n.get("body")), "src": "Benzinga", "u": n.get("url", ""), "ts": ts})
-        except Exception: pass
     seen, out = set(), []
     for it in sorted(items, key=lambda x: -x["ts"]):
         k = it["u"] or it["h"]
         if it["h"] and k not in seen:
             seen.add(k); out.append(it)
     return out[:NEWS_KEEP]
+
+def merge_news(*lists):
+    seen, out = set(), []
+    for it in sorted([x for l in lists for x in l], key=lambda x: -x["ts"]):
+        k = it["u"] or it["h"]
+        if it["h"] and k not in seen:
+            seen.add(k); out.append(it)
+    return out[:NEWS_KEEP]
+
+def benzinga_news(t):
+    if not BENZ: return []
+    try:
+        r = requests.get("https://api.benzinga.com/api/v2/news", timeout=10, headers={"accept": "application/json"},
+                         params={"token": BENZ, "tickers": t.replace("-", "."), "pageSize": 5, "displayOutput": "abstract"}).json()
+        out = []
+        for n in r:
+            try: ts = int(parsedate_to_datetime(n["created"]).timestamp())
+            except Exception: ts = 0
+            out.append({"h": n.get("title", ""), "s": _clean(n.get("teaser") or n.get("body")), "src": "Benzinga", "u": n.get("url", ""), "ts": ts})
+        return out
+    except Exception:
+        return []
+
+def fill_benzinga(recs, news, rank):
+    """Benzinga hämtas bara för rankade amerikanska aktier (sparar API-anrop)."""
+    if not BENZ: return 0, 0
+    ids = []
+    for k, r in rank.items():
+        ids += (r["cand"][:30] + r["near"][:30]) if k == "DT" else (r["mom"] + r["val"])
+    ids = [t for t in dict.fromkeys(ids) if t in recs and is_us(t)][:200]
+    ok = 0
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        for t, items in ex.map(lambda x: (x, benzinga_news(x)), ids):
+            if items: news[t] = merge_news(items, news.get(t, [])); ok += 1
+    return len(ids), ok
 
 def enrich(t):
     return t, get_info(t), get_news(t)
@@ -336,6 +368,17 @@ def num(x, d=1):
         return round(float(x), d)
     except Exception: return None
 
+def short_about(txt, n=240):
+    """Kortar Yahoos företagsbeskrivning till ~2 meningar."""
+    t = re.sub(r"\s+", " ", (txt or "")).strip()
+    if not t: return None
+    if len(t) <= n: return t
+    out = ""
+    for sent in re.split(r"(?<=[.!?])\s+", t):
+        if len(out) + len(sent) + 1 > n: break
+        out = (out + " " + sent).strip()
+    return out or (t[:n - 1].rsplit(" ", 1)[0] + "…")
+
 def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     """Räknar fram en aktiepost. Ren funktion – inget nätverk."""
     d = d.dropna(subset=["Close"])
@@ -429,6 +472,8 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "gr": gr, "grn": sum(grc), "grc": grc, "ey": num(ey), "roc": num(roc), "mfr": {}, "mf": False, "_ex": excl,
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
+            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
+            "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
             "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
 
@@ -464,7 +509,7 @@ def finalize(recs, markets):
     groups = {}
     for m in markets:
         if m.get("reg"): groups.setdefault(m["reg"], set()).add(m["k"])
-    def member(k, r): return k == "ALL" or k in r["m"] or (k in groups and bool(groups[k] & set(r["m"])))
+    def member(k, r): return (k == "ALL" and any(x != "CRYPTO" for x in r["m"])) or k in r["m"] or (k in groups and bool(groups[k] & set(r["m"])))
     for k in keys + list(groups) + ["ALL"]:
         members = [t for t, r in recs.items() if member(k, r)]
         magic_rank(members, recs, k)
@@ -497,6 +542,7 @@ def finalize(recs, markets):
 
 def rank_dt(recs, ids=None):
     ids = list(ids if ids is not None else recs)
+    ids = [t for t in ids if not is_crypto(t)]
     cand = sorted([t for t in ids if recs[t]["dok"]], key=lambda t: -recs[t]["dts"])[:300]
     def near_ok(r):
         miss = r["dte"] - r["dtn"]
@@ -658,6 +704,31 @@ def live():
 
 CCY_FLAG = {"SEK": "🇸🇪", "USD": "🇺🇸", "EUR": "🇪🇺", "DKK": "🇩🇰", "NOK": "🇳🇴", "GBP": "🇬🇧", "CHF": "🇨🇭", "CAD": "🇨🇦"}
 
+def analyze_one(sym):
+    """Fullständig analys av en enskild ticker (används vid uppslag). Returnerar (post, nyheter)."""
+    try:
+        d = dl([sym], period="1y", interval="1d").get(sym)
+        if d is None or len(d) < 201: return None, []
+        info = get_info(sym)
+        news = merge_news(get_news(sym), benzinga_news(sym))
+        if not news:
+            try: news = google_news(re.sub(r"\b(Inc|Corp|Corporation|Ltd|plc|AB|ASA|SE|NV|AG|SA|Holdings?|Company)\b\.?", "", info.get("shortName") or sym).strip(" ,.") + " stock")
+            except Exception: news = []
+        cc = norm_ccy(info.get("currency")) or "USD"
+        intr = None
+        if is_us(sym):
+            i5 = dl([sym], period="5d", interval="5m", prepost=True).get(sym)
+            intr = intraday_stats(i5) if i5 is not None else None
+        rec = build(sym, d, intr, info, news, {"k": "WATCH", "cur": CUR_SYM.get(cc, cc), "ccy": cc})
+        if not rec: return None, news
+        rec["m"] = ["WATCH"]
+        if rec["gr"]: rec["al"].append({"k": "graham", "t": "Graham Screener-kandidat"})
+        rec["h"], rec["hr"] = horizon(rec); rec.pop("_ex", None); rec["prov"] = True
+        return rec, news
+    except Exception as e:
+        print("Analys misslyckades för", sym, "–", e)
+        return None, []
+
 def lookup(q):
     """Slår upp en aktie (namn eller ticker) hos Yahoo och sparar lookup.json."""
     q = q.strip(); syms = []
@@ -676,6 +747,9 @@ def lookup(q):
                       "ccy": info.get("currency"), "px": info.get("currentPrice") or info.get("regularMarketPrice"),
                       "chg": info.get("regularMarketChangePercent"), "pe": info.get("trailingPE"), "mcap": info.get("marketCap"),
                       "sector": info.get("sector"), "flag": CCY_FLAG.get(info.get("currency"), "🌐")})
+        if len(items) <= 3:
+            rec, nw = analyze_one(sym)
+            items[-1]["rec"] = rec; items[-1]["news"] = nw
     with open("lookup.json", "w", encoding="utf-8") as f:
         json.dump(clean({"q": q, "ts": int(time.time()), "items": items}), f, ensure_ascii=False)
     print(f"Slog upp '{q}': {len(items)} träffar")
@@ -700,12 +774,12 @@ def main():
         if k not in {m["k"] for m in markets_used}:
             markets_used.append({"k": k, "n": e.get("n") or base.get("n", k), "flag": e.get("flag") or base.get("flag", "🌐"),
                                  "cur": e["cur"] if e.get("cur") is not None else base.get("cur", ""), "ccy": e.get("ccy") or base.get("ccy", "USD"),
-                                 "reg": e.get("reg") or base.get("reg"), "source": []})
+                                 "reg": e.get("reg") or base.get("reg"), "mixed": bool(e.get("mixed")), "source": []})
         for t in tickers:
             if k not in uni.setdefault(t, []): uni[t].append(k)
     extra = [t for t in read_extra() if t not in uni]
     if extra:
-        markets_used.append({"k": "EXTRA", "n": "Egna tickers", "flag": "⭐", "cur": "$", "ccy": "USD", "hidden": True, "source": extra})
+        markets_used.append({"k": "EXTRA", "n": "Egna tickers", "flag": "⭐", "cur": "$", "ccy": "USD", "hidden": True, "mixed": True, "source": extra})
         for t in extra: uni[t] = ["EXTRA"]
     tickers = list(uni)
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
@@ -720,12 +794,22 @@ def main():
             info[t], news[t] = inf, nw
             if (i + 1) % 100 == 0: print(f"  {i + 1} klara", flush=True)
 
+    miss = [t for t in info if not info[t]]
+    if miss:
+        print(f"  hämtar om bolagsinfo för {len(miss)} aktier (långsamt)…", flush=True)
+        for t in miss[:400]:
+            time.sleep(0.4); inf = get_info(t)
+            if inf: info[t] = inf
     mk_by = {m["k"]: m for m in markets_used}
     recs = {}
     for t in tickers:
         if t not in daily: continue
         try:
-            r = build(t, daily[t], intr_of(intra, t), info.get(t, {}), news.get(t, []), mk_by[uni[t][0]])
+            m0 = mk_by[uni[t][0]]
+            if m0.get("mixed"):
+                cc = norm_ccy(info.get(t, {}).get("currency")) or m0["ccy"]
+                m0 = dict(m0, ccy=cc, cur=CUR_SYM.get(cc, cc))
+            r = build(t, daily[t], intr_of(intra, t), info.get(t, {}), news.get(t, []), m0)
             if r:
                 r["m"] = uni[t]; recs[t] = r
         except Exception as e:
@@ -736,10 +820,11 @@ def main():
 
     rank = finalize(recs, markets_used)
     n_yahoo = sum(1 for t in recs if news.get(t))
+    bz_try, bz_ok = fill_benzinga(recs, news, rank)
     fb_try, fb_ok = fill_news(recs, news, rank)
     feed = fetch_feeds()
     print(f"Nyheter: Yahoo gav nyheter för {n_yahoo}/{len(recs)} aktier (fel: {NEWS_DIAG['err']}, senast: {NEWS_DIAG['last'] or '–'}); "
-          f"reserv Google News: {fb_ok}/{fb_try}; marknadsflöde: {len(feed)} artiklar {dict(FEED_STATS)}")
+          f"Benzinga: {bz_ok}/{bz_try}; reserv Google News: {fb_ok}/{fb_try}; marknadsflöde: {len(feed)} artiklar {dict(FEED_STATS)}")
     dtx = {}
     dt_ids = dtx_targets(rank["DT"], recs)
     need = [t for t in dt_ids if t not in intra]
@@ -749,7 +834,7 @@ def main():
             x = make_dtx(t, intra[t], recs[t])
             if x: dtx[t] = x
     out = {"v": 2, "updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
-           "fx": fx_rates({m["ccy"] for m in markets_used}),
+           "fx": fx_rates({m["ccy"] for m in markets_used} | {r["ccy"] for r in recs.values()}),
            "markets": [{"k": "ALL", "n": "Alla marknader", "flag": "🌍", "cur": "", "ccy": ""}] +
                       [{"k": g, "n": GROUP_NAMES.get(g, (g, "🌐"))[0], "flag": GROUP_NAMES.get(g, (g, "🌐"))[1], "cur": "", "ccy": "", "group": True}
                        for g in sorted({m["reg"] for m in markets_used if m.get("reg")})] +
@@ -758,7 +843,7 @@ def main():
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"universe": len(tickers), "ok": len(recs), "news_yahoo": n_yahoo, "news_fallback": fb_ok,
+           "stats": {"universe": len(tickers), "ok": len(recs), "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
     with open("data.json", "w", encoding="utf-8") as f:

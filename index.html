@@ -123,6 +123,10 @@ nav a.on{color:var(--gd)}nav a.on svg{filter:drop-shadow(0 0 5px #e8b64a)}
 #intro .word{position:absolute;right:26px;bottom:calc(36px + env(safe-area-inset-bottom,0px));font-size:26px;font-weight:700;letter-spacing:-.4px;opacity:0;transition:opacity .6s}
 #intro .word b{color:var(--gd)}#intro .word.on{opacity:1}
 #intro.gone{opacity:0;pointer-events:none}
+.about{background:#17130b;border:1px solid #241d10;border-radius:12px;padding:9px 11px;margin:10px 0 4px}
+.about .fc{font-size:11.5px;line-height:1.35}.about .abt{font-size:13px;line-height:1.4;margin-top:4px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.sumx{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border:1px solid var(--bd);border-radius:20px;padding:12px 14px;margin:8px 0}
+.sumx .sx-l{min-width:0}.sumx .sx-r{flex:none;text-align:center;cursor:pointer}.sumx .ring{width:72px;height:72px;margin:0 auto}.sumx .ring b{font-size:17px}.sumx .ring:after{inset:8px}
 /* ---- v3 ---- */
 .top .gear{width:36px;height:36px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--gd);display:grid;place-items:center;font-size:17px;flex:none;cursor:pointer}
 .sig.WAIT{background:#1b1710;color:var(--mu)}
@@ -298,11 +302,12 @@ function spark(a,w=64,h=26){if(!a||a.length<2)return`<svg class="sp" viewBox="0 
 function heroSvg(L){const n=L.length;if(n<2)return"";const r=[...L].reverse(),mn=Math.min(...r.map(x=>x.sc))-2,mx=Math.max(...r.map(x=>x.sc))+2;const Q=r.map((x,i)=>[i/(n-1)*290+5,46-(x.sc-mn)/(mx-mn)*38]);let d="M"+Q[0];for(let i=1;i<n;i++){const m=(Q[i-1][0]+Q[i][0])/2;d+=`C${m},${Q[i-1][1]} ${m},${Q[i][1]} ${Q[i]}`}return`<svg viewBox="0 0 300 54" preserveAspectRatio="none"><defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#8a5a12"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs><path d="${d}" fill="none" stroke="url(#gg)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${Q[n-1][0]}" cy="${Q[n-1][1]}" r="5" fill="#ffe7a8"/></svg>`}
 const alerts=s=>s.al&&s.al.length?`<div class="al">${s.al.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}${s.al.length>2?`<span class="ab">+${s.al.length-2}</span>`:""}</div>`:"";
 
+const coName=s=>(!s.n||s.n===s.t||s.n===s.d)?'<span style="font-style:italic;opacity:.7">Namn saknas från Yahoo</span>':esc(s.n);
 function card(s,i,o={}){
   const val=o.val,sc=val?((s.vs&&s.vs[o.mk])||0):s.sc;
-  const sub=val?`P/E ${s.pe??"–"} · P/B ${s.pb??"–"} · Graham ${s.grn}/6`:`${esc(s.n)} · RSI ${s.rsi} · vol ${s.vx}×`;
+  const sub=val?`P/E ${s.pe??"–"} · P/B ${s.pb??"–"} · Graham ${s.grn}/6`:`RSI ${s.rsi} · vol ${s.vx}×`;
   return`<div class="c${open.has(s.t)?" o":""}${i<=3&&!o.compact?" t3":""}" data-t="${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div><b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}</div><div class="mu">${sub}</div></div>
+  <div class="m"><div><b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}</div><div class="mu">${coName(s)}</div><div class="mu">${sub}</div></div>
   ${spark(s.sp)}<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>
   <div class="al2">${hz(s.h)}${s.al.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}${s.al.length>2?`<span class="ab">+${s.al.length-2}</span>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk)}</div>`
@@ -311,7 +316,7 @@ function detail(s,mk,extra=""){
   const crit=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
   const n=s.dt.filter(x=>x===true).length,na=s.dt.some(x=>x==null);
   const mfp=(s.mfr&&(s.mfr[mk]!=null?s.mfr[mk]:s.mfr[s.m[0]]));
-  return`<div class="d"><div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>1 mån</small><b class="${cls(s.r1m)}">${sg(s.r1m,1)}</b></div><div><small>3 mån</small><b class="${cls(s.r3m)}">${sg(s.r3m,1)}</b></div>
+  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>1 mån</small><b class="${cls(s.r1m)}">${sg(s.r1m,1)}</b></div><div><small>3 mån</small><b class="${cls(s.r3m)}">${sg(s.r3m,1)}</b></div>
   <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
   <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>
   <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
@@ -404,7 +409,7 @@ function holdCard(r,p){
   <div class="m"><div><b>${esc(s?s.d:h.t)}</b></div><div class="mu">${esc(s?s.n:(h.n||"Ingen live-data"))} · ${n} st · GAV ${f(h.c)}</div></div>
   ${s?spark(s.sp):""}<div class="p"><b>${kr(r.val)} kr</b><div class="${cls(r.ret)}">${sg(r.ret,1)}</div></div></div>
   <div class="al2"><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span>${r.hl?`<span class="sig SELL">⚠ ${esc(r.hl.short)}</span>`:""}${s?hz(s.h):""}</div>
-  <div class="d"><div class="g"><div><small>Kurs</small><b>${f(r.px)} ${s?s.cur:""}</b></div><div><small>Idag</small><b class="${cls(s?s.chg:0)}">${s?sg(s.chg):"–"}</b></div><div><small>Vikt</small><b>${f(r.w,1)}%</b></div>
+  <div class="d">${s?aboutHTML(s):""}<div class="g"><div><small>Kurs</small><b>${f(r.px)} ${s?s.cur:""}</b></div><div><small>Idag</small><b class="${cls(s?s.chg:0)}">${s?sg(s.chg):"–"}</b></div><div><small>Vikt</small><b>${f(r.w,1)}%</b></div>
    <div><small>Antal</small><b>${n}</b></div><div><small>Inköpskurs (GAV)</small><b>${f(h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.d)}</b></div>
    <div><small>Värde</small><b>${kr(r.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(r.pnl)}">${r.pnl>=0?"+":"−"}${kr(Math.abs(r.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(r.ret)}">${sg(r.ret,1)}</b></div>
    ${s?`<div><small>1 mån</small><b class="${cls(s.r1m)}">${sg(s.r1m,1)}</b></div><div><small>3 mån</small><b class="${cls(s.r3m)}">${sg(s.r3m,1)}</b></div><div><small>Momentum</small><b>${s.sc}</b></div>`:""}</div>
@@ -417,7 +422,7 @@ function holdCard(r,p){
 /* ---------- BÖRSDESK ---------- */
 function mstats(k){const r=D.rank[k];if(!r)return null;const L=r.mom.map(t=>S[t]).filter(Boolean),n=L.length||1;return{r,L,av:L.reduce((a,x)=>a+x.sc,0)/n,cg:L.reduce((a,x)=>a+x.chg,0)/n,tr:Math.round(L.filter(x=>x.a200).length/n*100),dc:L.filter(x=>x.dok).length,n:L.length}}
 function vDesk(){
-  view(`${topbar("Börsdesk")}<div class="mu" style="margin:0 2px 10px">Välj marknad. Varje börs har en momentumlista (topp 25), en värdelista (Graham/Magic Formula, topp 25) och en lista över alla aktier.</div>
+  view(`${topbar("Börsdesk")}<div class="chips scrollx" style="margin-bottom:8px">${D.markets.filter(m=>!m.hidden).map(m=>`<span class="chip" data-go="#/desk/${m.k}">${m.flag} ${esc(m.n)}</span>`).join("")}<span class="chip on" data-act="addx">＋ Börs</span></div><div class="mu" style="margin:0 2px 10px">Välj marknad. Varje börs har en momentumlista (topp 25), en värdelista (Graham/Magic Formula, topp 25) och en lista över alla aktier.</div>
   ${D.markets.filter(m=>!m.hidden).map(m=>{const st=mstats(m.k);if(!st)return"";return`<div class="mod" data-go="#/desk/${m.k}"><div class="mh"><div class="ico">${m.flag}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div>
    <div class="mu">${st.r.all.length} aktier · snittpoäng topp 25: <b style="color:var(--tx)">${f(st.av,1)}</b> · över SMA200: ${st.tr}% · ${st.dc} daghandel</div>
    ${st.L.slice(0,3).map(s=>`<div class="sr"><div class="m"><div><b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`}).join("")}
@@ -432,10 +437,8 @@ function vMarket(k){
     body=`<div class="mu" style="margin:0 2px 8px" data-i="val">${gN} aktier klarar Graham, ${mN} Magic Formula på ${esc(m.n)}. Topp 25 rankade på kombinerad värdepoäng – oberoende av momentumlistan. <span class="ii">ⓘ</span></div>`+(V.map((s,i)=>card(s,i+1,{mk:k,val:true})).join("")||'<div class="empty">Inga aktier kvalificerar sig just nu.</div>')}
   else{const A=r.all.map(t=>S[t]).filter(Boolean),n=Ui.shown[k]||40;body=`<div class="mu" style="margin:0 2px 8px">Alla ${A.length} aktier, sorterade efter momentumpoäng.</div>`+A.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true})).join("")+(A.length>n?`<button class="btn ghost wide" data-act="more" data-k="${k}">Visa fler (${A.length-n})</button>`:"")}
   view(`${topbar(m.flag+" "+esc(m.n))}
-  <div class="mu" style="margin:0 2px">Snittpoäng topp 25 · ${esc(m.n)}</div>
-  <div style="margin:0 2px" data-i="score"><span class="big">${f(st.av,1)}</span><span class="pill ${cls(st.cg)}">${sg(st.cg)} idag</span><span class="ii">ⓘ</span></div>
-  <div class="hero" data-i="graf">${heroSvg(st.L)}<div class="mu ax"><span>Rank 25</span><span>Rank 1</span></div></div>
-  <div class="trc" data-i="trend"><div class="ring" style="--p:${st.tr}"><b>${st.tr}%</b></div><div><b>Trendstyrka</b> <span class="ii">ⓘ</span><div class="mu">Andel över SMA200</div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${st.dc}</span> <span class="mu">daghandelskandidater</span></div></div></div>
+  <div class="sumx"><div class="sx-l" data-i="score"><div class="mu">Snittpoäng topp 25 · ${esc(m.n)} <span class="ii">ⓘ</span></div><div><span class="big">${f(st.av,1)}</span><span class="pill ${cls(st.cg)}">${sg(st.cg)} idag</span></div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${st.dc}</span> <span class="mu">daghandelskandidater</span></div></div>
+   <div class="sx-r" data-i="trend"><div class="ring" style="--p:${st.tr}"><b>${st.tr}%</b></div><div class="mu" style="margin-top:4px">Trendstyrka <span class="ii">ⓘ</span></div></div></div>
   <div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum 25</button><button class="${tab==="val"?"on":""}" data-act="tab" data-k="${k}" data-v="val">Värde 25</button><button class="${tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="all">Alla</button></div>${body}`)
 }
 
@@ -561,6 +564,8 @@ function act(a,d){
     case"settings":settingsSheet();break;
     case"lookup":lookupFlow(d.q);break;
     case"addm":addMarketSheet(+d.idx);break;
+    case"addw":addWatch(+d.idx);break;
+    case"lkview":lkView(+d.idx);break;
     case"imp":importSheet(d.pid);break;
     case"addx":addExchangeSheet();break;
     case"introtoggle":{const off=!introOff();try{localStorage.setItem("mm_intro_off",off?"1":"0")}catch(e){}toast(off?"Introt är av":"Introt är på");settingsSheet();break}
@@ -618,7 +623,7 @@ function usHint(){
 function dcard(s,i,near){
   const need=CRIT.filter((c,j)=>s.dt[j]===false),wait=CRIT.filter((c,j)=>s.dt[j]==null),x=D.dtx&&D.dtx[s.t],m=MK(s.m[0]);
   return`<div class="c${open.has("d:"+s.t)?" o":""}${i<=3&&!near?" t3":""}" data-t="d:${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div><b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${esc(s.n)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
+  <div class="m"><div><b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
   ${spark(intraCloses(s.t)||s.sp)}<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>
   <div class="al2"><span class="mu">${m.flag} ${esc(m.n)}</span>${x?`<span class="sig ${STC[x.st.k]}">${STL[x.st.k]}</span>`:""}${need.length?`<span class="ab">Saknar: ${esc(need[0])}${need.length>1?" +"+(need.length-1):""}</span>`:""}${!need.length&&wait.length?`<span class="ab">Ej bedömbart: ${esc(wait[0])}${wait.length>1?" +"+(wait.length-1):""}</span>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,s.dts||0)}%"></i></div>${detail(s,s.m[0],`<button class="btn sm" data-go="#/daytrade/${enc(s.t)}">Handla idag ›</button>`)}</div>`
@@ -627,7 +632,7 @@ function vDT(){
   const dt=D.rank.DT||{cand:[],near:[]},mk=Ui.dtm,L=Ui.dtl,pk=dayPick(),ps=pk&&S[pk],px=ps&&D.dtx&&D.dtx[pk],hint=usHint(),ms=D.markets.filter(m=>!m.hidden);
   let C=[],N=[],single=[];
   if(L>=5){C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,25);N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,Math.max(0,25-C.length))}
-  else single=SL.filter(s=>inMkt(s,mk)&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||b.dts-a.dts).slice(0,25);
+  else single=SL.filter(s=>inMkt(s,mk)&&!s.t.endsWith("-USD")&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||b.dts-a.dts).slice(0,25);
   const mn=MK(mk);
   view(`${topbar("Daghandel")}
   <div class="chips scrollx" style="margin-bottom:6px">${ms.map(m=>`<span class="chip${m.k===mk?" on":""}" data-act="dtm" data-k="${m.k}">${m.flag} ${esc(m.n)}</span>`).join("")}</div>
@@ -651,6 +656,7 @@ function vDTx(t){
   view(`${topbar(esc(s.d))}
   <div style="margin:0 2px"><span class="mu">${esc(s.n)} · ${MK(s.m[0]).flag} ${esc(MK(s.m[0]).n)}</span><div><span class="big" id="hpx">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}" id="hch">${sg(s.chg)}</span></div></div>
   <div class="chips" style="margin:8px 0"><span class="chip${pk?" on":""}" data-act="dpick" data-t="${esc(t)}">${pk?"★ Din aktie idag":"☆ Välj som min aktie idag"}</span><span class="chip" data-act="add" data-t="${esc(t)}">+ Portfölj</span></div>
+  ${aboutHTML(s)}
   <div class="stat ${x.st.k}" id="stbox"><b>${STL[x.st.k]}</b>${esc(x.st.t)}</div>
   <div id="chartwrap">${chart(x,LV.t===t?LV:null)}</div>
   <div class="legend"><span><i style="background:#7ddc9b"></i>K = köp-flagga</span><span><i style="background:#f0846f"></i>S = sälj-flagga</span><span><i style="background:#ffd166"></i>VWAP</span><span>Streckat = nivåer</span><span>Ihåliga ljus = live (realtid)</span><span>Staplar = volym · 5-min-ljus</span></div>
@@ -752,7 +758,7 @@ async function ghGet(path){const j=await ghReq("/contents/"+path+"?ref=main&t="+
 const ghPut=(path,text,sha,msg)=>ghReq("/contents/"+path,{method:"PUT",body:JSON.stringify({message:msg,content:b64e(text),sha:sha||undefined,branch:"main"})});
 const CCYM={SEK:["🇸🇪","kr"],USD:["🇺🇸","$"],EUR:["🇪🇺","€"],DKK:["🇩🇰","kr"],NOK:["🇳🇴","kr"],GBP:["🇬🇧","£"],CHF:["🇨🇭","CHF"],CAD:["🇨🇦","$"]};
 let LK={q:"",items:[]};
-const noHitCard=q=>`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">🔎</div><h2>FINNS INTE PÅ NÅGON MARKNAD</h2></div><p style="margin:0 0 12px;font-size:14px">“${esc(q)}” finns inte bland aktierna på dina marknader. Jag kan slå upp den hos Yahoo Finance, visa aktiedata och vilken börs den handlas på, och sedan lägga till börsen och aktien i skannern.</p><button class="btn wide" data-act="lookup" data-q="${esc(q)}">Slå upp “${esc(q)}”</button></div>`;
+const noHitCard=q=>`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">🔎</div><h2>FINNS INTE PÅ NÅGON MARKNAD</h2></div><p style="margin:0 0 12px;font-size:14px">“${esc(q)}” finns inte bland aktierna på dina marknader. Jag kan slå upp den hos Yahoo Finance, räkna fram en fullständig analys med placeringshorisont direkt, och lägga till den i “Min bevakning”.</p><button class="btn wide" data-act="lookup" data-q="${esc(q)}">Slå upp “${esc(q)}”</button></div>`;
 function lookupHelp(q){
   const repo=ghRepo();
   return`<h3>Slå upp “${esc(q)}”</h3><p>För att kunna slå upp och lägga till okända aktier direkt i appen behöver appen kopplas till ditt GitHub-repo (engångsinställning, ca 3 minuter).</p><button class="btn wide" data-act="settings">Öppna inställningar</button>
@@ -766,10 +772,8 @@ async function lookupFlow(q){
     for(let i=0;i<30&&!res;i++){await new Promise(r=>setTimeout(r,5000));if(!SH.classList.contains("on"))return;try{const j=JSON.parse((await ghGet("lookup.json")).text);if(j.q===q&&j.ts>=start)res=j}catch(e){}}}
   catch(e){sheet(`<h3>Uppslaget misslyckades</h3><p>${esc(e.message)}</p><button class="btn wide" data-act="settings">Kontrollera inställningar</button>`);return}
   if(!res){sheet(`<h3>Inget svar ännu</h3><p>Uppslaget tog för lång tid. Kontrollera fliken Actions i GitHub (workflow “Slå upp aktie”) och försök igen.</p>`);return}
-  LK=res;
-  sheet(`<h3>Träffar för “${esc(q)}”</h3>${res.items.length?res.items.map((it,i)=>`<div class="mod" style="margin-bottom:8px;padding:12px"><div class="mh" style="margin-bottom:6px"><div class="ico">${it.flag||"🌐"}</div><div style="flex:1;min-width:0"><b>${esc(it.t)}</b><div class="mu">${esc(it.n)}</div></div></div>
-   <div class="g" style="margin:6px 0"><div><small>Börs</small><b style="font-size:12.5px">${esc(it.exch||"–")}</b></div><div><small>Kurs</small><b>${it.px!=null?f(it.px)+" "+esc(it.ccy||""):"–"}</b></div><div><small>Idag</small><b class="${cls(it.chg)}">${it.chg!=null?sg(it.chg):"–"}</b></div><div><small>P/E</small><b>${it.pe!=null?f(it.pe,1):"–"}</b></div><div><small>Börsvärde</small><b>${it.mcap?(it.mcap>=1e9?f(it.mcap/1e9,1)+" mdr":Math.round(it.mcap/1e6)+" mn"):"–"}</b></div><div><small>Sektor</small><b style="font-size:12px">${esc(it.sector||"–")}</b></div></div>
-   <div class="acts" style="margin-top:6px"><button class="btn sm" data-act="addm" data-idx="${i}">Lägg till börs &amp; aktie</button><button class="btn sm ghost" data-act="add" data-t="${esc(it.t)}">Bara i portfölj</button></div></div>`).join(""):'<div class="empty">Yahoo hittade ingen aktie som matchar. Prova den exakta Yahoo-tickern, t.ex. NOKIA.HE.</div>'}`)
+  LK=res;res.items.forEach(it=>{if(it.rec)provisional(it.rec,it.news)});
+  sheet(`<h3>Träffar för “${esc(q)}”</h3>${res.items.length?res.items.map(lkCard).join(""):'<div class="empty">Yahoo hittade ingen aktie som matchar. Prova den exakta Yahoo-tickern, t.ex. NOKIA.HE.</div>'}`)
 }
 function addMarketSheet(i){
   const it=LK.items[i];if(!it)return;const cm=CCYM[it.ccy]||["🌐",it.ccy||""],ms=D.markets.filter(m=>m.k!=="ALL"&&!m.hidden),guess=ms.find(m=>m.ccy===it.ccy&&it.exch&&norm(m.n).includes(norm(String(it.exch).split(" ")[0])));
@@ -862,7 +866,7 @@ psig:()=>["Portföljsignaler","<p>Varje innehav granskas mot teknisk och fundame
 });
 
 /* ======================= v4: BÖRSER, DATAHÄLSA, MANUELLA INNEHAV ======================= */
-const PRESET_CAT=[{k:"AEX",n:"Euronext Amsterdam",flag:"🇳🇱",ccy:"EUR",c:23},{k:"OMXH",n:"OMX Helsingfors",flag:"🇫🇮",ccy:"EUR",c:17},{k:"SMI",n:"Zürich (SMI)",flag:"🇨🇭",ccy:"CHF",c:18},{k:"IBEX",n:"Madrid (IBEX)",flag:"🇪🇸",ccy:"EUR",c:20},{k:"MIB",n:"Milano (FTSE MIB)",flag:"🇮🇹",ccy:"EUR",c:20}];
+const PRESET_CAT=[{k:"CRYPTO",n:"Krypto",flag:"🪙",ccy:"USD",c:20,u:"kryptovalutor"},{k:"AEX",n:"Euronext Amsterdam",flag:"🇳🇱",ccy:"EUR",c:23},{k:"OMXH",n:"OMX Helsingfors",flag:"🇫🇮",ccy:"EUR",c:17},{k:"SMI",n:"Zürich (SMI)",flag:"🇨🇭",ccy:"CHF",c:18},{k:"IBEX",n:"Madrid (IBEX)",flag:"🇪🇸",ccy:"EUR",c:20},{k:"MIB",n:"Milano (FTSE MIB)",flag:"🇮🇹",ccy:"EUR",c:20}];
 const HCCY=["SEK","USD","EUR","DKK","NOK","GBP","GBX","CHF","CAD"];
 const STALE_H=40;
 const dataAge=()=>D&&D.updated?(Date.now()-Date.parse(D.updated))/36e5:0;
@@ -910,7 +914,7 @@ async function ghAddMarket(ent){
 function addExchangeSheet(){
   const have=new Set(D.markets.map(m=>m.k)),av=PRESET_CAT.filter(p=>!have.has(p.k)),repo=ghRepo();
   sheet(`<h3>Lägg till börs</h3><p class="mu" style="font-size:13px;margin-top:-4px">Börsen läggs till i skannern och får full analys – momentum, värde, daghandel och nyheter – efter nästa körning (ca 15–25 min). Det här ändrar filen <b>markets_extra.json</b> i ditt repo åt dig.${ghReady()?"":' <b style="color:var(--gd)">GitHub är inte kopplat än.</b> <span class="lnk" data-act="settings">Koppla ›</span>'}</p>
-  ${av.length?`<h4>Färdiga börser</h4>${av.map(p=>`<div class="sr"><div style="font-size:24px;width:34px;text-align:center">${p.flag}</div><div class="m"><div><b>${esc(p.n)}</b></div><div class="mu">ca ${p.c} storbolag · ${p.ccy}</div></div><button class="btn sm" data-act="xadd" data-k="${p.k}">Lägg till</button></div>`).join("")}`:'<div class="mu">Alla färdiga börser är redan tillagda.</div>'}
+  ${av.length?`<h4>Färdiga börser</h4>${av.map(p=>`<div class="sr"><div style="font-size:24px;width:34px;text-align:center">${p.flag}</div><div class="m"><div><b>${esc(p.n)}</b></div><div class="mu">ca ${p.c} ${p.u||"storbolag"} · ${p.ccy}</div></div><button class="btn sm" data-act="xadd" data-k="${p.k}">Lägg till</button></div>`).join("")}`:'<div class="mu">Alla färdiga börser är redan tillagda.</div>'}
   <h4 style="margin-top:14px">Egen börs eller egna aktier</h4>
   <label class="fld"><span>Namn</span><input id="xn" placeholder="t.ex. Bryssel"></label>
   <div class="row2"><label class="fld"><span>Valuta (kod)</span><input id="xc" placeholder="EUR" autocapitalize="characters"></label><label class="fld"><span>Flagga</span><input id="xf" placeholder="🇧🇪"></label></div>
@@ -1051,6 +1055,234 @@ function chart(x,lv){
   return s+"</svg>"
 }
 
+/* ======================= v6: OM BOLAGET (företagsfakta) ======================= */
+const SECSV={"Technology":"Teknik","Healthcare":"Hälsovård","Financial Services":"Finans","Consumer Cyclical":"Sällanköpsvaror","Consumer Defensive":"Dagligvaror","Industrials":"Industri","Energy":"Energi","Utilities":"Kraftförsörjning","Real Estate":"Fastigheter","Basic Materials":"Råvaror","Communication Services":"Kommunikation"};
+const CTSV={"United States":"USA","Sweden":"Sverige","Denmark":"Danmark","Norway":"Norge","Finland":"Finland","Germany":"Tyskland","France":"Frankrike","United Kingdom":"Storbritannien","Netherlands":"Nederländerna","Switzerland":"Schweiz","Spain":"Spanien","Italy":"Italien","Ireland":"Irland","Belgium":"Belgien","Canada":"Kanada","Israel":"Israel","China":"Kina","Japan":"Japan","Luxembourg":"Luxemburg","Bermuda":"Bermuda","Taiwan":"Taiwan"};
+const SVA={
+/* USA */
+"AAPL":"Tillverkar iPhone, Mac och iPad och säljer tjänster som App Store, iCloud och Apple Music.",
+"MSFT":"Mjukvara och moln: Windows, Office, Azure, LinkedIn, Xbox och AI-tjänster.",
+"NVDA":"Grafikprocessorer och AI-chip som driver datacenter, spel och självkörande bilar.",
+"AMZN":"E-handel, molntjänsten AWS, streaming (Prime Video) och logistik.",
+"META":"Sociala medier och annonser: Facebook, Instagram och WhatsApp, samt AI och VR.",
+"GOOGL":"Moderbolag till Google: sök, annonser, YouTube, Android och molntjänsten Google Cloud.",
+"GOOG":"Moderbolag till Google: sök, annonser, YouTube, Android och molntjänsten Google Cloud.",
+"TSLA":"Elbilar, batterilager och solenergi samt förarstöd och robotar.",
+"AVGO":"Halvledare och infrastrukturmjukvara för datacenter, nätverk och trådlöst.",
+"JPM":"USA:s största bank: banktjänster, investmentbank och kreditkort.",
+"V":"Global betalningsplattform för kortbetalningar (Visa).",
+"MA":"Global betalningsplattform för kortbetalningar (Mastercard).",
+"LLY":"Läkemedelsbolag, känt för diabetes- och viktminskningsläkemedel.",
+"NFLX":"Streamingtjänst för film och tv-serier.",
+"AMD":"Processorer och grafikchip för datorer, spel och datacenter.",
+"CRM":"Molnbaserad kund- och affärsmjukvara (Salesforce).",
+"ORCL":"Databaser, molntjänster och mjukvara för företag.",
+"PLTR":"Dataanalys- och AI-programvara för myndigheter och företag.",
+"COST":"Medlemsbaserade lågprisvaruhus (Costco).",
+"WMT":"Världens största detaljhandelskedja: stormarknader och e-handel.",
+"UNH":"Sjukförsäkring och vårdtjänster (UnitedHealthcare, Optum).",
+"HD":"Byggvaru- och heminredningskedja.",
+"CAT":"Anläggnings- och gruvmaskiner, motorer och turbiner.",
+"GS":"Investmentbank och kapitalförvaltning.",
+"IBM":"IT-tjänster, hybridmoln, AI och mjukvara för företag.",
+"DIS":"Underhållning: filmstudior, streaming (Disney+), nöjesparker och tv.",
+"KO":"Läskedrycker – Coca-Cola och andra varumärken.",
+"MCD":"Snabbmatskedja, främst via franchisetagare.",
+"CSCO":"Nätverksutrustning, säkerhet och samarbetsmjukvara.",
+"INTC":"Processorer och chiptillverkning.",
+"PEP":"Drycker och snacks – Pepsi, Frito-Lay och Quaker.",
+"ADBE":"Kreativ mjukvara: Photoshop, Acrobat och Creative Cloud.",
+"SMCI":"Servrar och lagringslösningar för AI och datacenter.",
+"CRWD":"Molnbaserad cybersäkerhet för datorer och servrar (Falcon).",
+"PANW":"Cybersäkerhet: brandväggar, moln- och nätverkssäkerhet.",
+"UBER":"Plattform för skjuts, matleverans och frakt.",
+"ANET":"Nätverksswitchar för stora datacenter och molnaktörer.",
+"AXON":"Polisutrustning: Taser, kroppskameror och programvara.",
+"NOW":"Molnbaserad arbetsflödes- och IT-automation (ServiceNow).",
+"XOM":"Olja och gas, raffinering och kemi.",
+"CVX":"Olja och gas samt raffinering.",
+"PG":"Konsumentvaror: Pampers, Gillette, Ariel med flera.",
+"JNJ":"Läkemedel och medicinteknik.",
+"MRK":"Läkemedelsbolag (Merck) – vacciner och cancerläkemedel.",
+"BAC":"Stor amerikansk bank med privat- och företagskunder.",
+"WFC":"Stor amerikansk bank med privat- och företagskunder.",
+"ABBV":"Läkemedel, bland annat Humira och Skyrizi.",
+"TMO":"Laboratorieutrustning och tjänster för life science.",
+"LIN":"Industrigaser som syre, kväve och väte.",
+"ACN":"IT-konsulter och outsourcing för företag.",
+"GE":"Flygmotorer och försvarsteknik (GE Aerospace).",
+"TXN":"Analoga halvledare för industri och fordon.",
+"QCOM":"Mobilchip och trådlös teknik (Snapdragon).",
+"AMAT":"Utrustning för tillverkning av halvledare.",
+"ISRG":"Robotassisterad kirurgi (da Vinci).",
+"NKE":"Sportskor, kläder och utrustning.",
+"VZ":"Mobil och bredband i USA.",
+"HON":"Automation, flygteknik och industriteknik (Honeywell).",
+"AMGN":"Bioteknik och läkemedel.",
+"BA":"Flygplan samt försvars- och rymdsystem (Boeing).",
+"AXP":"Kreditkort och betalningar (American Express).",
+"MMM":"Industri- och konsumentprodukter, bland annat Post-it (3M).",
+"SHW":"Färg och beläggningar.",
+"TRV":"Skadeförsäkring.",
+"BRK-B":"Holdingbolag med försäkring, järnväg, energi och aktieinnehav (Warren Buffett).",
+"MU":"Minneschip (DRAM och NAND).",
+"LRCX":"Utrustning för tillverkning av halvledare.",
+"KLAC":"Mät- och inspektionsutrustning för chiptillverkning.",
+"ABNB":"Plattform för uthyrning av boenden.",
+"MELI":"E-handel och betalningar i Latinamerika.",
+"SNPS":"Mjukvara för design av chip.",
+"CDNS":"Mjukvara för design av chip.",
+"MRVL":"Chip för datacenter och nätverk.",
+"BKNG":"Online-resebokning (Booking.com).",
+"TMUS":"Mobiloperatör i USA.",
+"INTU":"Ekonomimjukvara: TurboTax och QuickBooks.",
+/* Sverige */
+"VOLV-B.ST":"Lastbilar, bussar, anläggningsmaskiner och marinmotorer (Volvo Group).",
+"ERIC-B.ST":"Nätverksutrustning och 5G-system för mobiloperatörer.",
+"HM-B.ST":"Modekedja med kläder och accessoarer (H&M).",
+"ABB.ST":"Elektrifiering, automation och robotar.",
+"ATCO-A.ST":"Kompressorer, vakuumteknik och industriverktyg (Atlas Copco).",
+"ATCO-B.ST":"Kompressorer, vakuumteknik och industriverktyg (Atlas Copco).",
+"SEB-A.ST":"Storbank med fokus på företag och institutioner.",
+"SWED-A.ST":"Bank med många privatkunder i Sverige och Baltikum (Swedbank).",
+"SHB-A.ST":"Nordisk storbank (Handelsbanken).",
+"INVE-B.ST":"Investmentbolag med stora ägarposter i svenska storbolag.",
+"SAND.ST":"Gruvmaskiner, skärverktyg och materialteknik (Sandvik).",
+"ASSA-B.ST":"Lås, dörrar och säkerhetslösningar (Assa Abloy).",
+"EVO.ST":"Livecasino och spelsystem för nätcasinon (Evolution).",
+"SINCH.ST":"Molnbaserad kommunikation: sms, röst och meddelandetjänster.",
+"NIBE-B.ST":"Värmepumpar och värmesystem.",
+"HEXA-B.ST":"Mät- och positioneringsteknik samt mjukvara (Hexagon).",
+"ALFA.ST":"Värmeväxlare, separatorer och flödesteknik (Alfa Laval).",
+"ESSITY-B.ST":"Hygien- och hälsoprodukter: Libero, Tena och Tork.",
+"BOL.ST":"Gruvdrift och smältverk för koppar, zink och guld (Boliden).",
+"SKA-B.ST":"Bygg- och anläggningsföretag (Skanska).",
+"TELIA.ST":"Telekomoperatör i Norden och Baltikum.",
+"SAAB-B.ST":"Försvars- och säkerhetsteknik, bland annat stridsflygplanet Gripen.",
+"GETI-B.ST":"Medicinteknik för intensivvård och operation (Getinge).",
+"EPI-A.ST":"Gruv- och anläggningsutrustning (Epiroc).",
+"KINV-B.ST":"Investmentbolag (Kinnevik).",
+"LIFCO-B.ST":"Industrikoncern som äger nischade bolag inom bland annat dental och demolering.",
+"ELUX-B.ST":"Hushållsapparater (Electrolux).",
+"SCA-B.ST":"Skogsägare med massa, trävaror och förnybar energi.",
+"SSAB-A.ST":"Höghållfast stål.",
+"SKF-B.ST":"Kullager, tätningar och smörjsystem.",
+"TEL2-B.ST":"Mobiloperatör i Sverige och Baltikum (Tele2).",
+"SECU-B.ST":"Säkerhetstjänster och larm (Securitas).",
+"LUND-B.ST":"Investmentbolag (Lundbergs).",
+"INDT.ST":"Industrikoncern som förvärvar nischade teknikbolag (Indutrade).",
+"EMBRAC-B.ST":"Spelutvecklare och förläggare (Embracer).",
+"FABG.ST":"Kontorsfastigheter i Stockholm (Fabege).",
+"CAST.ST":"Kommersiella fastigheter (Castellum).",
+"SBB-B.ST":"Samhällsfastigheter i Norden (SBB).",
+"BALD-B.ST":"Fastighetsbolag (Balder).",
+"LATO-B.ST":"Investmentbolag (Latour).",
+"AZN.ST":"Läkemedelsbolag (AstraZeneca).",
+"NDA-SE.ST":"Nordens största bank (Nordea).",
+"ALIV-SDB.ST":"Biltillbehör för säkerhet: krockkuddar och säkerhetsbälten (Autoliv).",
+"HUSQ-B.ST":"Trädgårds- och skogsmaskiner (Husqvarna).",
+"TREL-B.ST":"Polymerlösningar och tätningar (Trelleborg).",
+"SWEC-B.ST":"Teknikkonsult (Sweco).",
+"PEAB-B.ST":"Bygg och anläggning (Peab).",
+"AXFO.ST":"Dagligvaruhandel – Willys och Hemköp (Axfood).",
+"BILL.ST":"Förpackningsmaterial (Billerud).",
+"AAK.ST":"Specialväxtoljor för livsmedel.",
+"SOBI.ST":"Läkemedel för sällsynta sjukdomar (Sobi).",
+"WALL-B.ST":"Bostadsfastigheter i Göteborg och Stockholm (Wallenstam).",
+"LOOMIS.ST":"Kontanthantering och värdetransporter.",
+"VOLCAR-B.ST":"Personbilar, främst elbilar (Volvo Cars).",
+"THULE.ST":"Takboxar, cykelhållare och barnvagnar (Thule).",
+"NCC-B.ST":"Bygg och infrastruktur (NCC).",
+"HPOL-B.ST":"Polymerblandningar (Hexpol).",
+"MTRS.ST":"Klimat- och luftbehandling, bland annat för datacenter (Munters).",
+/* Europa */
+"NOVO-B.CO":"Läkemedel mot diabetes och fetma (Ozempic, Wegovy).",
+"DSV.CO":"Global transport och logistik.",
+"MAERSK-B.CO":"Containerfrakt och logistik (Maersk).",
+"ORSTED.CO":"Havsbaserad vindkraft (Ørsted).",
+"VWS.CO":"Vindturbiner (Vestas).",
+"CARL-B.CO":"Bryggeri (Carlsberg).",
+"GMAB.CO":"Antikroppsläkemedel mot cancer (Genmab).",
+"DANSKE.CO":"Nordisk bank (Danske Bank).",
+"PNDORA.CO":"Smycken (Pandora).",
+"DEMANT.CO":"Hörapparater.",
+"EQNR.OL":"Olja och gas samt havsbaserad vindkraft (Equinor).",
+"DNB.OL":"Norges största bank (DNB).",
+"MOWI.OL":"Världens största laxuppfödare.",
+"TEL.OL":"Telekomoperatör (Telenor).",
+"YAR.OL":"Gödselmedel (Yara).",
+"NHY.OL":"Aluminium och förnybar energi (Norsk Hydro).",
+"RHM.DE":"Pansarfordon, ammunition och försvarsteknik (Rheinmetall).",
+"SAP.DE":"Affärssystem och molnmjukvara för företag.",
+"SIE.DE":"Industriautomation, infrastruktur och medicinteknik (Siemens).",
+"ALV.DE":"Försäkring och kapitalförvaltning (Allianz).",
+"BMW.DE":"Premiumbilar och motorcyklar (BMW).",
+"MBG.DE":"Premiumbilar och lastbilar (Mercedes-Benz).",
+"VOW3.DE":"Bilar: Volkswagen, Audi, Porsche med flera.",
+"ADS.DE":"Sportkläder och sportskor (Adidas).",
+"BAS.DE":"Kemikoncern (BASF).",
+"DTE.DE":"Telekom, bland annat ägare av T-Mobile (Deutsche Telekom).",
+"IFX.DE":"Halvledare för bil och kraftelektronik (Infineon).",
+"AIR.PA":"Flygplan, helikoptrar och rymdteknik (Airbus).",
+"AIR.DE":"Flygplan, helikoptrar och rymdteknik (Airbus).",
+"MC.PA":"Lyxvaror: Louis Vuitton, Dior och Moët & Chandon (LVMH).",
+"OR.PA":"Skönhet och kosmetik (L'Oréal).",
+"RMS.PA":"Lyxvaror och accessoarer (Hermès).",
+"KER.PA":"Lyxmärken som Gucci och Saint Laurent (Kering).",
+"TTE.PA":"Olja, gas och förnybar energi (TotalEnergies).",
+"SAN.PA":"Läkemedel och vacciner (Sanofi).",
+"SU.PA":"Energistyrning och automation (Schneider Electric).",
+"BNP.PA":"Fransk storbank (BNP Paribas).",
+"AZN.L":"Läkemedelsbolag (AstraZeneca).",
+"SHEL.L":"Olja, gas och energi (Shell).",
+"HSBA.L":"Global bank (HSBC).",
+"ULVR.L":"Konsumentvaror som glass, hygien och livsmedel (Unilever).",
+"BP.L":"Olja, gas och energi (BP).",
+"ASML.AS":"Maskiner för chiptillverkning (litografi).",
+"NESN.SW":"Livsmedel och dryck (Nestlé).",
+"ROG.SW":"Läkemedel och diagnostik (Roche).",
+"NOVN.SW":"Läkemedelsbolag (Novartis).",
+"NOKIA.HE":"Nätverksutrustning och telekomteknik (Nokia)."
+};
+function aboutHTML(s){
+  if(!s)return"";
+  const f=[],sec=s.sec?(SECSV[s.sec]||s.sec):"",txt=SVA[s.t]||"";
+  if(sec)f.push(sec);
+  if(s.ind&&s.ind!==s.sec)f.push(s.ind);
+  if(s.ct)f.push(CTSV[s.ct]||s.ct);
+  if(s.emp)f.push("ca "+kr(s.emp)+" anställda");
+  if(s.mc&&s.ccy!=="GBX"){const c={SEK:"kr",USD:"$",EUR:"€",DKK:"kr",NOK:"kr",CHF:"CHF"}[s.ccy]||"";f.push("börsvärde ca "+(s.mc>=1e9?kr(s.mc/1e9)+" mdr":kr(s.mc/1e6)+" mn")+(c?" "+c:""))}
+  const body=txt?esc(txt):(s.ab?esc(s.ab)+' <span class="mu">(Yahoo, engelska)</span>':"");
+  if(!f.length&&!body)return"";
+  return`<div class="about">${f.length?`<div class="mu fc">🏢 ${f.map(esc).join(" · ")}</div>`:""}${body?`<div class="abt">${body}</div>`:""}</div>`
+}
+
+/* ======================= v7: MIN BEVAKNING + DIREKT ANALYS ======================= */
+const PEND="mm_pending";
+const getPend=()=>{try{return JSON.parse(localStorage.getItem(PEND))||{}}catch(e){return{}}};
+const setPend=o=>{try{localStorage.setItem(PEND,JSON.stringify(o))}catch(e){}};
+function provisional(rec,news){if(!rec||S[rec.t])return;rec._k=norm(rec.d+" "+rec.n+" "+rec.t);S[rec.t]=rec;SL.push(rec);if(news&&news.length)D.news[rec.t]=news}
+function mergePending(){
+  const P_=getPend(),keys=Object.keys(P_);if(!keys.length)return;
+  let ch=false;keys.forEach(t=>{if(D.stocks[t]&&!D.stocks[t].prov){delete P_[t];ch=true}});if(ch)setPend(P_);
+  const rest=Object.keys(P_);if(!rest.length)return;
+  rest.forEach(t=>{if(!D.stocks[t]){D.stocks[t]=P_[t].rec;D.news[t]=P_[t].news||[]}});
+  if(!D.markets.some(m=>m.k==="WATCH"))D.markets.push({k:"WATCH",n:"Min bevakning",flag:"⭐",cur:"",ccy:"USD"});
+  const ids=rest.filter(t=>D.stocks[t]).sort((a,b)=>D.stocks[b].sc-D.stocks[a].sc),r=D.rank.WATCH;
+  if(!r)D.rank.WATCH={mom:ids.slice(0,25),val:[],all:ids};else ids.forEach(t=>{if(!r.all.includes(t)){r.all.push(t);r.mom.push(t)}})
+}
+const lkCard=(it,i)=>{const r=it.rec;return`<div class="mod" style="margin-bottom:8px;padding:12px"><div class="mh" style="margin-bottom:6px"><div class="ico">${it.flag||"🌐"}</div><div style="flex:1;min-width:0"><b>${esc(it.t)}</b><div class="mu">${esc(it.n)}</div></div></div>
+   <div class="g" style="margin:6px 0"><div><small>Börs</small><b style="font-size:12.5px">${esc(it.exch||"–")}</b></div><div><small>Kurs</small><b>${it.px!=null?f(it.px)+" "+esc(it.ccy||""):"–"}</b></div><div><small>Idag</small><b class="${cls(it.chg)}">${it.chg!=null?sg(it.chg):"–"}</b></div><div><small>P/E</small><b>${it.pe!=null?f(it.pe,1):"–"}</b></div><div><small>Börsvärde</small><b>${it.mcap?(it.mcap>=1e9?f(it.mcap/1e9,1)+" mdr":Math.round(it.mcap/1e6)+" mn"):"–"}</b></div><div><small>Sektor</small><b style="font-size:12px">${esc(it.sector||"–")}</b></div></div>
+   ${r?`<div class="stat WAIT" style="margin:6px 0"><b>ANALYS</b><span style="font-weight:700">Momentumpoäng ${r.sc}</span> ${hz(r.h)}<div class="mu" style="margin-top:4px">${esc(r.hr)}</div>${r.al.length?`<div class="mu" style="margin-top:4px">Signaler: ${r.al.map(a=>esc(a.t)).join(", ")}</div>`:""}</div>`:'<div class="mu" style="margin:6px 0">Ingen analys kunde räknas fram (för lite kurshistorik).</div>'}
+   <div class="acts" style="margin-top:6px"><button class="btn sm" data-act="addw" data-idx="${i}">⭐ Lägg till i Min bevakning</button>${r?`<button class="btn sm ghost" data-act="lkview" data-idx="${i}">Full analys</button>`:""}<button class="btn sm ghost" data-act="addm" data-idx="${i}">Annan marknad…</button></div></div>`};
+function lkView(i){const it=LK.items[i];if(!it||!it.rec)return;const r=it.rec;provisional(r,it.news);
+  sheet(`<h3>${esc(r.d)} – analys</h3><div class="mu" style="margin:-4px 0 8px">${esc(r.n)} · ${esc(it.exch||"")} · ${r.px} ${esc(r.cur)}</div><div class="c o" style="border:0;background:none">${detail(r,"WATCH")}</div>`)}
+async function addWatch(i){
+  const it=LK.items[i];if(!it)return;
+  const ok=await ghAddMarket({k:"WATCH",n:"Min bevakning",flag:"⭐",cur:"",ccy:"USD",mixed:true,tickers:[it.t]});
+  if(ok){if(it.rec){const P_=getPend();P_[it.t]={rec:it.rec,news:it.news||[],ts:Date.now()};setPend(P_);mergePending();indexData()}
+    closeSheet();toast("⭐ Tillagd i Min bevakning – skanning startad");route(true)}
+}
 /* ---------- DEMO-DATA (visas bara när data.json saknas) ---------- */
 function horizonOf(s){const r1=s.r1m||0,r3=s.r3m||0,r6=s.r6m||0,eg=s.eg||0,rg=s.rg||0;
   if(s.sc>=60&&r1>5&&s.a50&&s.macd>0&&r3>10)return["1-3","Starkt kortsiktigt momentum: stark 1–3 mån-avkastning, över SMA50 och MACD uppåt."];
@@ -1107,7 +1339,7 @@ function liveUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return
 async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t])Object.assign(S[t],j.stocks[t])});if(j.dt)D.rank.DT=j.dt;D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
 (async()=>{
   const t0=performance.now();introRun(t0);setTimeout(introHide,7000);
-  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;indexData();await loadLive();snapshot();route();startMate();
+  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData();await loadLive();snapshot();route();startMate();
   setInterval(async()=>{if((!location.hash||/#\/(daytrade|home)/.test(location.hash))&&await loadLive())route(true)},120000)
 })();
 </script></body></html>
