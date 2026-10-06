@@ -761,6 +761,48 @@ def read_extra_markets():
         return []
 
 # ----------------------------------------------------------------------------------
+# KURSHISTORIK FÖR GRAFEN (en liten fil per aktie, publiceras på grenen "hist")
+# ----------------------------------------------------------------------------------
+def hist_name(t): return re.sub(r"[^A-Za-z0-9._=-]", "_", t)
+
+def _series(idx, vals):
+    return {"t": [int(i.timestamp()) for i in idx], "p": [round(float(v), 2) for v in vals]}
+
+def write_hist(recs, daily, intra_a, intra_b):
+    """1D/1V från intradata, 1M–2Å från daglig stängning (2 år), 5Å veckovis."""
+    os.makedirs("hist/h", exist_ok=True); n = 0
+    for t in recs:
+        d = daily.get(t)
+        if d is None or "Close" not in d: continue
+        try:
+            c = d["Close"].dropna()
+            h = {"u": int(time.time()), "2y": _series(c.index[-504:], c.iloc[-504:])}
+            wk = c.resample("W").last().dropna()
+            h["5y"] = _series(wk.index[-262:], wk.iloc[-262:])
+            idf = intra_a.get(t) if t in intra_a else intra_b.get(t)
+            if idf is not None and len(idf):
+                cl = idf["Close"].dropna()
+                ix = cl.index
+                ix = ix.tz_localize("UTC") if ix.tz is None else ix
+                tz, _ = session(t)
+                cl = cl.copy(); cl.index = ix.tz_convert(tz)
+                if is_us(t):
+                    mins = cl.index.hour * 60 + cl.index.minute
+                    cl = cl[(mins >= 570) & (mins < 960)]
+                if len(cl):
+                    days = sorted(set(cl.index.date)); keep = set(days[-5:])
+                    last = cl[[x.date() == days[-1] for x in cl.index]]
+                    h["1d"] = _series(last.index, last)
+                    w5 = cl[[x.date() in keep for x in cl.index]].resample("30min").last().dropna()
+                    h["1w"] = _series(w5.index, w5)
+            with open(f"hist/h/{hist_name(t)}.json", "w", encoding="utf-8") as f:
+                json.dump(h, f, separators=(",", ":"))
+            n += 1
+        except Exception as e:
+            print("hist misslyckades för", t, "–", e)
+    print(f"  kurshistorik skriven för {n} aktier")
+
+# ----------------------------------------------------------------------------------
 def main():
     t0 = time.time()
     uni = {}                                    # ticker -> marknad(er)
@@ -784,7 +826,7 @@ def main():
     tickers = list(uni)
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
 
-    print("Hämtar kurshistorik…");   daily = dl(tickers, period="1y", interval="1d")
+    print("Hämtar kurshistorik (5 år)…");   daily = dl(tickers, period="5y", interval="1d")
     us = [t for t in tickers if is_us(t) and t in daily]
     print("Hämtar pre-market/intradag…"); intra = dl(us, period="5d", interval="5m", prepost=True)
     print("Hämtar nyckeltal och nyheter…")
@@ -846,6 +888,13 @@ def main():
            "stats": {"universe": len(tickers), "ok": len(recs), "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
+    print("Bygger kurshistorik för grafen…")
+    try:
+        intra_o = dl([t for t in recs if t not in intra], period="5d", interval="15m")
+        write_hist(recs, daily, intra, intra_o)
+        out["hist"] = True
+    except Exception as e:
+        print("Varning: kurshistoriken kunde inte byggas:", e)
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(clean(out), f, ensure_ascii=False, separators=(",", ":"))
     print(f"Klart: {len(recs)} aktier, {sum(len(v['mom']) for v in rank.values() if 'mom' in v)} i momentumlistor – {time.time() - t0:.0f} s")

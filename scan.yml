@@ -1,0 +1,53 @@
+name: Daily momentum scan
+
+on:
+  schedule:
+    - cron: "30 12 * * 1-5"   # 12:30 UTC – USA pre-market, Stockholm öppet
+    - cron: "15 14 * * 1-5"   # 14:15 UTC – strax efter USA-öppning (kriteriet "pris över öppning")
+    - cron: "30 21 * * 1-5"   # 21:30 UTC – efter stängning (slutkurser till portföljen)
+  workflow_dispatch:           # kör manuellt via "Run workflow" (appen startar den också när du lägger till en aktie/börs)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - run: python scanner.py
+        env:
+          BENZINGA_KEY: ${{ secrets.BENZINGA_KEY }}   # valfritt – lämna tom om du inte har någon
+
+      - name: Publicera kurshistorik (grenen hist – en enda commit, ingen historik)
+        run: |
+          [ -d hist/h ] || exit 0
+          mkdir /tmp/histpub && cp -r hist/h /tmp/histpub/ && cd /tmp/histpub
+          git init -q -b hist
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "hist $(date -u +%F\ %H:%M)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin hist
+
+      - name: Commit data.json
+        run: |
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json
+          git diff --quiet --cached || git commit -m "Uppdatering $(date -u +%F\ %H:%M)"
+          git pull --rebase
+          git push
