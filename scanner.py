@@ -37,7 +37,7 @@ NASDAQ_FALLBACK = ["SPCX","NBIS","CRWV","ALAB","RKLB","TER","AAPL","MSFT","NVDA"
         "ROST","PCAR","FAST","KDP","PAYX","EXC","XEL","CCEP","IDXX","TTWO","EA","BKR","CPRT","ODFL","DDOG","GEHC","MNST","LULU","KHC","CSGP",
         "ON","FANG","CDW","BIIB","TTD","MDB","GFS","WBD","DXCM","TEAM","LIN","MCHP","AXON","SHOP","TRI","ISRG","EXE","FER"]
 DOW_FALLBACK = ["AAPL","AMGN","AMZN","AXP","BA","CAT","CRM","CSCO","CVX","DIS","GS","HD","HON","IBM","JNJ","JPM","KO","MCD","MMM",
-        "MRK","MSFT","NKE","NVDA","PG","SHW","TRV","UNH","V","VZ","WMT"]
+        "MRK","MSFT","NKE","NVDA","PG","SHW","TRV","UNH","V","WMT","GOOGL"]
 
 LIST_WARN = {}
 
@@ -77,13 +77,12 @@ def nasdaq_api():
         print("Varning: Nasdaq API misslyckades:", e); return []
 
 def nasdaq100():
-    got = _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80, key="NASDAQ")
-    if "NASDAQ" in LIST_WARN:
-        api = nasdaq_api()
-        if len(api) >= 90:
-            got = api; LIST_WARN.pop("NASDAQ", None); print("  Nasdaq-100 hämtad från Nasdaq API")
+    api = nasdaq_api()
+    if len(api) >= 90: got = api; print("  Nasdaq-100 hämtad från Nasdaq API")
+    else: got = _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80, key="NASDAQ")
     return list(dict.fromkeys(got + NASDAQ_ALWAYS))
-def dow30():    return _wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average", ["symbol", "ticker"], DOW_FALLBACK, 25, key="DOW")
+
+def dow30():    return _wiki("https://en.wikipedia.org/wiki/List_of_Dow_Jones_Industrial_Average_companies", ["symbol", "ticker"], DOW_FALLBACK, 25, key="DOW")
 
 def _nasdaqtrader(url):
     r = requests.get(url, headers=UA, timeout=30); r.raise_for_status()
