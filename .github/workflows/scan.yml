@@ -31,6 +31,18 @@ jobs:
         env:
           BENZINGA_KEY: ${{ secrets.BENZINGA_KEY }}   # valfritt – lämna tom om du inte har någon
 
+      - name: Publicera kurshistorik (grenen hist – en enda commit, ingen historik)
+        run: |
+          [ -d hist/h ] || exit 0
+          mkdir /tmp/histpub && cp -r hist/h /tmp/histpub/ && cd /tmp/histpub
+          git init -q -b hist
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -qm "hist $(date -u +%F\ %H:%M)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin hist
+
       - name: Commit data.json
         run: |
           git config user.name "momentum-bot"
