@@ -1,1 +1,15 @@
-{"markets": []}
+{
+  "markets": [
+    {
+      "k": "WATCH",
+      "n": "Min bevakning",
+      "flag": "⭐",
+      "cur": "",
+      "ccy": "USD",
+      "mixed": true,
+      "tickers": [
+        "NBIS-USD"
+      ]
+    }
+  ]
+}
