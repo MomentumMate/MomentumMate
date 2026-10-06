@@ -31,26 +31,40 @@ OMXS = ["VOLV-B.ST","ERIC-B.ST","HM-B.ST","ABB.ST","ATCO-A.ST","ATCO-B.ST","SEB-
 SP500_FALLBACK = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","BRK-B","AVGO","TSLA","LLY","JPM","V","XOM","UNH","MA","COST",
         "HD","PG","NFLX","JNJ","CRM","ABBV","BAC","ORCL","KO","AMD","PEP","WMT","CVX","TMO","ADBE","MRK","LIN","CSCO","ACN",
         "MCD","ABT","WFC","GE","IBM","PM","NOW","INTU","TXN","CAT","ISRG","DIS","VZ","QCOM","AMAT"]
-NASDAQ_FALLBACK = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","AVGO","TSLA","COST","NFLX","AMD","ADBE","PEP","CSCO","TMUS",
-        "INTU","QCOM","TXN","AMAT","ISRG","BKNG","HON","AMGN","PANW","CRWD","ADP","MU","LRCX","KLAC","PLTR","ANET","INTC","UBER","MELI","SNPS","CDNS","ASML","ABNB","MRVL"]
+NASDAQ_FALLBACK = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","AVGO","TSLA","COST","NFLX","TMUS","ASML","CSCO","AZN","LIN","PEP","ADBE","AMD","PLTR",
+        "TXN","QCOM","INTU","ISRG","AMGN","BKNG","HON","AMAT","ARM","PANW","ADP","GILD","VRTX","CMCSA","ADI","MU","LRCX","KLAC","APP","MELI","SBUX","CRWD",
+        "INTC","CEG","MSTR","CDNS","DASH","SNPS","PYPL","MDLZ","REGN","CTAS","ORLY","MAR","MRVL","WDAY","ADSK","ABNB","CSX","FTNT","PDD","NXPI","ROP","AEP",
+        "CHTR","ROST","PCAR","FAST","KDP","PAYX","EXC","XEL","CCEP","IDXX","TTWO","VRSK","EA","BKR","CPRT","ODFL","DDOG","GEHC","MNST","LULU","KHC","CSGP",
+        "ON","FANG","CDW","ZS","BIIB","TTD","MDB","GFS","WBD","DXCM","CTSH","TEAM","LIN","MCHP","AXON","SHOP","TRI","ISRG","EXE","FER"]
 DOW_FALLBACK = ["AAPL","AMGN","AMZN","AXP","BA","CAT","CRM","CSCO","CVX","DIS","GS","HD","HON","IBM","JNJ","JPM","KO","MCD","MMM",
         "MRK","MSFT","NKE","NVDA","PG","SHW","TRV","UNH","V","VZ","WMT"]
 
-def _wiki(url, col, fallback, minimum):
+def _wiki(url, cols, fallback, minimum):
+    """Hämtar tickers från en Wikipedia-tabell. Letar i alla tabeller efter en kolumn vars namn innehåller något i `cols`."""
     try:
         r = requests.get(url, headers=UA, timeout=20); r.raise_for_status()
+        best, seen = [], []
         for t in pd.read_html(io.StringIO(r.text), flavor="lxml"):
-            if col in t.columns:
-                out = [str(s).replace(".", "-").strip() for s in t[col] if isinstance(s, str)]
-                if len(out) >= minimum: return out
-        raise ValueError("ingen lämplig tabell")
+            t = t.copy()
+            t.columns = [" ".join(str(x) for x in c if "Unnamed" not in str(x)).strip() if isinstance(c, tuple) else str(c) for c in t.columns]
+            seen.append([c[:18] for c in list(t.columns)[:5]])
+            for c in t.columns:
+                if any(k in c.lower() for k in cols):
+                    vals = []
+                    for x in t[c]:
+                        if not isinstance(x, str) or not x.strip(): continue
+                        v = x.split(":")[-1].strip().split()[0]
+                        if re.fullmatch(r"[A-Za-z0-9.\-]{1,8}", v): vals.append(v.replace(".", "-"))
+                    if len(vals) > len(best): best = vals
+        if len(best) >= minimum: return list(dict.fromkeys(best))
+        raise ValueError(f"ingen lämplig tabell (hittade {len(best)} tickers, behövde {minimum}; tabellkolumner: {seen[:5]})")
     except Exception as e:
         print("Varning: Wikipedia-hämtning misslyckades (", url.split("/")[-1], "):", e, "– använder reservlista.")
         return fallback
 
-def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", "Symbol", SP500_FALLBACK, 400)
-def nasdaq100(): return _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", "Ticker", NASDAQ_FALLBACK, 80)
-def dow30():    return _wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average", "Symbol", DOW_FALLBACK, 25)
+def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["symbol", "ticker"], SP500_FALLBACK, 400)
+def nasdaq100(): return _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80)
+def dow30():    return _wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average", ["symbol", "ticker"], DOW_FALLBACK, 25)
 
 # ---- Förinställda börser (kan läggas till från appen med en knapp, eller sättas som standard nedan) ----
 PRESETS = {
@@ -123,7 +137,7 @@ def read_extra():
 
 def get_tickers(m):
     src = m["source"]
-    return list(src() if callable(src) else src)
+    return list(dict.fromkeys(src() if callable(src) else src))
 
 # ----------------------------------------------------------------------------------
 # HÄMTNING
