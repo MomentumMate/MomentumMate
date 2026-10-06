@@ -66,6 +66,46 @@ def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_co
 def nasdaq100(): return _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80)
 def dow30():    return _wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average", ["symbol", "ticker"], DOW_FALLBACK, 25)
 
+def _nasdaqtrader(url):
+    r = requests.get(url, headers=UA, timeout=30); r.raise_for_status()
+    lines = [l for l in r.text.splitlines() if l.strip() and not l.startswith("File Creation Time")]
+    return pd.read_csv(io.StringIO("\n".join(lines)), sep="|", dtype=str, keep_default_na=False)
+
+_GOOD = re.compile(r"common stock|ordinary shares?|common shares?|american depositary shares?|class [a-z] (common|ordinary)", re.I)
+_BAD = re.compile(r"warrant|\brights?\b|\bunits?\b|preferred|notes? due|trust\b|\bfund\b|\betf\b|\betn\b|acquisition corp|depositary shares each", re.I)
+
+def nasdaq_all():
+    """Alla vanliga aktier noterade på Nasdaq (officiell symbollista från Nasdaq Trader)."""
+    try:
+        df = _nasdaqtrader("https://www.nasdaqtrader.com/dynamic/symdir/nasdaqlisted.txt"); out = []
+        for _, r in df.iterrows():
+            sym, name = r["Symbol"].strip(), r["Security Name"]
+            if r.get("ETF", "N") != "N" or r.get("Test Issue", "N") != "N" or r.get("Financial Status", "N") not in ("N", ""): continue
+            if re.fullmatch(r"[A-Z]{1,5}", sym) and _GOOD.search(name) and not _BAD.search(name): out.append(sym)
+        print(f"  Nasdaq-listan: {len(out)} aktier")
+        return out
+    except Exception as e:
+        print("Varning: kunde inte hämta Nasdaq-listan:", e); return []
+
+def nyse_all():
+    """Alla vanliga aktier på NYSE och NYSE American."""
+    try:
+        df = _nasdaqtrader("https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt"); out = []
+        for _, r in df.iterrows():
+            sym, name = r["ACT Symbol"].strip().replace(".", "-"), r["Security Name"]
+            if r.get("Exchange") not in ("N", "A") or r.get("ETF", "N") != "N" or r.get("Test Issue", "N") != "N": continue
+            if re.fullmatch(r"[A-Z]{1,5}(-[A-Z])?", sym) and _GOOD.search(name) and not _BAD.search(name): out.append(sym)
+        print(f"  NYSE-listan: {len(out)} aktier")
+        return out
+    except Exception as e:
+        print("Varning: kunde inte hämta NYSE-listan:", e); return []
+
+def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], [], 300)
+def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400)
+
+LIGHT_TOP = 120            # antal aktier per hel börs som får full analys
+LIGHT_MIN_DV = 3_000_000   # lägsta genomsnittliga omsättning per dag (i handelsvaluta) för full analys
+
 # ---- Förinställda börser (kan läggas till från appen med en knapp, eller sättas som standard nedan) ----
 PRESETS = {
     "OMXC": {"n": "OMX Köpenhamn", "flag": "🇩🇰", "cur": "kr", "ccy": "DKK", "reg": "EU", "tickers": [
@@ -90,6 +130,10 @@ PRESETS = {
     "CRYPTO": {"n": "Krypto", "flag": "🪙", "cur": "$", "ccy": "USD", "reg": None, "tickers": [
         "BTC-USD","ETH-USD","BNB-USD","XRP-USD","SOL-USD","DOGE-USD","ADA-USD","AVAX-USD","LINK-USD","DOT-USD","LTC-USD","BCH-USD",
         "XLM-USD","ATOM-USD","NEAR-USD","TRX-USD","SHIB-USD","HBAR-USD","ETC-USD","XMR-USD"]},
+    "SP400": {"n": "S&P MidCap 400", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp400},
+    "SP600": {"n": "S&P SmallCap 600", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp600},
+    "NASDAQ_ALL": {"n": "Nasdaq (alla)", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "light": True, "tickers": nasdaq_all},
+    "NYSE_ALL": {"n": "NYSE (alla)", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "light": True, "tickers": nyse_all},
     "AEX": {"n": "Euronext Amsterdam", "flag": "🇳🇱", "cur": "€", "ccy": "EUR", "reg": "EU", "tickers": [
         "ASML.AS","PRX.AS","INGA.AS","HEIA.AS","AD.AS","WKL.AS","PHIA.AS","ADYEN.AS","DSFIR.AS","MT.AS","RAND.AS","NN.AS","AKZA.AS","BESI.AS","IMCD.AS","ASM.AS",
         "ABN.AS","KPN.AS","EXO.AS","UMG.AS","BFIT.AS","SBMO.AS","AALB.AS"]},
@@ -107,7 +151,7 @@ GROUP_NAMES = {"EU": ("Europa", "🇪🇺")}
 
 def _preset(k):
     p = PRESETS[k]
-    return {"k": k, "n": p["n"], "flag": p["flag"], "cur": p["cur"], "ccy": p["ccy"], "reg": p["reg"], "source": p["tickers"]}
+    return {"k": k, "n": p["n"], "flag": p["flag"], "cur": p["cur"], "ccy": p["ccy"], "reg": p["reg"], "light": bool(p.get("light")), "source": p["tickers"]}
 
 # ---- BÖRSER. Lägg till en rad för att utöka (k = unik nyckel, source = lista eller funktion) ----
 MARKETS = [
@@ -396,11 +440,11 @@ def short_about(txt, n=240):
 def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     """Räknar fram en aktiepost. Ren funktion – inget nätverk."""
     d = d.dropna(subset=["Close"])
-    if len(d) < 201: return None
+    if len(d) < 61: return None
     us = is_us(t)
     if intr:
         past = d[d.index.date < intr["day"]]
-        if len(past) < 200: return None
+        if len(past) < 60: return None
         prev = past.iloc[-1]; px = intr["last"]; closes = past["Close"].tolist() + [px]
         opn, pre_high, pre_vol = intr["open"], intr["pre_high"], intr["pre_vol"]
         vols = past["Volume"]
@@ -454,7 +498,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     score = round(tech * .6 + fund * .25 + (sent + 1) / 2 * 15, 1)
 
     hit = bool(chg >= 5 or (us and px - pc >= 3) or pre_vol >= 50_000)
-    c1 = bool(px > float(prev["High"])); c2 = bool(pc > sma200_prev)
+    c1 = bool(px > float(prev["High"])); c2 = bool(pc > sma200_prev) if sma200_prev == sma200_prev else None
     c3 = bool(px > pre_high) if pre_high is not None else None
     c4 = bool(px > opn) if opn is not None else None
     c5 = bool(pre_vol >= 50_000) if (us and intr) else None
@@ -488,7 +532,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
-            "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
+            "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
 
 # ----------------------------------------------------------------------------------
@@ -532,6 +576,7 @@ def finalize(recs, markets):
         if r["gr"]: r["al"].append({"k": "graham", "t": "Graham Screener-kandidat"})
         if r["mf"]: r["al"].append({"k": "magic", "t": "Magic Formula-kandidat"})
         r["h"], r["hr"] = horizon(r)
+        if r.get("sh"): r["hr"] += f" Kort kurshistorik ({r['nb']} handelsdagar) – SMA200 saknas."
         r.pop("_ex", None)
     rank = {}
     for k in keys + list(groups) + ["ALL"]:
@@ -746,12 +791,19 @@ def analyze_one(sym):
 def lookup(q):
     """Slår upp en aktie (namn eller ticker) hos Yahoo och sparar lookup.json."""
     q = q.strip(); syms = []
-    try:
-        for r in (yf.Search(q, max_results=8, news_count=0).quotes or []):
-            if r.get("quoteType") in ("EQUITY", "ETF") and r.get("symbol"): syms.append(r)
-    except Exception as e:
-        print("Yahoo-sökning misslyckades:", e)
-    if not syms and re.fullmatch(r"[A-Za-z0-9.\-]{1,15}", q): syms = [{"symbol": q.upper()}]
+    qs = [q]
+    mm = re.fullmatch(r"([A-Za-z0-9.]{1,10})-USDT?", q, re.I)
+    if mm: qs.append(mm.group(1))                       # "NBIS-USD" -> sök även aktien NBIS
+    for qq in qs:
+        try:
+            for r in (yf.Search(qq, max_results=8, news_count=0).quotes or []):
+                if r.get("quoteType") in ("EQUITY", "ETF") and r.get("symbol"): syms.append(r)
+        except Exception as e:
+            print("Yahoo-sökning misslyckades:", e)
+    if not syms:
+        for qq in qs:
+            if re.fullmatch(r"[A-Za-z0-9.\-]{1,15}", qq): syms.append({"symbol": qq.upper()})
+    syms = list({x["symbol"]: x for x in syms}.values())
     items = []
     for r in syms[:6]:
         sym = r["symbol"]; info = get_info(sym)
@@ -826,11 +878,12 @@ def main():
     for e in read_extra_markets():                       # börser/aktier tillagda via appen (markets_extra.json)
         k = e.get("k"); base = PRESETS.get(k, {})
         tickers = e.get("tickers") or base.get("tickers") or []
+        if callable(tickers): tickers = tickers()
         if not k or not tickers: continue
         if k not in {m["k"] for m in markets_used}:
             markets_used.append({"k": k, "n": e.get("n") or base.get("n", k), "flag": e.get("flag") or base.get("flag", "🌐"),
                                  "cur": e["cur"] if e.get("cur") is not None else base.get("cur", ""), "ccy": e.get("ccy") or base.get("ccy", "USD"),
-                                 "reg": e.get("reg") or base.get("reg"), "mixed": bool(e.get("mixed")), "source": []})
+                                 "reg": e.get("reg") or base.get("reg"), "mixed": bool(e.get("mixed")), "light": bool(base.get("light")), "source": []})
         for t in tickers:
             if k not in uni.setdefault(t, []): uni[t].append(k)
     extra = [t for t in read_extra() if t not in uni]
@@ -840,13 +893,25 @@ def main():
     tickers = list(uni)
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
 
-    print("Hämtar kurshistorik (5 år)…");   daily = dl(tickers, period="5y", interval="1d")
-    us = [t for t in tickers if is_us(t) and t in daily]
+    mk_by = {m["k"]: m for m in markets_used}
+    light_keys = {m["k"] for m in markets_used if m.get("light")}
+    light_only = {t for t in tickers if uni[t] and all(k in light_keys for k in uni[t])}
+    core = [t for t in tickers if t not in light_only]
+    print("Hämtar kurshistorik (5 år)…");   daily = dl(core, period="5y", interval="1d")
+    selected, light_stats = set(), {}
+    if light_only:
+        print(f"Lätt läge: skannar kurser för {len(light_only)} aktier på hela börser…")
+        ld = dl(sorted(light_only), period="1y", interval="1d")
+        selected, light_stats = select_light(light_only, ld, uni, mk_by)
+        print(f"  {len(selected)} aktier valda för full analys {light_stats}")
+        daily.update(dl(sorted(selected), period="5y", interval="1d"))
+    deep = [t for t in tickers if t in selected or t not in light_only]
+    us = [t for t in deep if is_us(t) and t in daily]
     print("Hämtar pre-market/intradag…"); intra = dl(us, period="5d", interval="5m", prepost=True)
     print("Hämtar nyckeltal och nyheter…")
     info, news = {}, {}
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        for i, (t, inf, nw) in enumerate(ex.map(enrich, [t for t in tickers if t in daily])):
+        for i, (t, inf, nw) in enumerate(ex.map(enrich, [t for t in deep if t in daily])):
             info[t], news[t] = inf, nw
             if (i + 1) % 100 == 0: print(f"  {i + 1} klara", flush=True)
 
@@ -856,10 +921,10 @@ def main():
         for t in miss[:400]:
             time.sleep(0.4); inf = get_info(t)
             if inf: info[t] = inf
-    mk_by = {m["k"]: m for m in markets_used}
-    recs = {}
-    for t in tickers:
-        if t not in daily: continue
+    recs, dropped = {}, []
+    for t in deep:
+        if t not in daily:
+            dropped.append([t, "ingen kursdata hos Yahoo", uni[t]]); continue
         try:
             m0 = mk_by[uni[t][0]]
             if m0.get("mixed"):
@@ -868,10 +933,14 @@ def main():
             r = build(t, daily[t], intr_of(intra, t), info.get(t, {}), news.get(t, []), m0)
             if r:
                 r["m"] = uni[t]; recs[t] = r
+            else:
+                dropped.append([t, "för kort kurshistorik (under 61 handelsdagar)", uni[t]])
         except Exception as e:
+            dropped.append([t, "analysfel: " + str(e)[:60], uni[t]])
             print("Hoppar över", t, "–", e)
-    if len(recs) < max(10, 0.3 * len(tickers)):
-        print(f"FEL: bara {len(recs)} av {len(tickers)} aktier kunde analyseras. Behåller gamla data.json.")
+    print(f"Analys: {len(recs)} aktier klara, {len(dropped)} saknas (Yahoo saknar data eller för kort historik).")
+    if len(recs) < max(10, 0.3 * len(deep)):
+        print(f"FEL: bara {len(recs)} av {len(deep)} aktier kunde analyseras. Behåller gamla data.json.")
         sys.exit(1)
 
     rank = finalize(recs, markets_used)
@@ -894,12 +963,12 @@ def main():
            "markets": [{"k": "ALL", "n": "Alla marknader", "flag": "🌍", "cur": "", "ccy": ""}] +
                       [{"k": g, "n": GROUP_NAMES.get(g, (g, "🌐"))[0], "flag": GROUP_NAMES.get(g, (g, "🌐"))[1], "cur": "", "ccy": "", "group": True}
                        for g in sorted({m["reg"] for m in markets_used if m.get("reg")})] +
-                      [{k: m[k] for k in ("k", "n", "flag", "cur", "ccy", "reg") if k in m} | ({"hidden": True} if m.get("hidden") else {}) for m in markets_used],
-           "fail": [t for t in tickers if t not in recs][:400],
+                      [{k: m[k] for k in ("k", "n", "flag", "cur", "ccy", "reg") if k in m} | ({"hidden": True} if m.get("hidden") else {}) | ({"light": True} if m.get("light") else {}) for m in markets_used],
+           "fail": [d_[0] for d_ in dropped][:400],
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"universe": len(tickers), "ok": len(recs), "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
+           "stats": {"universe": len(tickers), "ok": len(recs), "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
     print("Bygger kurshistorik för grafen…")
@@ -912,6 +981,27 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(clean(out), f, ensure_ascii=False, separators=(",", ":"))
     print(f"Klart: {len(recs)} aktier, {sum(len(v['mom']) for v in rank.values() if 'mom' in v)} i momentumlistor – {time.time() - t0:.0f} s")
+
+def select_light(light_only, ld, uni, mk_by):
+    """Lätt läge för hela börser: kurser för alla, full analys (info, nyheter, fundamenta) för de LIGHT_TOP starkaste likvida."""
+    scored = {}
+    for t in light_only:
+        d = ld.get(t)
+        if d is None or len(d) < 61: continue
+        try:
+            px = float(d["Close"].iloc[-1]); dv = float((d["Close"] * d["Volume"]).iloc[-20:].mean())
+            if px < 1 or dv < LIGHT_MIN_DV: continue
+            r = build(t, d, None, {}, [], mk_by[uni[t][0]], sent=0, nf=False)
+            if r: scored[t] = r["sc"]
+        except Exception:
+            pass
+    sel, stats = set(), {}
+    for k in {k for t in light_only for k in uni[t]}:
+        members = [t for t in light_only if k in uni[t]]
+        top = sorted((t for t in members if t in scored), key=lambda t: -scored[t])[:LIGHT_TOP]
+        sel.update(top)
+        stats[k] = {"universe": len(members), "scanned": sum(1 for t in members if t in ld), "liquid": sum(1 for t in members if t in scored), "deep": len(top)}
+    return sel, stats
 
 def intr_of(intra, t):
     return intraday_stats(intra[t]) if t in intra else None

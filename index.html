@@ -326,7 +326,7 @@ function detail(s,mk,extra=""){
   const mfp=(s.mfr&&(s.mfr[mk]!=null?s.mfr[mk]:s.mfr[s.m[0]]));
   return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>1 mån</small><b class="${cls(s.r1m)}">${sg(s.r1m,1)}</b></div><div><small>3 mån</small><b class="${cls(s.r3m)}">${sg(s.r3m,1)}</b></div>
   <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
-  <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>
+  <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>${s.sh?`<div class="mu">⚠ Kort kurshistorik (${s.nb} handelsdagar) – SMA200 saknas.</div>`:""}
   <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
   <h4 data-i="hz">Placeringshorisont <span class="ii">ⓘ</span></h4><div class="k">${hz(s.h)} <span class="mu">${esc(s.hr)}</span></div>
   <h4 data-i="signaler">Signaler <span class="ii">ⓘ</span></h4>${s.al.length?s.al.map(a=>`<div class="k">${ic(a.k)} ${esc(a.t)}</div>`).join(""):'<div class="mu">Inga aktiva signaler</div>'}
@@ -441,16 +441,17 @@ function vDesk(){
 }
 function vMarket(k){
   const m=MK(k),st=mstats(k);if(!st){view(topbar(esc(m.n))+'<div class="empty">Ingen data för den här marknaden.</div>');return}
-  const tab=Ui.mtab||"mom",r=st.r;H={av:st.av,cg:st.cg,tr:st.tr,dc:st.dc,n:st.n,ab:st.L.filter(x=>x.a200).length};
+  let tab=Ui.mtab||"mom";if(k==="WATCH"&&tab==="val")tab="all";const r=st.r,lg=D.stats&&D.stats.light&&D.stats.light[k],dr=((D.stats&&D.stats.dropped)||[]).filter(x=>(x[2]||[]).some(y=>k==="ALL"||mktMembers(k).includes(y)));H={av:st.av,cg:st.cg,tr:st.tr,dc:st.dc,n:st.n,ab:st.L.filter(x=>x.a200).length};
   let body="";
   if(tab==="mom"){let L=st.L;const list=Ui.dt?L.filter(x=>x.dok):L;body=`<div class="chips" style="margin-bottom:8px"><span class="chip${Ui.dt?" on":""}" data-act="dtf">⚡ Endast daghandel</span></div>`+(list.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga daghandelskandidater just nu.</div>')}
   else if(tab==="val"){const V=r.val.map(t=>S[t]).filter(Boolean),gN=r.all.filter(t=>S[t].gr).length,mN=r.all.filter(t=>(S[t].mfr&&S[t].mfr[k]!=null)&&S[t].mfr[k]<=.2).length;
-    body=`<div class="mu" style="margin:0 2px 8px" data-i="val">${gN} aktier klarar Graham, ${mN} Magic Formula på ${esc(m.n)}. Topp 25 rankade på kombinerad värdepoäng – oberoende av momentumlistan. <span class="ii">ⓘ</span></div>`+(V.map((s,i)=>card(s,i+1,{mk:k,val:true})).join("")||'<div class="empty">Inga aktier kvalificerar sig just nu.</div>')}
+    body=`<div class="mu" style="margin:0 2px 8px" data-i="val">${gN} aktier klarar Graham, ${mN} Magic Formula på ${esc(m.n)}. Topp 25 rankade på kombinerad värdepoäng – oberoende av momentumlistan. <span class="ii">ⓘ</span></div>`+(V.map((s,i)=>card(s,i+1,{mk:k,val:true})).join("")||'<div class="empty">Inga aktier på den här marknaden klarar Graham eller Magic Formula just nu.<br><span class="lnk" data-act="tab" data-v="all">Visa alla aktier ›</span></div>')}
   else{const A=r.all.map(t=>S[t]).filter(Boolean),n=Ui.shown[k]||40;body=`<div class="mu" style="margin:0 2px 8px">Alla ${A.length} aktier, sorterade efter momentumpoäng.</div>`+A.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true})).join("")+(A.length>n?`<button class="btn ghost wide" data-act="more" data-k="${k}">Visa fler (${A.length-n})</button>`:"")}
   view(`${topbar(m.flag+" "+esc(m.n))}<div class="chips mkrow" style="margin-bottom:6px">${orderedMkts().map(x=>mchip(x,k)).join("")}</div>
   <div class="sumx"><div class="sx-l" data-i="score"><div class="mu">Snittpoäng topp 25 · ${esc(m.n)} <span class="ii">ⓘ</span></div><div><span class="big">${f(st.av,1)}</span><span class="pill ${cls(st.cg)}">${sg(st.cg)} idag</span></div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${st.dc}</span> <span class="mu">daghandelskandidater</span></div></div>
    <div class="sx-r" data-i="trend"><div class="ring" style="--p:${st.tr}"><b>${st.tr}%</b></div><div class="mu" style="margin-top:4px">Trendstyrka <span class="ii">ⓘ</span></div></div></div>
-  <div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum 25</button><button class="${tab==="val"?"on":""}" data-act="tab" data-k="${k}" data-v="val">Värde 25</button><button class="${tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="all">Alla</button></div>${body}`)
+  ${lg?`<div class="mu" style="margin:0 2px 8px">Hel börs i lätt läge: ${lg.scanned} aktier skannade, ${lg.liquid} tillräckligt likvida. De ${lg.deep} med starkast tekniska poäng får full analys. Övriga hittar du via Sök → Slå upp.</div>`:""}
+  <div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum 25</button><button class="${tab==="val"?"on":""}" data-act="tab" data-k="${k}" data-v="val">Värde 25</button><button class="${tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="all">Alla</button></div>${body}${dr.length?`<details class="nwd" style="margin-top:10px"><summary>Saknas i analysen (${dr.length})</summary><div class="mu" style="margin:4px 0 8px">Yahoo saknade kursdata för dessa vid senaste skanningen, eller så har de för kort historik. De kan vara avnoterade, ha bytt ticker eller tillfälligt saknas hos Yahoo.</div>${dr.slice(0,80).map(x=>`<div class="k"><b>${esc(x[0])}</b> <span class="mu">– ${esc(x[1])}</span> <span class="lnk" data-act="lookup" data-q="${esc(x[0].replace(/\.[A-Z]{1,3}$/,""))}">Slå upp ›</span></div>`).join("")}</details>`:""}`)
 }
 
 /* ---------- NYHETER / SÖK / AKTIE ---------- */
@@ -776,7 +777,7 @@ async function ghGet(path){const j=await ghReq("/contents/"+path+"?ref=main&t="+
 const ghPut=(path,text,sha,msg)=>ghReq("/contents/"+path,{method:"PUT",body:JSON.stringify({message:msg,content:b64e(text),sha:sha||undefined,branch:"main"})});
 const CCYM={SEK:["🇸🇪","kr"],USD:["🇺🇸","$"],EUR:["🇪🇺","€"],DKK:["🇩🇰","kr"],NOK:["🇳🇴","kr"],GBP:["🇬🇧","£"],CHF:["🇨🇭","CHF"],CAD:["🇨🇦","$"]};
 let LK={q:"",items:[]};
-const noHitCard=q=>`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">🔎</div><h2>FINNS INTE PÅ NÅGON MARKNAD</h2></div><p style="margin:0 0 12px;font-size:14px">“${esc(q)}” finns inte bland aktierna på dina marknader. Jag kan slå upp den hos Yahoo Finance, räkna fram en fullständig analys med placeringshorisont direkt, och lägga till den i “Min bevakning”.</p><button class="btn wide" data-act="lookup" data-q="${esc(q)}">Slå upp “${esc(q)}”</button></div>`;
+const noHitCard=q=>`${/-USD$/i.test(q)?`<div class="stat WAIT" style="margin-top:10px"><b>TIPS</b>Aktier skrivs utan -USD. Prova <span class="lnk" data-act="lookup" data-q="${esc(q.replace(/-USD$/i,""))}">${esc(q.replace(/-USD$/i,""))}</span>. “-USD” används för kryptovalutor.</div>`:""}<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">🔎</div><h2>FINNS INTE PÅ NÅGON MARKNAD</h2></div><p style="margin:0 0 12px;font-size:14px">“${esc(q)}” finns inte bland aktierna på dina marknader. Jag kan slå upp den hos Yahoo Finance, räkna fram en fullständig analys med placeringshorisont direkt, och lägga till den i “Min bevakning”.</p><button class="btn wide" data-act="lookup" data-q="${esc(q)}">Slå upp “${esc(q)}”</button></div>`;
 function lookupHelp(q){
   const repo=ghRepo();
   return`<h3>Slå upp “${esc(q)}”</h3><p>För att kunna slå upp och lägga till okända aktier direkt i appen behöver appen kopplas till ditt GitHub-repo (engångsinställning, ca 3 minuter).</p><button class="btn wide" data-act="settings">Öppna inställningar</button><p class="mu" style="font-size:13px;margin-top:10px">Token skapas här: <a class="lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">github.com/settings/personal-access-tokens/new ›</a> (logga in först). Välj bara ditt repo och behörigheterna <b>Contents</b> och <b>Actions</b> = Read and write.</p>
@@ -884,7 +885,7 @@ psig:()=>["Portföljsignaler","<p>Varje innehav granskas mot teknisk och fundame
 });
 
 /* ======================= v4: BÖRSER, DATAHÄLSA, MANUELLA INNEHAV ======================= */
-const PRESET_CAT=[{k:"CRYPTO",n:"Krypto",flag:"🪙",ccy:"USD",c:20,u:"kryptovalutor"},{k:"AEX",n:"Euronext Amsterdam",flag:"🇳🇱",ccy:"EUR",c:23},{k:"OMXH",n:"OMX Helsingfors",flag:"🇫🇮",ccy:"EUR",c:17},{k:"SMI",n:"Zürich (SMI)",flag:"🇨🇭",ccy:"CHF",c:18},{k:"IBEX",n:"Madrid (IBEX)",flag:"🇪🇸",ccy:"EUR",c:20},{k:"MIB",n:"Milano (FTSE MIB)",flag:"🇮🇹",ccy:"EUR",c:20}];
+const PRESET_CAT=[{k:"SP400",n:"S&P MidCap 400",flag:"🇺🇸",ccy:"USD",c:400,u:"aktier"},{k:"SP600",n:"S&P SmallCap 600",flag:"🇺🇸",ccy:"USD",c:600,u:"aktier"},{k:"NASDAQ_ALL",n:"Nasdaq (alla aktier)",flag:"🇺🇸",ccy:"USD",c:3000,u:"aktier, lätt läge",l:1},{k:"NYSE_ALL",n:"NYSE (alla aktier)",flag:"🇺🇸",ccy:"USD",c:2500,u:"aktier, lätt läge",l:1},{k:"CRYPTO",n:"Krypto",flag:"🪙",ccy:"USD",c:20,u:"kryptovalutor"},{k:"AEX",n:"Euronext Amsterdam",flag:"🇳🇱",ccy:"EUR",c:23},{k:"OMXH",n:"OMX Helsingfors",flag:"🇫🇮",ccy:"EUR",c:17},{k:"SMI",n:"Zürich (SMI)",flag:"🇨🇭",ccy:"CHF",c:18},{k:"IBEX",n:"Madrid (IBEX)",flag:"🇪🇸",ccy:"EUR",c:20},{k:"MIB",n:"Milano (FTSE MIB)",flag:"🇮🇹",ccy:"EUR",c:20}];
 const HCCY=["SEK","USD","EUR","DKK","NOK","GBP","GBX","CHF","CAD"];
 const STALE_H=40;
 const dataAge=()=>D&&D.updated?(Date.now()-Date.parse(D.updated))/36e5:0;
@@ -932,7 +933,7 @@ async function ghAddMarket(ent){
 function addExchangeSheet(){
   const have=new Set(D.markets.map(m=>m.k)),av=PRESET_CAT.filter(p=>!have.has(p.k)),repo=ghRepo();
   sheet(`<h3>Lägg till börs</h3><p class="mu" style="font-size:13px;margin-top:-4px">Börsen läggs till i skannern och får full analys – momentum, värde, daghandel och nyheter – efter nästa körning (ca 15–25 min). Det här ändrar filen <b>markets_extra.json</b> i ditt repo åt dig.${ghReady()?"":' <b style="color:var(--gd)">GitHub är inte kopplat än.</b> <span class="lnk" data-act="settings">Koppla ›</span>'}</p>
-  ${av.length?`<h4>Färdiga börser</h4>${av.map(p=>`<div class="sr"><div style="font-size:24px;width:34px;text-align:center">${p.flag}</div><div class="m"><div><b>${esc(p.n)}</b></div><div class="mu">ca ${p.c} ${p.u||"storbolag"} · ${p.ccy}</div></div><button class="btn sm" data-act="xadd" data-k="${p.k}">Lägg till</button></div>`).join("")}`:'<div class="mu">Alla färdiga börser är redan tillagda.</div>'}
+  ${av.length?`<h4>Färdiga börser</h4>${av.map(p=>`<div class="sr"><div style="font-size:24px;width:34px;text-align:center">${p.flag}</div><div class="m"><div><b>${esc(p.n)}</b></div><div class="mu">ca ${p.c} ${p.u||"storbolag"} · ${p.ccy}${p.l?" · analyserar de "+120+" starkaste fullt":""}</div></div><button class="btn sm" data-act="xadd" data-k="${p.k}">Lägg till</button></div>`).join("")}`:'<div class="mu">Alla färdiga börser är redan tillagda.</div>'}
   <h4 style="margin-top:14px">Egen börs eller egna aktier</h4>
   <label class="fld"><span>Namn</span><input id="xn" placeholder="t.ex. Bryssel"></label>
   <div class="row2"><label class="fld"><span>Valuta (kod)</span><input id="xc" placeholder="EUR" autocapitalize="characters"></label><label class="fld"><span>Flagga</span><input id="xf" placeholder="🇧🇪"></label></div>
@@ -1295,15 +1296,19 @@ const lkCard=(it,i)=>{const r=it.rec;return`<div class="mod" style="margin-botto
    <div class="acts" style="margin-top:6px"><button class="btn sm" data-act="addw" data-idx="${i}">⭐ Lägg till i Min bevakning</button>${r?`<button class="btn sm ghost" data-act="lkview" data-idx="${i}">Full analys</button>`:""}<button class="btn sm ghost" data-act="addm" data-idx="${i}">Annan marknad…</button></div></div>`};
 function lkView(i){const it=LK.items[i];if(!it||!it.rec)return;const r=it.rec;provisional(r,it.news);
   sheet(`<h3>${esc(r.d)} – analys</h3><div class="mu" style="margin:-4px 0 8px">${esc(r.n)} · ${esc(it.exch||"")} · ${r.px} ${esc(r.cur)}</div><div class="c o" style="border:0;background:none">${detail(r,"WATCH")}</div>`)}
+function placeholderRec(it){
+  const px=+it.px||0,sym=CCYM[it.ccy]?CCYM[it.ccy][1]:(it.ccy||"");
+  return{t:it.t,d:it.t.replace(/\.[A-Z]{1,3}$/,""),n:it.n||it.t,m:["WATCH"],cur:sym,ccy:it.ccy||"USD",px:px,chg:+it.chg||0,sc:0,rsi:50,r1m:null,r3m:null,r6m:null,vx:1,a50:false,a200:false,macd:-1,pe:it.pe!=null?+it.pe:null,pb:null,eg:null,rg:null,pm:null,dy:null,hi:px,lo:px,gr:false,grn:0,grc:[],ey:null,roc:null,mfr:{},mf:false,al:[],dt:[null,null,null,null,null],dok:false,hit:false,sent:0,sp:[],bo:false,stag:false,h:"none",hr:"Analys väntar – den räknas fram vid nästa skanning (eller slå upp aktien igen).",ab:null,sec:it.sector||null,ind:null,ct:null,emp:null,mc:it.mcap||null,prov:true,wait:true,dtn:0,dte:0,dts:0,pmv:0,pdh:0,pdl:0,pdc:0,atr:0,nf:false,lt:todayISO()}
+}
 async function addWatch(i){
   const it=LK.items[i];if(!it)return;
   const ok=await ghAddMarket({k:"WATCH",n:"Min bevakning",flag:"⭐",cur:"",ccy:"USD",mixed:true,tickers:[it.t]});
-  if(ok){if(it.rec){const P_=getPend();P_[it.t]={rec:it.rec,news:it.news||[],ts:Date.now()};setPend(P_);mergePending();indexData()}
-    closeSheet();toast("⭐ Tillagd i Min bevakning – skanning startad");route(true)}
+  if(ok){const rec=it.rec||placeholderRec(it),P_=getPend();P_[it.t]={rec,news:it.news||[],ts:Date.now()};setPend(P_);mergePending();indexData();
+    closeSheet();toast(it.rec?"⭐ Tillagd i Min bevakning – skanning startad":"⭐ Tillagd – analysen kommer efter nästa skanning");route(true);setTimeout(()=>{location.hash="#/desk/WATCH"},350)}
 }
 /* ======================= v8: KORTA MARKNADSKNAPPAR, FLAGGOR, ORDNING, GRAF ======================= */
-const SHORT={ALL:"Alla",EU:"EUR",OMXS:"OMXS",SP500:"SP500",NASDAQ:"Nasdaq",DOW:"DowJ",OMXC:"DK",OSE:"NO",DAX:"DE",CAC:"FR",FTSE:"GB",AEX:"NL",OMXH:"FI",SMI:"CH",IBEX:"ES",MIB:"IT",CRYPTO:"Krypto",WATCH:"Bevakn."};
-const DEF_ORDER=["ALL","EU","OMXS","SP500","NASDAQ","DOW","OMXC","OSE","DAX","CAC","FTSE","AEX","OMXH","SMI","IBEX","MIB","CRYPTO","WATCH"];
+const SHORT={SP400:"SP400",SP600:"SP600",NASDAQ_ALL:"Nasdaq+",NYSE_ALL:"NYSE+",ALL:"Alla",EU:"EUR",OMXS:"OMXS",SP500:"SP500",NASDAQ:"Nasdaq",DOW:"DowJ",OMXC:"DK",OSE:"NO",DAX:"DE",CAC:"FR",FTSE:"GB",AEX:"NL",OMXH:"FI",SMI:"CH",IBEX:"ES",MIB:"IT",CRYPTO:"Krypto",WATCH:"Bevakn."};
+const DEF_ORDER=["ALL","EU","OMXS","SP500","NASDAQ","DOW","OMXC","OSE","DAX","CAC","FTSE","SP400","SP600","NASDAQ_ALL","NYSE_ALL","AEX","OMXH","SMI","IBEX","MIB","CRYPTO","WATCH"];
 const MKO="mm_mkorder";
 function orderedMkts(){
   const base=D.markets.filter(m=>!m.hidden);let o=[];try{o=JSON.parse(localStorage.getItem(MKO))||[]}catch(e){}
