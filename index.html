@@ -243,7 +243,7 @@ function sellHolding(p,t,q,px,d){const h=p.h.find(x=>x.t===t);if(!h)return;q=Mat
 function signal(r,n){
   const s=r.s;if(!s)return{k:"NA",why:["Ingen live-data för den här aktien. Lägg tickern i extra_tickers.txt så tas den med nästa körning."]};
   const sell=[],buy=[],trim=[];
-  if(!s.a200)sell.push("Under SMA200 – den långsiktiga trenden är bruten");
+  if(!s.a200&&!s.sh)sell.push("Under SMA200 – den långsiktiga trenden är bruten");
   if(!s.a50&&s.macd<0)sell.push("Under SMA50 och MACD pekar nedåt");
   if(s.rsi>78)sell.push("RSI "+s.rsi+" – kraftigt överköpt");
   if(s.sc<35)sell.push("Låg momentumpoäng ("+s.sc+")");
@@ -1407,7 +1407,7 @@ function chatExport(pid){
   const p=getP(pid);if(!p)return"";
   const c=calc(p),held=new Set(p.h.map(h=>h.t)),F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),L=[];
   const yn=(b,a,b2)=>b?a:b2,when=D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo";
-  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}% | horisont ${s.h==="none"||!s.h?"–":s.h} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.grn}/6 | Magic Formula ${yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}`;
+  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${s.sh?"saknas (kort historik)":yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}% | horisont ${s.h==="none"||!s.h?"–":s.h} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.grn}/6 | Magic Formula ${yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}`;
   L.push("MOMENTUMMATE – PORTFÖLJANALYS FÖR CHATT");
   L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${when} · modellen är regelbaserad och ingen rådgivning`);
   L.push(`Portfölj "${p.name}": värde ${Math.round(c.tot)} kr · insatt ${Math.round(c.cost)} kr · avkastning ${F(c.ret)}% · idag ${F(c.dayPct,2)}% · realiserat ${Math.round(p.re||0)} kr · ${p.h.length} innehav`);

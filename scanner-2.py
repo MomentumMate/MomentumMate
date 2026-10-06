@@ -548,6 +548,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     last20 = c.iloc[-21:-1]
     rng = (float(last20.max()) - float(last20.min())) / float(last20.mean()) * 100
     bo = bool(px > float(last20.max()) and volx >= 1.2 and px > sma50)      # breakout över 20-dagarshögsta på volym
+    rng20 = rng                                                              # 20-dagarsintervall i % (variabeln rng skrivs över längre ned)
     stag = bool(rng < 8 and abs(r1) < 3)                                    # stagnation: smalt intervall, ingen rörelse
     tech = (min(max(r1, 0), 30) / 30 * 25 + min(max(r3, 0), 60) / 60 * 25 + (px > sma50) * 15 + (px > sma200) * 15
             + (ema12 > ema26) * 10 + min(volx, 3) / 3 * 10)
@@ -589,7 +590,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
-            "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
+            "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
 
 # ----------------------------------------------------------------------------------
