@@ -388,7 +388,7 @@ function vHome(){
 /* ---------- PORTFÖLJ ---------- */
 const PAL=["#ffd166","#e8b64a","#c99a3a","#a67c2e","#8a6a2c","#6f5a2e","#59482a","#4a3d26"];
 function vPort(id){
-  if(!P.ps.length){view(topbar("Portfölj")+`<div class="mod"><div class="mh"><div class="ico">◔</div><h2>KOM IGÅNG</h2></div><p style="margin:0 0 14px;font-size:14.5px">Skapa en portfölj och registrera dina innehav – antal, inköpskurs och datum. Kurser, utveckling och signaler uppdateras automatiskt varje dygn.</p><button class="btn wide" data-act="newport">Skapa portfölj</button></div><div class="mu" style="text-align:center">Portföljerna sparas i den här webbläsaren. Använd ⋯ → Exportera för säkerhetskopia.</div>`);return}
+  if(!P.ps.length){view(topbar("Portfölj")+`<div class="mod"><div class="mh"><div class="ico">◔</div><h2>KOM IGÅNG</h2></div><p style="margin:0 0 14px;font-size:14.5px">Skapa en portfölj och registrera dina innehav – antal, inköpskurs och datum. Kurser, utveckling och signaler uppdateras automatiskt varje dygn.</p><button class="btn wide" data-act="newport">Skapa portfölj</button></div><div class="stat WAIT" style="margin-top:12px"><b>FÖRSVANN DINA PORTFÖLJER?</b>Portföljerna sparas bara i just den här appen på just den här enheten. <b>Safari och appen på hemskärmen sparar var för sig</b>, och sparade data försvinner om du tar bort ikonen från hemskärmen. Öppna den app där du la in dem, eller importera din säkerhetskopia: skapa en portfölj och välj ⋯ → Importera backup. Gör ⋯ → Exportera backup efter större ändringar och spara texten i Anteckningar.</div>`);return}
   const p=getP(id)||getP(P.cur)||P.ps[0];P.cur=p.id;save();const c=calc(p);
   const sigs=c.rows.filter(r=>["SELL","TRIM","BUY","WATCH"].includes(r.sig.k)),rot=rotation(c.rows),needAct=rot.length>0||c.rows.some(r=>r.sig.k==="SELL"||r.sig.k==="TRIM");
   const held=new Set(p.h.map(h=>h.t)),ideas=needAct?(D.rank.ALL?D.rank.ALL.mom:[]).map(t=>S[t]).filter(s=>s&&!held.has(s.t)&&s.sc>=60).slice(0,5):[];
@@ -1471,6 +1471,7 @@ function demo(){
   return{v:2,updated:new Date().toISOString(),fx:{SEK:1,USD:10.6,EUR:11.4,DKK:1.53,NOK:.95,GBX:.135,CHF:12},fail:[],markets,stocks,rank,news,dtx:DTX,feed:[0,1,2,3,4,5].map(i=>({h:["Marknaden stiger inför räntebesked","Oljepriset faller – energiaktier backar","Techbolagen leder uppgången på Wall Street","Stockholmsbörsen stängde på plus","Dollarn försvagas mot kronan","Inflationsdata bättre än väntat"][i],s:"Kort sammanfattning av marknadsnyheten.",src:["Bloomberg","CNBC","Dagens industri"][i%3],u:"",ts:now-i*5400}))}
 }
 
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
 /* ---------- INTRO ---------- */
 const introOff=()=>{try{return localStorage.getItem("mm_intro_off")==="1"}catch(e){return false}};
 function introHide(){const el=$("#intro");if(!el||el.classList.contains("gone"))return;el.classList.add("gone");setTimeout(()=>{el.style.display="none"},650)}
