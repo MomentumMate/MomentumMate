@@ -31,15 +31,17 @@ OMXS = ["VOLV-B.ST","ERIC-B.ST","HM-B.ST","ABB.ST","ATCO-A.ST","ATCO-B.ST","SEB-
 SP500_FALLBACK = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","BRK-B","AVGO","TSLA","LLY","JPM","V","XOM","UNH","MA","COST",
         "HD","PG","NFLX","JNJ","CRM","ABBV","BAC","ORCL","KO","AMD","PEP","WMT","CVX","TMO","ADBE","MRK","LIN","CSCO","ACN",
         "MCD","ABT","WFC","GE","IBM","PM","NOW","INTU","TXN","CAT","ISRG","DIS","VZ","QCOM","AMAT"]
-NASDAQ_FALLBACK = ["AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","AVGO","TSLA","COST","NFLX","TMUS","ASML","CSCO","AZN","LIN","PEP","ADBE","AMD","PLTR",
+NASDAQ_FALLBACK = ["SPCX","NBIS","CRWV","ALAB","RKLB","TER","AAPL","MSFT","NVDA","AMZN","META","GOOGL","GOOG","AVGO","TSLA","COST","NFLX","TMUS","ASML","CSCO","AZN","LIN","PEP","ADBE","AMD","PLTR",
         "TXN","QCOM","INTU","ISRG","AMGN","BKNG","HON","AMAT","ARM","PANW","ADP","GILD","VRTX","CMCSA","ADI","MU","LRCX","KLAC","APP","MELI","SBUX","CRWD",
         "INTC","CEG","MSTR","CDNS","DASH","SNPS","PYPL","MDLZ","REGN","CTAS","ORLY","MAR","MRVL","WDAY","ADSK","ABNB","CSX","FTNT","PDD","NXPI","ROP","AEP",
-        "CHTR","ROST","PCAR","FAST","KDP","PAYX","EXC","XEL","CCEP","IDXX","TTWO","VRSK","EA","BKR","CPRT","ODFL","DDOG","GEHC","MNST","LULU","KHC","CSGP",
-        "ON","FANG","CDW","ZS","BIIB","TTD","MDB","GFS","WBD","DXCM","CTSH","TEAM","LIN","MCHP","AXON","SHOP","TRI","ISRG","EXE","FER"]
+        "ROST","PCAR","FAST","KDP","PAYX","EXC","XEL","CCEP","IDXX","TTWO","EA","BKR","CPRT","ODFL","DDOG","GEHC","MNST","LULU","KHC","CSGP",
+        "ON","FANG","CDW","BIIB","TTD","MDB","GFS","WBD","DXCM","TEAM","LIN","MCHP","AXON","SHOP","TRI","ISRG","EXE","FER"]
 DOW_FALLBACK = ["AAPL","AMGN","AMZN","AXP","BA","CAT","CRM","CSCO","CVX","DIS","GS","HD","HON","IBM","JNJ","JPM","KO","MCD","MMM",
         "MRK","MSFT","NKE","NVDA","PG","SHW","TRV","UNH","V","VZ","WMT"]
 
-def _wiki(url, cols, fallback, minimum):
+LIST_WARN = {}
+
+def _wiki(url, cols, fallback, minimum, key=None):
     """Hämtar tickers från en Wikipedia-tabell. Letar i alla tabeller efter en kolumn vars namn innehåller något i `cols`."""
     try:
         r = requests.get(url, headers=UA, timeout=20); r.raise_for_status()
@@ -60,11 +62,28 @@ def _wiki(url, cols, fallback, minimum):
         raise ValueError(f"ingen lämplig tabell (hittade {len(best)} tickers, behövde {minimum}; tabellkolumner: {seen[:5]})")
     except Exception as e:
         print("Varning: Wikipedia-hämtning misslyckades (", url.split("/")[-1], "):", e, "– använder reservlista.")
+        if key: LIST_WARN[key] = str(e)[:140]
         return fallback
 
-def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["symbol", "ticker"], SP500_FALLBACK, 400)
-def nasdaq100(): return _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80)
-def dow30():    return _wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average", ["symbol", "ticker"], DOW_FALLBACK, 25)
+def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["symbol", "ticker"], SP500_FALLBACK, 400, key="SP500")
+NASDAQ_ALWAYS = ["SPCX", "NBIS", "CRWV", "ALAB", "RKLB", "TER"]   # bekräftade medlemmar 2026 (SPCX: snabbinträde efter börsnoteringen 12 juni; övriga: Nasdaq-100 omviktning 22 juni)
+
+def nasdaq_api():
+    """Nasdaq-100 direkt från Nasdaqs egen lista (reserv om Wikipedia inte går att läsa)."""
+    try:
+        r = requests.get("https://api.nasdaq.com/api/quote/list-type/nasdaq100", headers=dict(UA, Accept="application/json"), timeout=20); r.raise_for_status()
+        return [x["symbol"].replace(".", "-") for x in r.json()["data"]["data"]["rows"] if x.get("symbol")]
+    except Exception as e:
+        print("Varning: Nasdaq API misslyckades:", e); return []
+
+def nasdaq100():
+    got = _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80, key="NASDAQ")
+    if "NASDAQ" in LIST_WARN:
+        api = nasdaq_api()
+        if len(api) >= 90:
+            got = api; LIST_WARN.pop("NASDAQ", None); print("  Nasdaq-100 hämtad från Nasdaq API")
+    return list(dict.fromkeys(got + NASDAQ_ALWAYS))
+def dow30():    return _wiki("https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average", ["symbol", "ticker"], DOW_FALLBACK, 25, key="DOW")
 
 def _nasdaqtrader(url):
     r = requests.get(url, headers=UA, timeout=30); r.raise_for_status()
@@ -100,8 +119,8 @@ def nyse_all():
     except Exception as e:
         print("Varning: kunde inte hämta NYSE-listan:", e); return []
 
-def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], [], 300)
-def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400)
+def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], [], 300, key="SP400")
+def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400, key="SP600")
 
 LIGHT_TOP = 120            # antal aktier per hel börs som får full analys
 LIGHT_MIN_DV = 3_000_000   # lägsta genomsnittliga omsättning per dag (i handelsvaluta) för full analys
@@ -968,7 +987,7 @@ def main():
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"universe": len(tickers), "ok": len(recs), "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
+           "stats": {"universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
     print("Bygger kurshistorik för grafen…")
