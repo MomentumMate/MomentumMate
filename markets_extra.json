@@ -8,7 +8,8 @@
       "ccy": "USD",
       "mixed": true,
       "tickers": [
-        "NBIS-USD"
+        "NBIS-USD",
+        "SPCX"
       ]
     }
   ]
