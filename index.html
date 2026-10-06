@@ -267,7 +267,7 @@ function signal(r,n){
   return{k,why}
 }
 function calc(p){
-  const rows=p.h.map(h=>{const s=S[h.t],px=s&&s.px>0?s.px:h.c,F=fx(s?s.ccy:(h.ccy||"SEK")),val=h.q*px*F,cost=h.q*h.c*F,prev=s?px/(1+s.chg/100):px;
+  const rows=p.h.map(h=>{const s=S[h.t],px=s&&s.px>0?s.px:(h.lp>0?h.lp:h.c),F=fx(s?s.ccy:(h.ccy||"SEK")),val=h.q*px*F,cost=h.q*h.c*F,prev=s?px/(1+s.chg/100):px;
     return{h,s,px,F,val,cost,pnl:val-cost,ret:(px/h.c-1)*100,day:h.q*(px-prev)*F,hl:health(h)}});
   const tot=rows.reduce((a,r)=>a+r.val,0),cost=rows.reduce((a,r)=>a+r.cost,0),day=rows.reduce((a,r)=>a+r.day,0);
   rows.forEach(r=>{r.w=tot?r.val/tot*100:0});
@@ -549,11 +549,14 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
+    $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t);toast("Kopierat")}catch(x){}};
     $("#dlp").onclick=()=>{$("#io").innerHTML=`<p>Ta bort “${esc(p.name)}” och alla innehav i den?</p><button class="btn dn wide" id="dly">Ja, ta bort</button>`;$("#dly").onclick=()=>{P.ps=P.ps.filter(x=>x!==p);if(P.cur===p.id)P.cur=P.ps[0]?P.ps[0].id:null;save();closeSheet();location.hash="#/portfolio";route()}};
     $("#exg").onclick=()=>{$("#io").innerHTML=`<p class="mu">Kopiera texten och spara den som säkerhetskopia (eller för att flytta portföljerna till en annan enhet).</p><textarea id="ex" readonly>${esc(JSON.stringify(P))}</textarea>`;const t=$("#ex");t.focus();t.select();try{navigator.clipboard.writeText(t.value);toast("Kopierad")}catch(e){}};
-    $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in tidigare exporterad text. Det ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);if(!j||!Array.isArray(j.ps))throw 0;P=j;P.snap=P.snap||{};save();closeSheet();route();toast("Importerat")}catch(e){toast("Ogiltig text")}}}})
+    $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in text. En <b>enskild portfölj</b> (som jag skickat) läggs till som ny och påverkar inga andra. En <b>exporterad backup</b> ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);
+      if(j&&j.mm_portfolio&&Array.isArray(j.h)){const np={id:uid(),name:j.name||"Ny portfölj",h:j.h.map(h=>Object.assign({t:String(h.t),q:+h.q,c:+h.c,d:h.d||todayISO()},h.n?{n:h.n}:{},h.ccy?{ccy:h.ccy}:{},h.lp>0?{lp:+h.lp}:{})),tx:[],re:0};P.ps.push(np);P.cur=np.id;save();snapshot();closeSheet();location.hash="#/portfolio";route(true);toast("Portföljen är tillagd – byt namn under ⋯");return}
+      if(!j||!Array.isArray(j.ps))throw 0;P=j;P.snap=P.snap||{};save();closeSheet();route();toast("Importerat")}catch(e){toast("Ogiltig text")}}}})
 }
 function act(a,d){
   switch(a){
@@ -903,11 +906,11 @@ function health(h){
 function healthPanel(c,p){
   const bad=c.rows.filter(r=>r.hl);if(!bad.length)return"";
   const unv=bad.filter(r=>r.hl.k!=="stale").reduce((a,r)=>a+r.val,0);
-  return`<div class="stat SELL" style="margin-top:10px"><b>⚠ ${bad.length} INNEHAV KAN INTE UPPDATERAS AUTOMATISKT</b>${bad.map(r=>`<div class="k" style="padding:3px 0">• <b>${esc(r.s?r.s.d:(r.h.n||r.h.t))}</b>: ${esc(r.hl.msg)}</div>`).join("")}${unv>0?`<div class="mu" style="margin-top:6px">${kr(unv)} kr värderas till inköpskurs tills data finns.</div>`:""}<div class="acts"><button class="btn sm" data-act="fixhl" data-pid="${p.id}">Åtgärda</button></div></div>`
+  return`<div class="stat SELL" style="margin-top:10px"><b>⚠ ${bad.length} INNEHAV KAN INTE UPPDATERAS AUTOMATISKT</b>${bad.map(r=>`<div class="k" style="padding:3px 0">• <b>${esc(r.s?r.s.d:(r.h.n||r.h.t))}</b>: ${esc(r.hl.msg)}</div>`).join("")}${unv>0?`<div class="mu" style="margin-top:6px">${kr(unv)} kr värderas till senast kända kurs (inköpskurs eller kursen vid import) tills data finns.</div>`:""}<div class="acts"><button class="btn sm" data-act="fixhl" data-pid="${p.id}">Åtgärda</button></div></div>`
 }
 function fixSheet(pid){
   const p=getP(pid);if(!p)return;const bad=calc(p).rows.filter(r=>r.hl);
-  sheet(`<h3>Åtgärda datasaknad</h3><p class="mu" style="font-size:13px;margin-top:-4px">Välj hur varje innehav ska få data. Tills dess värderas det till din inköpskurs.</p>
+  sheet(`<h3>Åtgärda datasaknad</h3><p class="mu" style="font-size:13px;margin-top:-4px">Välj hur varje innehav ska få data. Tills dess värderas det till senast kända kurs.</p>
   ${bad.map(r=>`<div class="mod" style="padding:12px;margin-bottom:8px"><div><b>${esc(r.s?r.s.d:(r.h.n||r.h.t))}</b> <span class="mu">${esc(r.h.t)}</span></div><div class="mu" style="margin:4px 0 8px">${esc(r.hl.msg)}</div>
    <div class="acts" style="margin:0"><button class="btn sm" data-act="lookup" data-q="${esc((r.h.n||r.h.t).replace(/\.[A-Z]{1,3}$/,""))}">Slå upp online</button><button class="btn sm ghost" data-act="edit" data-t="${esc(r.h.t)}" data-pid="${pid}">Rätta ticker</button></div></div>`).join("")||'<div class="empty">Allt har data.</div>'}`)
 }
@@ -1319,7 +1322,7 @@ function orderedMkts(){
   return base.slice().sort((a,b)=>rank(a.k)-rank(b.k))
 }
 const mchip=(m,sel,attrs)=>`<span class="chip mk${m.k===sel?" on":""}" ${attrs||`data-go="#/desk/${m.k}"`}>${m.flag} ${esc(SHORT[m.k]||m.n)}</span>`;
-const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦"};
+const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦"};
 const flagOf=t=>{if(/-USD$/.test(t))return"🪙";for(const k in SUFF)if(t.endsWith(k))return SUFF[k];return"🇺🇸"};
 const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 /* ---------- Ändra ordning (dra och släpp) ---------- */
@@ -1399,6 +1402,31 @@ async function drawHist(){
   svg.addEventListener("pointerdown",mv);svg.addEventListener("pointermove",e=>{if(e.buttons||e.pointerType==="touch")mv(e)})
 }
 
+/* ======================= v9: PORTFÖLJANALYS FÖR CHATT ======================= */
+function chatExport(pid){
+  const p=getP(pid);if(!p)return"";
+  const c=calc(p),held=new Set(p.h.map(h=>h.t)),F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),L=[];
+  const yn=(b,a,b2)=>b?a:b2,when=D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo";
+  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}% | horisont ${s.h==="none"||!s.h?"–":s.h} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.grn}/6 | Magic Formula ${yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}`;
+  L.push("MOMENTUMMATE – PORTFÖLJANALYS FÖR CHATT");
+  L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${when} · modellen är regelbaserad och ingen rådgivning`);
+  L.push(`Portfölj "${p.name}": värde ${Math.round(c.tot)} kr · insatt ${Math.round(c.cost)} kr · avkastning ${F(c.ret)}% · idag ${F(c.dayPct,2)}% · realiserat ${Math.round(p.re||0)} kr · ${p.h.length} innehav`);
+  L.push("","MINA UPPGIFTER (fyll i innan du skickar):","Kontotyp (ISK/KF/depå): ","Kassa att investera (kr): ","Placeringshorisont: ","Risknivå: ","Max antal innehav: ","Får sälja med förlust (ja/nej): ","Marknader jag kan handla via min bank: ");
+  L.push("","INNEHAV (störst först)");
+  c.rows.forEach(r=>{const s=r.s,h=r.h;
+    L.push(`- ${h.t} | ${s?s.n:(h.n||"")} | antal ${h.q} | GAV ${F(h.c,2)} | kurs ${F(r.px,2)} ${s?s.cur:(h.ccy||"")} | värde ${Math.round(r.val)} kr | vikt ${F(r.w,1)}% | avk ${F(r.ret)}% | köpt ${h.d} | appens signal: ${SIGL[r.sig.k]}`+(s?` | ${tech(s)}`:" | INGEN LIVE-DATA")+(r.sig.why&&r.sig.why.length?` | skäl: ${r.sig.why.slice(0,3).join("; ")}`:""))});
+  const rot=rotation(c.rows);
+  if(rot.length){L.push("","APPENS ROTATIONSFÖRSLAG (stagnerat → starkare, inom portföljen)");rot.forEach(x=>L.push(`- ${x.a.h.t} → ${x.b.h.t}: ${x.wa.join(", ")} | mot: ${x.wb.join(", ")}`))}
+  const cand=(k,key,n)=>((D.rank[k]&&D.rank[k][key])||[]).map(t=>S[t]).filter(x=>x&&!held.has(x.t)).slice(0,n);
+  const line=x=>`- ${x.t} | ${x.n} | ${x.px} ${x.cur} | idag ${F(x.chg,1)}% | ${tech(x)} | ${x.m.join(",")}`;
+  L.push("","KANDIDATER – MOMENTUM (alla marknader, ej i portföljen)");cand("ALL","mom",12).forEach(x=>L.push(line(x)));
+  L.push("","KANDIDATER – VÄRDE (Graham/Magic Formula, ej i portföljen)");cand("ALL","val",12).forEach(x=>L.push(line(x)));
+  ["OMXS","EU","SP500","NASDAQ"].forEach(k=>{if(D.markets.some(m=>m.k===k)){const a=cand(k,"mom",5);if(a.length){L.push("",`TOPP MOMENTUM I ${MK(k).n.toUpperCase()}`);a.forEach(x=>L.push(line(x)))}}});
+  L.push("","MARKNADSLÄGE (andel aktier över SMA200 · snittpoäng topp 25)");
+  orderedMkts().forEach(m=>{const st=mstats(m.k);if(st)L.push(`- ${m.n}: ${st.tr}% · ${F(st.av,1)}`)});
+  L.push("","FRÅGA: Föreslå vilka innehav som har momentum och bör behållas, vilka som bör omfördelas och till vilka (befintliga innehav eller nya aktier), med motivering utifrån momentum- och värdestrategin och med hänsyn till mina uppgifter ovan.");
+  return L.join("\n")
+}
 /* ---------- DEMO-DATA (visas bara när data.json saknas) ---------- */
 function horizonOf(s){const r1=s.r1m||0,r3=s.r3m||0,r6=s.r6m||0,eg=s.eg||0,rg=s.rg||0;
   if(s.sc>=60&&r1>5&&s.a50&&s.macd>0&&r3>10)return["1-3","Starkt kortsiktigt momentum: stark 1–3 mån-avkastning, över SMA50 och MACD uppåt."];
