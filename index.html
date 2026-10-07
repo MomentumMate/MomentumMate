@@ -236,7 +236,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-07-d";
+const APPV="2026-10-07-f";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -246,14 +246,14 @@ function addHolding(p,t,q,c,d,ex){const h=p.h.find(x=>x.t===t);if(h){const nq=h.
 function sellHolding(p,t,q,px,d){const h=p.h.find(x=>x.t===t);if(!h)return;q=Math.min(q,h.q);const s=S[t];p.re=(p.re||0)+(px-h.c)*q*fx(s?s.ccy:(h.ccy||"SEK"));h.q-=q;if(h.q<=1e-9)p.h=p.h.filter(x=>x!==h);p.tx.unshift({k:"sell",t,q,px,d});p.tx=p.tx.slice(0,100)}
 function signal(r,n){
   const s=r.s;if(!s)return{k:"NA",why:["Ingen live-data för den här aktien. Lägg tickern i extra_tickers.txt så tas den med nästa körning."]};
-  const sell=[],buy=[],trim=[];
+  const sell=[],buy=[],trim=[],stretch=[],take=[];
   if(!s.a200&&!s.sh)sell.push("Under SMA200 – den långsiktiga trenden är bruten");
   if(!s.a50&&s.macd<0)sell.push("Under SMA50 och MACD pekar nedåt");
-  if(s.rsi>78)sell.push("RSI "+s.rsi+" – kraftigt överköpt");
+  if(s.rsi>78)stretch.push("RSI "+s.rsi+" – kraftigt överköpt (kan backa kortsiktigt, trenden är inte bruten)");
   if(s.sc<35)sell.push("Låg momentumpoäng ("+s.sc+")");
   if(s.r1m!=null&&s.r1m<-10)sell.push("Tappat "+f(Math.abs(s.r1m),1)+"% senaste månaden");
   if(r.ret<-12&&!s.a50)sell.push("Förlust "+f(r.ret,1)+"% sedan inköp och under SMA50");
-  if(r.ret>40&&s.rsi>70)sell.push("Vinst +"+f(r.ret,1)+"% med överköpt RSI – överväg att ta hem vinst");
+  if(r.ret>40&&s.rsi>70)take.push("Vinst +"+f(r.ret,1)+"% med överköpt RSI – överväg att ta hem delar av vinsten");
   if(s.eg!=null&&s.eg<-20&&s.rg!=null&&s.rg<0)sell.push("Fallande vinst och omsättning");
   if(r.w>30&&n>=3)trim.push("Övervikt: "+f(r.w,0)+"% av portföljen");
   if(s.sc>=70)buy.push("Hög momentumpoäng ("+s.sc+")");
@@ -263,9 +263,9 @@ function signal(r,n){
   if(s.gr||s.mf)buy.push((s.gr&&s.mf?"Graham och Magic Formula":s.gr?"Graham Screener":"Magic Formula")+"-kandidat");
   if(s.eg>10&&s.rg>5)buy.push("Växande vinst och omsättning");
   let k="HOLD",why=[];
-  if(sell.length>=2){k="SELL";why=sell}
-  else if(trim.length){k="TRIM";why=trim.concat(sell)}
-  else if(sell.length===1){k="WATCH";why=sell}
+  if(sell.length>=2){k="SELL";why=sell.concat(stretch,take)}
+  else if(trim.length||take.length){k="TRIM";why=trim.concat(take,sell,stretch)}
+  else if(sell.length===1||stretch.length){k="WATCH";why=sell.concat(stretch)}
   else if(buy.length>=3){k="BUY";why=buy}
   else why=buy.length?["Inga varningssignaler. Positivt: "+buy.join("; ")]:["Inga tydliga signaler – behåll."];
   return{k,why}
@@ -410,9 +410,7 @@ function vPort(id){
    <div class="leg">${c.rows.slice(0,7).map((r,i)=>`<span><i style="background:${PAL[Math.min(i,PAL.length-1)]}"></i>${esc(r.s?r.s.d:r.h.t)} ${f(r.w,0)}%</span>`).join("")}${c.rows.length>7?`<span>+${c.rows.length-7} till</span>`:""}</div>
    <div class="chips" style="margin-top:10px">${Object.keys(hzw).sort().map(k=>`<span class="hz" style="color:${(HZ[k]||HZ.none)[1]};border-color:${(HZ[k]||HZ.none)[1]}66">${(HZ[k]||HZ.none)[0]} ${f(hzw[k],0)}%</span>`).join("")}</div>`:""}
    ${p.re?`<div class="mu" style="margin-top:10px">Realiserat resultat: <b class="${cls(p.re)}">${p.re>=0?"+":"−"}${kr(Math.abs(p.re))} kr</b></div>`:""}</div>
-  ${planHTML(p)}
-  ${(sigs.length||rot.length)?`<div class="mod"><div class="mh" data-i="psig"><div class="ico">⚑</div><h2>SIGNALER I PORTFÖLJEN</h2><span class="ii">ⓘ</span></div>${rot.map(x=>`<div class="sr" data-act="rot" data-pid="${p.id}" data-a="${esc(x.a.h.t)}" data-b="${esc(x.b.h.t)}"><div class="m" style="white-space:normal"><div style="white-space:normal"><b>🔁 Sälj ${esc(x.a.s.d)} → köp mer ${esc(x.b.s.d)}</b><span class="sig TRIM">BYT</span></div><div class="mu" style="white-space:normal">${esc(x.a.s.d)}: ${esc(x.wa.join(", "))}. ${esc(x.b.s.d)}: ${esc(x.wb.join(", "))}. Tryck för att förifylla omfördelningen.</div></div><span style="color:var(--mu);font-size:22px">›</span></div>`).join("")}${sigs.map(r=>`<div class="sr"><div class="m" style="white-space:normal"><div style="white-space:normal"><span class="fg">${flagOf(r.h.t)}</span><b>${esc(r.s?r.s.d:r.h.t)}</b><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span></div><div class="mu" style="white-space:normal">${esc(r.sig.why[0])}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div></div></div>`).join("")}
-   ${ideas.length?`<div style="margin-top:10px"><small>Möjliga omfördelningsmål (högt momentum, du äger dem inte)</small><div class="chips" style="margin-top:6px">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></div>`:""}</div>`:""}
+  ${propHTML(p,c,sigs,rot,ideas)}
   <div class="mh" style="margin:14px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2><button class="btn sm" data-act="pick" data-pid="${p.id}">+ Lägg till aktie</button></div>
   ${c.rows.length?c.rows.map(r=>holdCard(r,p)).join(""):'<div class="empty">Inga innehav ännu. Tryck på “+ Lägg till aktie”.</div>'}
   ${p.tx.length?`<h4 style="margin:18px 2px 6px">Senaste transaktioner</h4>${p.tx.slice(0,8).map(x=>`<div class="k mu" style="padding:3px 2px">${esc(x.d)} · ${x.k==="buy"?"Köp":"Sälj"} ${f(x.q,x.q%1?2:0)} ${esc((S[x.t]||{d:x.t}).d)} @ ${f(x.px)}</div>`).join("")}`:""}`)
@@ -1470,6 +1468,33 @@ function planHTML(p){
    <details class="nwd" open><summary>Åtgärder (${pl.items.length})</summary>${sec("SÄLJ","SÄLJ / MINSKA")}${sec("KÖP","KÖP / ÖKA")}${sec("BEHÅLL","BEHÅLL")}</details>
    <div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div>
    <div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div></div>`
+}
+function propHTML(p,c,sigs,rot,ideas){
+  const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan:null,items=pl?pl.items:[];
+  if(!pl&&!sigs.length&&!rot.length)return"";
+  const rowBy={};c.rows.forEach(r=>{rowBy[r.h.t]=r});const planHas={};items.forEach((it,i)=>{(planHas[it.t]=planHas[it.t]||[]).push(i)});
+  const flag=t=>`<span class="fg">${flagOf(t)}</span>`,nm=(t,it)=>{const s=S[t];return s?s.n:(it&&it.n)||t},dn=t=>{const s=S[t];return s?s.d:t};
+  const appLine=r=>r?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens signal: <span class="sig ${r.sig.k}" style="margin:0">${SIGL[r.sig.k]}</span> ${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div>`:"";
+  const rotFor={};rot.forEach(x=>{(rotFor[x.b.h.t]=rotFor[x.b.h.t]||[]).push(x)});
+  const G={sell:[],buy:[],watch:[],hold:[]};
+  items.forEach((it,i)=>{const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":"hold";const r=rowBy[it.t],x=rotFor[it.t];
+    const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
+    G[g].push(`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${flag(it.t)}<b>${esc(dn(it.t))}</b><span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${it.a}${it.q?" "+it.q+" st":""}</span></div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}${appLine(r)}${extra}</div>
+     <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>`}</div></div>`)});
+  c.rows.forEach(r=>{if(planHas[r.h.t])return;const k=r.sig.k;if(!["SELL","TRIM","BUY","WATCH"].includes(k))return;
+    const g=(k==="SELL"||k==="TRIM")?"sell":k==="BUY"?"buy":"watch";
+    const btn=g==="sell"?`<button class="btn sm ghost" data-act="sell" data-pid="${p.id}" data-t="${esc(r.h.t)}">Sälj…</button>`:g==="buy"?`<button class="btn sm ghost" data-act="buy" data-pid="${p.id}" data-t="${esc(r.h.t)}">Köp mer</button>`:"";
+    G[g].push(`<div class="sr"><div class="m"><div>${flag(r.h.t)}<b>${esc(r.s?r.s.d:r.h.t)}</b><span class="sig ${k}" style="margin-left:8px">${SIGL[k]}</span> <span class="mu" style="font-size:11px">appens signal · vikt ${f(r.w,1)}%</span></div><div class="mu" style="white-space:normal">${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div></div><div class="p">${btn}</div></div>`)});
+  rot.forEach(x=>{if(planHas[x.b.h.t]&&items.some(it=>it.t===x.b.h.t&&it.a==="KÖP"))return;
+    G.buy.push(`<div class="sr" data-act="rot" data-pid="${p.id}" data-a="${esc(x.a.h.t)}" data-b="${esc(x.b.h.t)}"><div class="m"><div>${flag(x.b.h.t)}<b>${esc(x.b.s.d)}</b><span class="sig BUY" style="margin-left:8px">KÖP MER</span> <span class="mu" style="font-size:11px">omfördelning · appens signal</span></div><div class="mu" style="white-space:normal">Byt ut ${esc(x.a.s.d)} (≈ ${kr(x.a.val)} kr): ${esc(x.a.s.d)} – ${esc(x.wa.join(", "))}. ${esc(x.b.s.d)} – ${esc(x.wb.join(", "))}.</div><div class="mu" style="font-size:11.5px">Tryck för att förifylla omfördelningen.</div></div><span style="color:var(--mu);font-size:22px">›</span></div>`)});
+  const sec=(g,lab)=>G[g].length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab} (${G[g].length})</h2></div>${G[g].join("")}`:"";
+  const act=items.filter(i=>i.a!=="BEHÅLL"),done=act.filter(i=>i.done).length,sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
+  return`<div class="mod" style="margin-top:10px"><div class="mh" data-i="psig"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${act.length} klara</span>`:""}<span class="ii">ⓘ</span></div>
+   ${pl?`<div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
+   <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr(sS-sB)} kr</b></div></div>`:`<div class="mu" style="margin-bottom:4px">Appens signaler för dina innehav. Fler detaljer och förslag med antal får du genom att importera ett förslag.</div>`}
+   ${sec("sell","SÄLJ / MINSKA")}${sec("buy","KÖP / ÖKA")}${sec("watch","BEVAKA")}${sec("hold","BEHÅLL")}
+   ${ideas.length?`<details class="nwd"><summary>Idéer att undersöka (${ideas.length})</summary><div class="mu" style="margin-bottom:6px">Hög momentumpoäng, du äger dem inte.</div><div class="chips">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></details>`:""}
+   ${pl?`<div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div><div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div>`:""}</div>`
 }
 function planApplySheet(pid,i){
   const p=getP(pid),it=p&&p.plan&&p.plan.items[i];if(!it)return;const px=planPx(it);
