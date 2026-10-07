@@ -233,6 +233,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
+const APPV="2026-10-07-c";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -551,8 +552,8 @@ function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
   <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Analys av min aktielista</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
-    $("#cxl").onclick=()=>{const t=listExport();$("#io").innerHTML=`<p class="mu">Texten är kopierad. Klistra in den i chatten med Claude. Den innehåller alla aktier du lagt i Egna tickers och Min bevakning med kurs och signaler.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t);toast("Kopierat")}catch(x){}};
-    $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t);toast("Kopierat")}catch(x){}};
+    $("#cxl").onclick=async()=>{const t=await listExport();$("#io").innerHTML=`<p class="mu">Texten är kopierad. Klistra in den i chatten med Claude. Den innehåller alla aktier du lagt i Egna tickers och Min bevakning med kurs och signaler.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t).then(()=>toast("Kopierat"),()=>{})}catch(x){}};
+    $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t).then(()=>toast("Kopierat"),()=>{})}catch(x){}};
     $("#dlp").onclick=()=>{$("#io").innerHTML=`<p>Ta bort “${esc(p.name)}” och alla innehav i den?</p><button class="btn dn wide" id="dly">Ja, ta bort</button>`;$("#dly").onclick=()=>{P.ps=P.ps.filter(x=>x!==p);if(P.cur===p.id)P.cur=P.ps[0]?P.ps[0].id:null;save();closeSheet();location.hash="#/portfolio";route()}};
     $("#exg").onclick=()=>{$("#io").innerHTML=`<p class="mu">Kopiera texten och spara den som säkerhetskopia (eller för att flytta portföljerna till en annan enhet).</p><textarea id="ex" readonly>${esc(JSON.stringify(P))}</textarea>`;const t=$("#ex");t.focus();t.select();try{navigator.clipboard.writeText(t.value);toast("Kopierad")}catch(e){}};
     $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in text. En <b>enskild portfölj</b> (som jag skickat) läggs till som ny och påverkar inga andra. En <b>exporterad backup</b> ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);
@@ -823,7 +824,7 @@ function addMarketSheet(i){
 }
 function settingsSheet(){
   const c=gh();
-  sheet(`<h3>Inställningar</h3>
+  sheet(`<h3>Inställningar</h3><div class="mu" style="margin:-6px 0 8px;font-size:11.5px">Appversion ${APPV}</div>
   <h4>GitHub-koppling (valfri)</h4><p class="mu" style="font-size:13px">Behövs bara för att slå upp och lägga till okända aktier/börser direkt i appen. Skapa en <b>fine-grained token</b> via <a class="lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">den här länken ›</a> (eller profilbilden → Settings → längst ned: Developer settings). Välj <b>endast det här repot</b> och behörigheterna <b>Contents</b> och <b>Actions</b> = Read and write. Token sparas bara i den här webbläsaren.</p>
   <label class="fld"><span>Repo (användare/repo)</span><input id="ghr" value="${esc(c.repo||ghRepoGuess())}" placeholder="dittnamn/MomentumMate" autocapitalize="off"></label>
   <label class="fld"><span>Token</span><input id="ght" type="password" value="${esc(c.token||"")}" placeholder="github_pat_…" autocomplete="off"></label>
@@ -1408,9 +1409,9 @@ function chatExport(pid){
   const p=getP(pid);if(!p)return"";
   const c=calc(p),held=new Set(p.h.map(h=>h.t)),F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),L=[];
   const yn=(b,a,b2)=>b?a:b2,when=D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo";
-  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${s.sh?"saknas (kort historik)":yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}% | horisont ${s.h==="none"||!s.h?"–":s.h} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.grn}/6 | Magic Formula ${yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}`;
+  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${s.sh?"saknas (kort historik)":yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}% | horisont ${s.h==="none"||!s.h?"–":s.h} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.hi===false?"okänt":s.grn+"/6"} | Magic Formula ${s.hi===false?"okänt":yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}${s.hi===false?" | bolagsinfo saknas":""}`;
   L.push("MOMENTUMMATE – PORTFÖLJANALYS FÖR CHATT");
-  L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${when} · modellen är regelbaserad och ingen rådgivning`);
+  L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${when} · app ${APPV} · modellen är regelbaserad och ingen rådgivning`);
   L.push(`Portfölj "${p.name}": värde ${Math.round(c.tot)} kr · insatt ${Math.round(c.cost)} kr · avkastning ${F(c.ret)}% · idag ${F(c.dayPct,2)}% · realiserat ${Math.round(p.re||0)} kr · ${p.h.length} innehav`);
   L.push("","MINA UPPGIFTER (fyll i innan du skickar):","Kontotyp (ISK/KF/depå): ","Kassa att investera (kr): ","Placeringshorisont: ","Risknivå: ","Max antal innehav: ","Får sälja med förlust (ja/nej): ","Marknader jag kan handla via min bank: ");
   L.push("","INNEHAV (störst först)");
@@ -1428,14 +1429,18 @@ function chatExport(pid){
   L.push("","FRÅGA: Föreslå vilka innehav som har momentum och bör behållas, vilka som bör omfördelas och till vilka (befintliga innehav eller nya aktier), med motivering utifrån momentum- och värdestrategin och med hänsyn till mina uppgifter ovan.");
   return L.join("\n")
 }
-function listExport(){
+async function listExport(){
   const F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),yn=(b,a,c)=>b?a:c,L=[];
-  const arr=SL.filter(s=>s.m.includes("EXTRA")||s.m.includes("WATCH")).sort((a,b)=>b.sc-a.sc);
+  let want=new Set(((D.stats&&D.stats.extra_list)||[]));
+  if(!want.size){try{const r=await fetch("extra_tickers.txt?t="+Date.now());if(r.ok)(await r.text()).split("\n").forEach(l=>{const x=l.split("#")[0].trim();if(x)want.add(x)})}catch(e){}}
+  const arr=SL.filter(s=>want.has(s.t)||s.m.includes("EXTRA")||s.m.includes("WATCH")).sort((a,b)=>b.sc-a.sc),have=new Set(arr.map(s=>s.t)),miss=[...want].filter(x=>!have.has(x));
+  const val=s=>s.hi===false?"okänt":null;
   L.push(`MOMENTUMMATE – ANALYS AV MIN AKTIELISTA (${arr.length} aktier, sorterade på momentumpoäng)`);
-  L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo"} · kurser är skanningens senaste, inte slutkurser`);
-  L.push("kolumner: ticker | namn | kurs | idag% | poäng | RSI | SMA50 | SMA200 | MACD | 1m% | 3m% | horisont | P/E | Graham | Magic Formula");
-  arr.forEach(s=>L.push([s.t,s.n,s.px+" "+s.cur,F(s.chg,1)+"%",F(s.sc),s.rsi,yn(s.a50,"över","under"),s.sh?"saknas":yn(s.a200,"över","under"),s.macd>0?"upp":"ner",F(s.r1m),F(s.r3m),(!s.h||s.h==="none")?"–":s.h,F(s.pe),s.grn+"/6",yn(s.mf,"ja","nej")].join(" | ")));
-  if(!arr.length)L.push("(Inga aktier i Egna tickers/Min bevakning ännu – lägg listan i extra_tickers.txt och kör skanningen.)");
+  L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo"} · app ${APPV} · kurser är skanningens senaste, inte slutkurser`);
+  L.push("kolumner: ticker | namn | kurs | idag% | poäng | RSI | SMA50 | SMA200 | MACD | 1m% | 3m% | horisont | P/E | Graham | Magic Formula | marknader   (okänt = Yahoo gav ingen bolagsinformation)");
+  arr.forEach(s=>L.push([s.t,s.n===s.t?"(namn saknas)":s.n,s.px+" "+s.cur,F(s.chg,1)+"%",F(s.sc),s.rsi,yn(s.a50,"över","under"),s.sh?"saknas":yn(s.a200,"över","under"),s.macd>0?"upp":"ner",F(s.r1m),F(s.r3m),(!s.h||s.h==="none")?"–":s.h,val(s)||F(s.pe),val(s)||s.grn+"/6",val(s)||yn(s.mf,"ja","nej"),s.m.join(",")].join(" | ")));
+  if(miss.length)L.push("","SAKNAS I ANALYSEN (Yahoo saknar kursdata eller för kort historik): "+miss.join(", "));
+  if(!arr.length)L.push("(Inga aktier hittades – lägg listan i extra_tickers.txt och kör skanningen.)");
   return L.join("\n")
 }
 /* ---------- DEMO-DATA (visas bara när data.json saknas) ---------- */
