@@ -135,6 +135,9 @@ nav a.on{color:var(--gd)}nav a.on svg{filter:drop-shadow(0 0 5px #e8b64a)}
 .mkm .ico2{font-size:24px}.mkm.drag{position:relative;z-index:6;box-shadow:0 8px 30px #000a,0 0 0 1px var(--gd);background:#1b1508}
 details.nwd summary{cursor:pointer;list-style:none;font-size:12px;color:var(--ac);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px;font-weight:700}
 details.nwd summary::-webkit-details-marker{display:none}details.nwd summary:after{content:" ▾"}details.nwd[open] summary:after{content:" ▴"}
+.pla{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:8px;font-size:11.5px;font-weight:700}
+.pla.S{background:#3a1a14;color:#f0846f}.pla.B{background:#143a24;color:#7ddc9b}.pla.H{background:#2a2410;color:var(--gd)}
+.plr.done{opacity:.5}.plr .btn.sm{padding:6px 10px}
 /* ---- v3 ---- */
 .top .gear{width:36px;height:36px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--gd);display:grid;place-items:center;font-size:17px;flex:none;cursor:pointer}
 .sig.WAIT{background:#1b1710;color:var(--mu)}
@@ -233,7 +236,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-07-c";
+const APPV="2026-10-07-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -407,6 +410,7 @@ function vPort(id){
    <div class="leg">${c.rows.slice(0,7).map((r,i)=>`<span><i style="background:${PAL[Math.min(i,PAL.length-1)]}"></i>${esc(r.s?r.s.d:r.h.t)} ${f(r.w,0)}%</span>`).join("")}${c.rows.length>7?`<span>+${c.rows.length-7} till</span>`:""}</div>
    <div class="chips" style="margin-top:10px">${Object.keys(hzw).sort().map(k=>`<span class="hz" style="color:${(HZ[k]||HZ.none)[1]};border-color:${(HZ[k]||HZ.none)[1]}66">${(HZ[k]||HZ.none)[0]} ${f(hzw[k],0)}%</span>`).join("")}</div>`:""}
    ${p.re?`<div class="mu" style="margin-top:10px">Realiserat resultat: <b class="${cls(p.re)}">${p.re>=0?"+":"−"}${kr(Math.abs(p.re))} kr</b></div>`:""}</div>
+  ${planHTML(p)}
   ${(sigs.length||rot.length)?`<div class="mod"><div class="mh" data-i="psig"><div class="ico">⚑</div><h2>SIGNALER I PORTFÖLJEN</h2><span class="ii">ⓘ</span></div>${rot.map(x=>`<div class="sr" data-act="rot" data-pid="${p.id}" data-a="${esc(x.a.h.t)}" data-b="${esc(x.b.h.t)}"><div class="m" style="white-space:normal"><div style="white-space:normal"><b>🔁 Sälj ${esc(x.a.s.d)} → köp mer ${esc(x.b.s.d)}</b><span class="sig TRIM">BYT</span></div><div class="mu" style="white-space:normal">${esc(x.a.s.d)}: ${esc(x.wa.join(", "))}. ${esc(x.b.s.d)}: ${esc(x.wb.join(", "))}. Tryck för att förifylla omfördelningen.</div></div><span style="color:var(--mu);font-size:22px">›</span></div>`).join("")}${sigs.map(r=>`<div class="sr"><div class="m" style="white-space:normal"><div style="white-space:normal"><span class="fg">${flagOf(r.h.t)}</span><b>${esc(r.s?r.s.d:r.h.t)}</b><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span></div><div class="mu" style="white-space:normal">${esc(r.sig.why[0])}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div></div></div>`).join("")}
    ${ideas.length?`<div style="margin-top:10px"><small>Möjliga omfördelningsmål (högt momentum, du äger dem inte)</small><div class="chips" style="margin-top:6px">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></div>`:""}</div>`:""}
   <div class="mh" style="margin:14px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2><button class="btn sm" data-act="pick" data-pid="${p.id}">+ Lägg till aktie</button></div>
@@ -556,7 +560,8 @@ function pmenuSheet(pid){
     $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t).then(()=>toast("Kopierat"),()=>{})}catch(x){}};
     $("#dlp").onclick=()=>{$("#io").innerHTML=`<p>Ta bort “${esc(p.name)}” och alla innehav i den?</p><button class="btn dn wide" id="dly">Ja, ta bort</button>`;$("#dly").onclick=()=>{P.ps=P.ps.filter(x=>x!==p);if(P.cur===p.id)P.cur=P.ps[0]?P.ps[0].id:null;save();closeSheet();location.hash="#/portfolio";route()}};
     $("#exg").onclick=()=>{$("#io").innerHTML=`<p class="mu">Kopiera texten och spara den som säkerhetskopia (eller för att flytta portföljerna till en annan enhet).</p><textarea id="ex" readonly>${esc(JSON.stringify(P))}</textarea>`;const t=$("#ex");t.focus();t.select();try{navigator.clipboard.writeText(t.value);toast("Kopierad")}catch(e){}};
-    $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in text. En <b>enskild portfölj</b> (som jag skickat) läggs till som ny och påverkar inga andra. En <b>exporterad backup</b> ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);
+    $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in text. Ett <b>förslag</b> (mm_plan) läggs in i den portfölj det gäller. En <b>enskild portfölj</b> (som jag skickat) läggs till som ny och påverkar inga andra. En <b>exporterad backup</b> ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);
+      if(j&&j.mm_plan){const pp=planImport(j);closeSheet();location.hash="#/portfolio";route(true);toast("Förslaget är inlagt i “"+pp.name+"”");return}
       if(j&&j.mm_portfolio&&Array.isArray(j.h)){const np={id:uid(),name:j.name||"Ny portfölj",h:j.h.map(h=>Object.assign({t:String(h.t),q:+h.q,c:+h.c,d:h.d||todayISO()},h.n?{n:h.n}:{},h.ccy?{ccy:h.ccy}:{},h.lp>0?{lp:+h.lp}:{})),tx:[],re:0};P.ps.push(np);P.cur=np.id;save();snapshot();closeSheet();location.hash="#/portfolio";route(true);toast("Portföljen är tillagd – byt namn under ⋯");return}
       if(!j||!Array.isArray(j.ps))throw 0;P=j;P.snap=P.snap||{};save();closeSheet();route();toast("Importerat")}catch(e){toast("Ogiltig text")}}}})
 }
@@ -589,6 +594,9 @@ function act(a,d){
     case"lkview":lkView(+d.idx);break;
     case"imp":importSheet(d.pid);break;
     case"addx":addExchangeSheet();break;
+    case"planapply":planApplySheet(d.pid,+d.i);break;
+    case"plandone":{const p=getP(d.pid);if(p&&p.plan&&p.plan.items[+d.i]){p.plan.items[+d.i].done=false;save();route(true)}break}
+    case"plandel":{const p=getP(d.pid);if(p&&confirm("Ta bort förslaget från portföljen?")){delete p.plan;save();route(true)}break}
     case"chart":chartSheet(d.t);break;
     case"hrng":HCUR.rng=d.r;drawHist();break;
     case"reorder":Ui.reorder=true;route();break;
@@ -1417,6 +1425,7 @@ function chatExport(pid){
   L.push("","INNEHAV (störst först)");
   c.rows.forEach(r=>{const s=r.s,h=r.h;
     L.push(`- ${h.t} | ${s?s.n:(h.n||"")} | antal ${h.q} | GAV ${F(h.c,2)} | kurs ${F(r.px,2)} ${s?s.cur:(h.ccy||"")} | värde ${Math.round(r.val)} kr | vikt ${F(r.w,1)}% | avk ${F(r.ret)}% | köpt ${h.d} | appens signal: ${SIGL[r.sig.k]}`+(s?` | ${tech(s)}`:" | INGEN LIVE-DATA")+(r.sig.why&&r.sig.why.length?` | skäl: ${r.sig.why.slice(0,3).join("; ")}`:""))});
+  if(p.plan&&p.plan.items&&p.plan.items.length){L.push("",`FÖRSLAG I APPEN: ${p.plan.title||""} (${p.plan.date||""})`);p.plan.items.forEach(i=>L.push(`- ${i.a} ${i.t}${i.q?" "+i.q+" st":""}${i.a==="BEHÅLL"?"":i.done?" – KLART":" – ej registrerat"}${i.why?" | "+i.why:""}`))}
   const rot=rotation(c.rows);
   if(rot.length){L.push("","APPENS ROTATIONSFÖRSLAG (stagnerat → starkare, inom portföljen)");rot.forEach(x=>L.push(`- ${x.a.h.t} → ${x.b.h.t}: ${x.wa.join(", ")} | mot: ${x.wb.join(", ")}`))}
   const cand=(k,key,n)=>((D.rank[k]&&D.rank[k][key])||[]).map(t=>S[t]).filter(x=>x&&!held.has(x.t)).slice(0,n);
@@ -1442,6 +1451,43 @@ async function listExport(){
   if(miss.length)L.push("","SAKNAS I ANALYSEN (Yahoo saknar kursdata eller för kort historik): "+miss.join(", "));
   if(!arr.length)L.push("(Inga aktier hittades – lägg listan i extra_tickers.txt och kör skanningen.)");
   return L.join("\n")
+}
+/* ======================= v10: FÖRSLAG PER PORTFÖLJ ======================= */
+const planPx=it=>{const s=S[it.t];return s&&s.px>0?s.px:(+it.px||0)};
+const planCc=it=>{const s=S[it.t];return s?s.ccy:(it.ccy||"SEK")};
+const planAmt=it=>it.q*planPx(it)*fx(planCc(it));
+function planHTML(p){
+  const pl=p.plan;if(!pl||!pl.items||!pl.items.length)return"";
+  const act=pl.items.filter(i=>i.a!=="BEHÅLL"),done=act.filter(i=>i.done).length,sum=a=>pl.items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
+  const row=(it,i)=>{const s=S[it.t],nm=s?s.n:(it.n||it.t),cls2=it.a==="SÄLJ"?"S":it.a==="KÖP"?"B":"H",flag=`<span class="fg">${flagOf(it.t)}</span>`;
+    return`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${flag}<b>${esc(s?s.d:it.t)}</b><span class="pla ${cls2}">${it.a}${it.q?" "+it.q+" st":""}</span></div><div class="mu">${esc(nm)}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}</div>
+     <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>`}</div></div>`};
+  const sec=(a,lab)=>{const arr=pl.items.map((it,i)=>[it,i]).filter(x=>x[0].a===a);return arr.length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab}</h2></div>${arr.map(x=>row(x[0],x[1])).join("")}`:""};
+  return`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">📝</div><h2>FÖRSLAG</h2><span class="mu">${done}/${act.length} klara</span></div>
+   <div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>
+   ${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
+   <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr(sS-sB)} kr</b></div></div>
+   <details class="nwd" open><summary>Åtgärder (${pl.items.length})</summary>${sec("SÄLJ","SÄLJ / MINSKA")}${sec("KÖP","KÖP / ÖKA")}${sec("BEHÅLL","BEHÅLL")}</details>
+   <div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div>
+   <div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div></div>`
+}
+function planApplySheet(pid,i){
+  const p=getP(pid),it=p&&p.plan&&p.plan.items[i];if(!it)return;const px=planPx(it);
+  sheet(`<h3>${it.a==="SÄLJ"?"Registrera försäljning":"Registrera köp"} – ${esc(it.t)}</h3><p class="mu" style="margin-top:-4px">Ändra antal och kurs om din affär blev annorlunda. Appen uppdaterar bara dina innehav.</p>
+  <div class="row2"><label class="fld"><span>Antal</span><input id="pq" type="number" inputmode="decimal" step="any" value="${it.q}"></label><label class="fld"><span>Kurs (${esc(planCc(it))})</span><input id="pp" type="number" inputmode="decimal" step="any" value="${px}"></label></div>
+  <label class="fld"><span>Datum</span><input id="pd" type="date" value="${todayISO()}"></label><button class="btn wide" id="pgo">Registrera</button>`,()=>{
+    $("#pgo").onclick=()=>{const q=parseFloat($("#pq").value),pr=parseFloat($("#pp").value),d=$("#pd").value||todayISO();if(!(q>0)||!(pr>0)){toast("Ange antal och kurs");return}
+      const s=S[it.t];
+      if(it.a==="SÄLJ"){if(!p.h.find(x=>x.t===it.t)){toast(it.t+" finns inte i portföljen");return}sellHolding(p,it.t,q,pr,d)}
+      else addHolding(p,it.t,q,pr,d,s?{}:Object.assign({},it.n?{n:it.n}:{},it.ccy?{ccy:it.ccy}:{}));
+      it.done=true;it.doneQ=q;save();snapshot();closeSheet();toast("Registrerat");route(true)}})
+}
+function planImport(j){
+  const items=(j.items||[]).filter(x=>x&&x.t&&x.a).map(x=>({t:String(x.t),a:String(x.a).toUpperCase().replace("SALJ","SÄLJ").replace("KOP","KÖP").replace("BEHALL","BEHÅLL"),q:+x.q||0,why:x.why||"",n:x.n||"",ccy:x.ccy||"",px:+x.px||0,done:false}));
+  if(!items.length)throw 0;
+  let p=null;if(j.pf){const k=String(j.pf).toLowerCase();p=P.ps.find(x=>x.name.toLowerCase()===k)||P.ps.find(x=>x.name.toLowerCase().includes(k))}
+  p=p||getP(P.cur)||P.ps[0];if(!p)throw 0;
+  p.plan={title:j.title||"Förslag",date:j.date||todayISO(),note:j.note||"",items};P.cur=p.id;save();return p
 }
 /* ---------- DEMO-DATA (visas bara när data.json saknas) ---------- */
 function horizonOf(s){const r1=s.r1m||0,r3=s.r3m||0,r6=s.r6m||0,eg=s.eg||0,rg=s.rg||0;
