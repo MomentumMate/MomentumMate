@@ -289,8 +289,8 @@ def session(t):
         if t.endswith(suf): return v
     return "Europe/Stockholm", 540
 
-def get_info(t):
-    try: return retry(lambda: yf.Ticker(t).info or {}, tries=2, wait=2)
+def get_info(t, tries=2, wait=2):
+    try: return retry(lambda: yf.Ticker(t).info or {}, tries=tries, wait=wait)
     except Exception: return {}
 
 def _ts(s):
@@ -590,7 +590,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
-            "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
+            "hi": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
 
 # ----------------------------------------------------------------------------------
@@ -975,10 +975,12 @@ def main():
 
     miss = [t for t in info if not info[t]]
     if miss:
-        print(f"  hämtar om bolagsinfo för {len(miss)} aktier (långsamt)…", flush=True)
-        for t in miss[:400]:
-            time.sleep(0.4); inf = get_info(t)
+        print(f"  hämtar om bolagsinfo för {len(miss)} aktier (långsamt, efter kort paus)…", flush=True)
+        time.sleep(25)                                                       # låt Yahoos gräns för anrop nollställas
+        for t in miss[:500]:
+            time.sleep(1.0); inf = get_info(t, tries=3, wait=4)
             if inf: info[t] = inf
+        print(f"  bolagsinfo saknas fortfarande för {sum(1 for t in miss if not info.get(t))} aktier", flush=True)
     recs, dropped = {}, []
     for t in deep:
         if t not in daily:
@@ -1026,7 +1028,7 @@ def main():
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
+           "stats": {"extra_list": read_extra(), "universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
                      "list_changes": {k: v["changes"][0] for k, v in _CACHE.items() if v.get("changes") and v["changes"][0]["ts"] >= (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)).strftime("%Y-%m-%d")}, "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
