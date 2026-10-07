@@ -1,11 +1,237 @@
 # Egna tickers som ska tas med i skanningen (en per rad, Yahoo Finance-symboler).
-# Behövs för aktier du vill ha i portföljen eller i sökningen men som inte ingår i
-# OMXS, S&P 500, Nasdaq-100 eller Dow Jones. Rader som börjar med # ignoreras.
-#
-# Exempel (ta bort # för att aktivera):
-# NOKIA.HE
-# SAP.DE
-# NOVO-B.CO
+# Rader som börjar med # ignoreras. Lägg till eller ta bort rader fritt.
+# Listan nedan är din sammanställda aktielista (ETF:erna SPY, QQQ, IWN och VEA är inte med).
+# Anmärkningar: SAAB B = SAAB-B.ST, INVE B = INVE-B.ST, EQT = EQT.ST (EQT AB, Stockholm), SMIC = 0981.HK (Hongkong), FANUC = 6954.T (Tokyo),
+# AstraZeneca = AZN.L (London), Nokia = NOK (USA-notering), LVMH = MC.PA, Hermès = RMS.PA, Kering = KER.PA, Christian Dior = CDI.PA.
+
+# 1. AI, GPU & halvledare
+NVDA
+AMD
+AVGO
+ARM
+MRVL
+TSM
+ASML
+MU
+AMAT
+LRCX
+KLAC
+ADI
+TXN
+INTC
+STM
+COHR
+LITE
+ONTO
+TER
+AEHR
+ALAB
+CRDO
+AAOI
+AMBA
+SWKS
+AXTI
+NVTS
+WOLF
+ON
+MCHP
+MPWR
+
+# 2. AI-datacenter, nätverk & infrastruktur
+ANET
+VRT
+CLS
+ETN
+GLW
+DELL
+HPE
+PSTG
+CSCO
+CIEN
+VICR
+HUBB
+SMCI
+AMKR
+JBL
+SANM
+FLEX
+APH
+TEL
+PWR
+
+# 3. AI-cloud & hyperscalers
+MSFT
+GOOGL
+AMZN
+META
+ORCL
+CRWV
+NBIS
+APLD
+DOCN
+
+# 4. AI-mjukvara & cybersäkerhet
+PLTR
+CRWD
+PANW
+NOW
+CRM
+SNOW
+NET
+DDOG
+FTNT
+OKTA
+ADBE
+CDNS
+SNPS
+GTLB
+ZS
+MDB
+APP
+TEM
+SOUN
+
+# 5. AI + elproduktion & elnät
+CEG
+VST
+GEV
+NEE
+AEP
+DTE
+FE
+CMS
+BE
+FLNC
+EOSE
+STEM
+
+# 6. Kärnkraft & uran
+CCJ
+LEU
+BWXT
+OKLO
+SMR
+NNE
+UEC
+UUUU
+LTBR
+
+# 7. Försvar, drönare & rymd
+RHM.DE
+SAAB-B.ST
+LMT
+NOC
+LHX
+KTOS
+AVAV
+HEI
+RKLB
+ASTS
+RCAT
+ACHR
+UMAC
+PDYN
+
+# 8. Robotik & automation
+SYM
+CGNX
+ABB.ST
+6954.T
+ISRG
+ROK
+PATH
+
+# 9. Bitcoin, krypto & digital infrastruktur
+MSTR
+COIN
 IREN
+RIOT
+CIFR
+CORZ
+WULF
+HUT
+CLSK
+MARA
+
+# 10. Biotech, läkemedel & healthcare
+LLY
+NVO
+MRNA
+CRSP
+REGN
+VRTX
+AMGN
+ABCL
+HIMS
+TMO
+UHS
+
+# 11. Finans & fintech
+JPM
+BAC
+V
+MA
+HOOD
+SOFI
+SPGI
+BLK
+GS
+MS
+SCHW
+C
+
+# 12. Kritiska mineraler, koppar & rare earth
+MP
+USAR
+LYSDY
+FCX
+ALB
+LAC
+RIO
+VALE
+
+# 13. Olja, gas & energi
+CVX
+COP
+DVN
+SU
+VIST
+EPD
+MPLX
+
+# 14. Luxury & premium
+MC.PA
+RMS.PA
+CDI.PA
+KER.PA
+RACE
+EL
+
+# 15. Konsument, internet & transport
+COST
+NFLX
+DASH
+UBER
+TGT
+GME
+TSLA
+ODFL
+
+# 16. Industri & infrastruktur
+CAT
+EME
+XYL
+FIX
+WM
+
+# 17. Europa, Sverige & Asien
+INVE-B.ST
+EQT.ST
+AZN.L
+NOK
+UMC
+0981.HK
+
+# Mina innehav utan data (från Nordea)
 RDW
 SMSN.IL

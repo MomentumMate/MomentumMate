@@ -549,8 +549,9 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Analys av min aktielista</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
+    $("#cxl").onclick=()=>{const t=listExport();$("#io").innerHTML=`<p class="mu">Texten är kopierad. Klistra in den i chatten med Claude. Den innehåller alla aktier du lagt i Egna tickers och Min bevakning med kurs och signaler.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t);toast("Kopierat")}catch(x){}};
     $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t);toast("Kopierat")}catch(x){}};
     $("#dlp").onclick=()=>{$("#io").innerHTML=`<p>Ta bort “${esc(p.name)}” och alla innehav i den?</p><button class="btn dn wide" id="dly">Ja, ta bort</button>`;$("#dly").onclick=()=>{P.ps=P.ps.filter(x=>x!==p);if(P.cur===p.id)P.cur=P.ps[0]?P.ps[0].id:null;save();closeSheet();location.hash="#/portfolio";route()}};
     $("#exg").onclick=()=>{$("#io").innerHTML=`<p class="mu">Kopiera texten och spara den som säkerhetskopia (eller för att flytta portföljerna till en annan enhet).</p><textarea id="ex" readonly>${esc(JSON.stringify(P))}</textarea>`;const t=$("#ex");t.focus();t.select();try{navigator.clipboard.writeText(t.value);toast("Kopierad")}catch(e){}};
@@ -1322,7 +1323,7 @@ function orderedMkts(){
   return base.slice().sort((a,b)=>rank(a.k)-rank(b.k))
 }
 const mchip=(m,sel,attrs)=>`<span class="chip mk${m.k===sel?" on":""}" ${attrs||`data-go="#/desk/${m.k}"`}>${m.flag} ${esc(SHORT[m.k]||m.n)}</span>`;
-const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦"};
+const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦"};
 const flagOf=t=>{if(/-USD$/.test(t))return"🪙";for(const k in SUFF)if(t.endsWith(k))return SUFF[k];return"🇺🇸"};
 const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 /* ---------- Ändra ordning (dra och släpp) ---------- */
@@ -1425,6 +1426,16 @@ function chatExport(pid){
   L.push("","MARKNADSLÄGE (andel aktier över SMA200 · snittpoäng topp 25)");
   orderedMkts().forEach(m=>{const st=mstats(m.k);if(st)L.push(`- ${m.n}: ${st.tr}% · ${F(st.av,1)}`)});
   L.push("","FRÅGA: Föreslå vilka innehav som har momentum och bör behållas, vilka som bör omfördelas och till vilka (befintliga innehav eller nya aktier), med motivering utifrån momentum- och värdestrategin och med hänsyn till mina uppgifter ovan.");
+  return L.join("\n")
+}
+function listExport(){
+  const F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),yn=(b,a,c)=>b?a:c,L=[];
+  const arr=SL.filter(s=>s.m.includes("EXTRA")||s.m.includes("WATCH")).sort((a,b)=>b.sc-a.sc);
+  L.push(`MOMENTUMMATE – ANALYS AV MIN AKTIELISTA (${arr.length} aktier, sorterade på momentumpoäng)`);
+  L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo"} · kurser är skanningens senaste, inte slutkurser`);
+  L.push("kolumner: ticker | namn | kurs | idag% | poäng | RSI | SMA50 | SMA200 | MACD | 1m% | 3m% | horisont | P/E | Graham | Magic Formula");
+  arr.forEach(s=>L.push([s.t,s.n,s.px+" "+s.cur,F(s.chg,1)+"%",F(s.sc),s.rsi,yn(s.a50,"över","under"),s.sh?"saknas":yn(s.a200,"över","under"),s.macd>0?"upp":"ner",F(s.r1m),F(s.r3m),(!s.h||s.h==="none")?"–":s.h,F(s.pe),s.grn+"/6",yn(s.mf,"ja","nej")].join(" | ")));
+  if(!arr.length)L.push("(Inga aktier i Egna tickers/Min bevakning ännu – lägg listan i extra_tickers.txt och kör skanningen.)");
   return L.join("\n")
 }
 /* ---------- DEMO-DATA (visas bara när data.json saknas) ---------- */
