@@ -242,7 +242,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-08-a";
+const APPV="2026-10-08-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -367,7 +367,8 @@ function route(keep){
   ({home:vHome,portfolio:()=>vPort(arg),desk:()=>arg?vMarket(arg):vDesk(),news:()=>vNews(arg),search:()=>vSearch(arg),stock:()=>vStock(arg),daytrade:()=>arg?vDTx(arg):vDT()}[a]||vHome)();
   setNav(({stock:"desk"})[a]||a);
   $("#mate").style.display=(a==="daytrade"&&arg)?"none":"grid";if(a==="daytrade"&&arg)$("#mb").classList.remove("on");
-  window.scrollTo(0,keep===true?y:0)
+  window.scrollTo(0,keep===true?y:0);
+  if(a==="portfolio"&&keep!==true)setTimeout(quoteTick,60)
 }
 addEventListener("hashchange",()=>route());
 
@@ -405,18 +406,19 @@ function pfHero(p,c,mode){
   return`<div class="mod"${mode==="list"?` data-go="#/portfolio/${p.id}" style="margin-top:10px;cursor:pointer"`:` style="margin-top:10px"`}><div class="mh"><div class="ico">◔</div><h2>${esc(p.name).toUpperCase()}</h2>${mode==="list"?'<span class="go">›</span>':""}</div>
    <div><span class="big">${kr(c.tot)} kr</span><span class="pill ${cls(c.day)}">${sg(c.dayPct)} idag</span></div>
    <div class="mu" style="margin-top:2px">${c.day>=0?"+":"−"}${kr(Math.abs(c.day))} kr idag</div>
-   ${snap.length>1?`<div style="margin-top:8px">${spark(snap.map(x=>x[1]),300,40).replace('class="sp"','style="width:100%;height:40px"')}<div class="mu" style="text-align:right">Värdeutveckling sedan ${esc(snap[0][0])}</div></div>`:""}
-   <div class="kv"><div><small>Insatt</small><b>${kr(c.cost)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(c.pnl)}">${c.pnl>=0?"+":"−"}${kr(Math.abs(c.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(c.ret)}">${sg(c.ret,1)}</b></div></div>
+   ${mode!=="list"&&snap.length>1?`<div style="margin-top:8px">${spark(snap.map(x=>x[1]),300,40).replace('class="sp"','style="width:100%;height:40px"')}<div class="mu" style="text-align:right">Värdeutveckling sedan ${esc(snap[0][0])}</div></div>`:""}
+   ${mode==="list"?"":`<div class="kv"><div><small>Insatt</small><b>${kr(c.cost)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(c.pnl)}">${c.pnl>=0?"+":"−"}${kr(Math.abs(c.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(c.ret)}">${sg(c.ret,1)}</b></div></div>`}
    ${c.rows.length?`<div class="alloc">${c.rows.map((r,i)=>`<i style="width:${r.w}%;background:${PAL[Math.min(i,PAL.length-1)]}"></i>`).join("")}</div>
    <div class="leg">${c.rows.slice(0,7).map((r,i)=>`<span><i style="background:${PAL[Math.min(i,PAL.length-1)]}"></i>${esc(r.s?r.s.d:r.h.t)} ${f(r.w,0)}%</span>`).join("")}${c.rows.length>7?`<span>+${c.rows.length-7} till</span>`:""}</div>
-   <div class="chips" style="margin-top:10px">${Object.keys(hzw).sort().map(k=>`<span class="hz" style="color:${(HZ[k]||HZ.none)[1]};border-color:${(HZ[k]||HZ.none)[1]}66">${(HZ[k]||HZ.none)[0]} ${f(hzw[k],0)}%</span>`).join("")}</div>`:""}
-   ${p.re?`<div class="mu" style="margin-top:10px">Realiserat resultat: <b class="${cls(p.re)}">${p.re>=0?"+":"−"}${kr(Math.abs(p.re))} kr</b></div>`:""}</div>`
+   ${mode==="list"?"":`<div class="chips" style="margin-top:10px">${Object.keys(hzw).sort().map(k=>`<span class="hz" style="color:${(HZ[k]||HZ.none)[1]};border-color:${(HZ[k]||HZ.none)[1]}66">${(HZ[k]||HZ.none)[0]} ${f(hzw[k],0)}%</span>`).join("")}</div>`}`:""}
+   ${mode!=="list"&&p.re?`<div class="mu" style="margin-top:10px">Realiserat resultat: <b class="${cls(p.re)}">${p.re>=0?"+":"−"}${kr(Math.abs(p.re))} kr</b></div>`:""}</div>`
 }
 function vPortOverview(){
   if(Ui.pfReorder){pfReorderView();return}
   const items=P.ps.map(p=>({p,c:calc(p)})),tot=items.reduce((a,x)=>a+x.c.tot,0),day=items.reduce((a,x)=>a+x.c.day,0);
   view(`${topbar("Portfölj")}${staleBanner()}
-  <div class="chips pfrow"><span class="chip on" data-act="newport">＋ Ny portfölj</span>${P.ps.length>1?'<span class="chip" data-act="pfreorder">↕ Ändra ordning</span>':""}<span class="chip" data-act="pmenu" data-pid="${P.cur||P.ps[0].id}">⋯ Meny</span></div>
+  <div class="chips pfrow">${P.ps.map(x=>`<span class="chip pfc" data-act="psel" data-id="${x.id}">${esc(x.name)}</span>`).join("")}<span class="chip on" data-act="newport">＋ Ny</span>${P.ps.length>1?'<span class="chip" data-act="pfreorder">↕ Ordning</span>':""}<span class="chip" data-act="pmenu" data-pid="${P.cur||P.ps[0].id}">⋯</span></div>
+  ${quoteStatus()}
   ${P.ps.length>1?`<div class="mu" style="margin:8px 2px 0">Totalt alla portföljer: <b style="color:var(--tx)">${kr(tot)} kr</b> · <span class="${cls(day)}">${day>=0?"+":"−"}${kr(Math.abs(day))} kr idag</span></div>`:""}
   ${items.map(x=>pfHero(x.p,x.c,"list")).join("")}
   <div class="mu" style="text-align:center;margin-top:12px;font-size:12px">Tryck på en portfölj för att se innehav, förslag och signaler.</div>`)
@@ -436,12 +438,13 @@ function vPort(id){
   const snap=(P.snap&&P.snap[p.id])||[];
   view(`${topbar("Portfölj")}
   <div class="chips pfrow"><span class="chip" data-go="#/portfolio">▦ Översikt</span>${P.ps.map(x=>`<span class="chip pfc${x.id===p.id?" on":""}" data-act="psel" data-id="${x.id}">${esc(x.name)}</span>`).join("")}<span class="chip" data-act="newport">+ Ny</span><span class="chip" data-act="pmenu" data-pid="${p.id}">⋯</span></div>
+  ${quoteStatus()}
   ${staleBanner()}${healthPanel(c,p)}
   ${pfHero(p,c,"detail")}
   ${propHTML(p,c,sigs,rot,ideas)}
   ${archiveHTML(p)}
   <div class="mh" style="margin:14px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2><button class="btn sm" data-act="pick" data-pid="${p.id}">+ Lägg till aktie</button></div>
-  ${c.rows.length?`<div class="srt"><span class="mu">Sortera:</span>${[["size","Storlek"],["name","A–Ö"],["ret","Förändring"],["day","Idag"]].map(x=>`<span class="chip mk${Ui.psort===x[0]?" on":""}" data-act="psort" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>`:""}
+  ${c.rows.length?`<div class="srt"><span class="mu">Sortera:</span>${[["size","Storlek"],["name","A–Ö"],["ret","Förändring"],["day","Idag"]].map(x=>`<span class="chip mk${Ui.psort===x[0]?" on":""}" data-act="psort" data-v="${x[0]}">${x[1]}</span>`).join("")}<span class="chip mk" data-act="psexp" data-pid="${p.id}">${p.h.every(h=>open.has("h:"+h.t))?"▴ Fäll ihop alla":"▾ Fäll ut alla"}</span></div>`:""}
   ${c.rows.length?sortRows(c.rows).map(r=>holdCard(r,p)).join(""):'<div class="empty">Inga innehav ännu. Tryck på “+ Lägg till aktie”.</div>'}
   ${p.tx.length?`<h4 style="margin:18px 2px 6px">Senaste transaktioner</h4>${p.tx.slice(0,8).map(x=>`<div class="k mu" style="padding:3px 2px">${esc(x.d)} · ${x.k==="buy"?"Köp":"Sälj"} ${f(x.q,x.q%1?2:0)} ${esc((S[x.t]||{d:x.t}).d)} @ ${f(x.px)}</div>`).join("")}`:""}`)
 }
@@ -591,7 +594,7 @@ function pmenuSheet(pid){
     $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in text. Ett <b>förslag</b> (mm_plan) läggs in i den portfölj det gäller. En <b>enskild portfölj</b> (som jag skickat) läggs till som ny och påverkar inga andra. En <b>exporterad backup</b> ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);
       if(j&&j.mm_plan){const pp=planImport(j);closeSheet();location.hash="#/portfolio/"+pp.id;route(true);toast("Förslaget är inlagt i “"+pp.name+"”");return}
       if(j&&j.mm_portfolio&&Array.isArray(j.h)){const hold=j.h.map(h=>Object.assign({t:String(h.t),q:+h.q,c:+h.c,d:h.d||todayISO()},h.n?{n:h.n}:{},h.ccy?{ccy:h.ccy}:{},h.lp>0?{lp:+h.lp}:{}));
-        if(j.replace){const ex=P.ps.find(x=>x.name.toLowerCase()===String(j.replace).toLowerCase());if(ex){ex.h=hold;delete ex.plan;P.cur=ex.id;save();snapshot();closeSheet();location.hash="#/portfolio/"+ex.id;route(true);toast("Portföljen “"+ex.name+"” är uppdaterad – gamla förslaget är borttaget");return}}
+        if(j.replace){const nm=[].concat(j.replace).map(x=>String(x).toLowerCase()),ex=P.ps.find(x=>nm.includes(x.name.toLowerCase()))||P.ps.find(x=>nm.some(n=>x.name.toLowerCase().includes(n)));if(ex){ex.h=hold;delete ex.plan;P.cur=ex.id;save();snapshot();closeSheet();location.hash="#/portfolio/"+ex.id;route(true);toast("Portföljen “"+ex.name+"” är uppdaterad – gamla förslaget är borttaget");return}}
         const np={id:uid(),name:j.name||"Ny portfölj",h:hold,tx:[],re:0};P.ps.push(np);P.cur=np.id;save();snapshot();closeSheet();location.hash="#/portfolio/"+np.id;route(true);toast("Portföljen är tillagd – byt namn under ⋯");return}
       if(!j||!Array.isArray(j.ps))throw 0;P=j;P.snap=P.snap||{};save();closeSheet();route();toast("Importerat")}catch(e){toast("Ogiltig text")}}}})
 }
@@ -624,6 +627,7 @@ function act(a,d){
     case"lkview":lkView(+d.idx);break;
     case"imp":importSheet(d.pid);break;
     case"addx":addExchangeSheet();break;
+    case"psexp":{const p=getP(d.pid);if(p){const all=p.h.every(h=>open.has("h:"+h.t));p.h.forEach(h=>all?open.delete("h:"+h.t):open.add("h:"+h.t));route(true)}break}
     case"pfreorder":Ui.pfReorder=true;route();break;
     case"pfreorderdone":Ui.pfReorder=false;route();break;
     case"psort":Ui.psort=d.v;try{localStorage.setItem("mm_psort",d.v)}catch(e){}route(true);break;
@@ -1392,6 +1396,30 @@ const endDrag=()=>{if(!DG)return;const el=DG.el,list=el.parentElement;el.style.t
   try{if(list.dataset.kind==="pf"){P.ps=[...list.querySelectorAll(".mkm")].map(x=>getP(x.dataset.id)).filter(Boolean);save()}else localStorage.setItem(MKO,JSON.stringify([...list.querySelectorAll(".mkm")].map(x=>x.dataset.k)))}catch(e){}DG=null};
 document.addEventListener("pointerup",endDrag);document.addEventListener("pointercancel",endDrag);
 
+/* ---------- Live-kurser för innehav (Finnhub, USA-aktier) ---------- */
+const FHQ={t:0,ok:false,n:0,tot:0,fx:0,busy:false,err:""};
+async function refreshQuotes(){
+  const key=fhKey();if(!key||DEMO||FHQ.busy)return false;
+  const onPf=location.hash.match(/^#\/portfolio\/([^/]+)/),cur=onPf&&getP(decodeURIComponent(onPf[1])),pri=cur?cur.h.map(h=>h.t):[],all=[...new Set(P.ps.flatMap(p=>p.h.map(h=>h.t)))];
+  const list=[...new Set(pri.concat(all.filter(t=>!pri.includes(t)).sort((a,b)=>((S[a]||{}).qt||0)-((S[b]||{}).qt||0))))].filter(t=>S[t]&&liveOK(t)).slice(0,45);
+  if(!list.length)return false;FHQ.busy=true;let ok=0,err="";
+  try{
+    await Promise.all(list.map(async t=>{try{const r=await fetch("https://finnhub.io/api/v1/quote?symbol="+encodeURIComponent(t.replace("-","."))+"&token="+encodeURIComponent(key));if(!r.ok){err="HTTP "+r.status;return}const q=await r.json();if(q&&q.c>0){S[t].px=+q.c;if(q.pc>0)S[t].chg=+((q.c/q.pc-1)*100).toFixed(2);S[t].qt=Date.now();ok++}}catch(e){err="nätverk/CORS"}}));
+    try{const r=await fetch("https://finnhub.io/api/v1/forex/rates?base=USD&token="+encodeURIComponent(key));if(r.ok){const j=await r.json();if(j&&j.quote&&j.quote.SEK>5){D.fx.USD=+j.quote.SEK;FHQ.fx=+j.quote.SEK}}}catch(e){}
+  }finally{FHQ.busy=false}
+  FHQ.t=Date.now();FHQ.ok=ok>0;FHQ.n=ok;FHQ.tot=list.length;FHQ.err=ok?"":err;return ok>0
+}
+function quoteStatus(){
+  const hh=t=>new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  let t;if(DEMO)t="Demokurser.";
+  else if(!fhKey())t=`Kurser från skanningen ${D.updated?hhmm(D.updated):""} (USA-aktier kan därför ligga efter Nordea under börstid). Lägg in din Finnhub-nyckel under ⚙ för live-kurser.`;
+  else if(FHQ.ok)t=`Live-kurser (Finnhub) ${hh(FHQ.t)} för ${FHQ.n} av ${FHQ.tot} USA-aktier${FHQ.fx?` · USD/SEK ${FHQ.fx.toFixed(4)}`:""}. Övriga aktier: skanningens kurser.`;
+  else if(FHQ.t)t=`Live-kurser kunde inte hämtas (${esc(FHQ.err||"okänt fel")}) – visar skanningens kurser ${D.updated?hhmm(D.updated):""}.`;
+  else t="Hämtar live-kurser…";
+  return`<div class="mu" style="margin:6px 2px;font-size:11.5px">${t}</div>`
+}
+function quoteTick(){if(!/^#\/portfolio/.test(location.hash)||Date.now()-FHQ.t<20000)return;refreshQuotes().then(ch=>{if((ch||FHQ.t)&&/^#\/portfolio/.test(location.hash)&&!SH.classList.contains("on")&&!document.querySelector(".dragc,.drag"))route(true)})}
+setInterval(quoteTick,60000);
 /* ---------- Dra portföljknapparna (håll in en stund) ---------- */
 let CD=null,SUPP=0;
 document.addEventListener("click",e=>{if(Date.now()<SUPP){e.stopPropagation();e.preventDefault()}},true);
