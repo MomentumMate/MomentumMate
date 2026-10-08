@@ -1,0 +1,42 @@
+name: Nyheter live
+
+# Färskt nyhetsflöde var 15:e minut, dygnet runt: marknadsnyheter (RSS + Google News) och
+# nyheter för dina innehav och de mest intressanta aktierna. Publiceras på grenen "news".
+# GitHub skjuter ibland upp schemalagda körningar några minuter.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news
+  cancel-in-progress: true
+
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Hämta nyheter
+        run: |
+          if [ -f data.json ]; then python scanner.py --news; else echo "data.json saknas – kör dagsskanningen först"; exit 0; fi
+      - name: Publicera på grenen news (en enda commit, ingen historik)
+        run: |
+          [ -f news.json ] || exit 0
+          mkdir /tmp/newspub && cp news.json /tmp/newspub/ && cd /tmp/newspub
+          git init -q -b news
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add news.json
+          git commit -qm "news $(date -u +%H:%M)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin news
