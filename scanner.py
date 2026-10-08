@@ -40,6 +40,43 @@ DOW_FALLBACK = ["AAPL","AMGN","AMZN","AXP","BA","CAT","CRM","CSCO","CVX","DIS","
         "MRK","MSFT","NKE","NVDA","PG","SHW","TRV","UNH","V","WMT","GOOGL"]
 
 LIST_WARN = {}
+CACHE_FILE = "lists_cache.json"
+EXPECT = {"SP500": (480, 520), "NASDAQ": (95, 112), "DOW": (28, 32), "SP400": (380, 420), "SP600": (550, 650)}   # rimliga storlekar – annars litar vi inte på listan
+LISTS_META = {}
+
+def _cache_load():
+    try: return json.load(open(CACHE_FILE, encoding="utf-8"))
+    except Exception: return {}
+_CACHE = _cache_load()
+def _today(): return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+
+def register_list(key, tickers, src):
+    """Godkänner en nyhämtad lista om storleken är rimlig, sparar den som 'senast kända bra' och loggar ändringar mot förra listan."""
+    lo, hi = EXPECT.get(key, (1, 10**6))
+    if not (lo <= len(tickers) <= hi): return False
+    old = (_CACHE.get(key) or {}).get("t"); ch = (_CACHE.get(key) or {}).get("changes", [])
+    if old and set(old) != set(tickers):
+        ch = ([{"ts": _today(), "added": sorted(set(tickers) - set(old)), "removed": sorted(set(old) - set(tickers))}] + ch)[:5]
+    _CACHE[key] = {"t": list(tickers), "src": src, "ts": _today(), "changes": ch}
+    LISTS_META[key] = {"src": src, "ts": _today(), "n": len(tickers), "fb": False}
+    LIST_WARN.pop(key, None)
+    return True
+
+def use_cache_or_fallback(key, fallback, why=""):
+    """Alla live-källor misslyckades: använd senast lyckade lista (hellre än min inbyggda), annars den inbyggda."""
+    c = _CACHE.get(key)
+    if c and c.get("t"):
+        LISTS_META[key] = {"src": f"senast lyckade hämtning ({c['src']})", "ts": c["ts"], "n": len(c["t"]), "fb": True}
+        LIST_WARN[key] = f"live-källor misslyckades – använder lista från {c['ts']}. {why}"[:160]
+        return list(c["t"])
+    LISTS_META[key] = {"src": "inbyggd reservlista", "ts": "okänd", "n": len(fallback), "fb": True}
+    LIST_WARN[key] = f"live-källor misslyckades och ingen sparad lista finns – inbyggd reservlista. {why}"[:160]
+    return fallback
+
+def save_cache():
+    try:
+        with open(CACHE_FILE, "w", encoding="utf-8") as f: json.dump(_CACHE, f, ensure_ascii=False, separators=(",", ":"))
+    except Exception as e: print("Varning: kunde inte spara listcache:", e)
 
 def _wiki(url, cols, fallback, minimum, key=None):
     """Hämtar tickers från en Wikipedia-tabell. Letar i alla tabeller efter en kolumn vars namn innehåller något i `cols`."""
@@ -58,12 +95,14 @@ def _wiki(url, cols, fallback, minimum, key=None):
                         v = x.split(":")[-1].strip().split()[0]
                         if re.fullmatch(r"[A-Za-z0-9.\-]{1,8}", v): vals.append(v.replace(".", "-"))
                     if len(vals) > len(best): best = vals
-        if len(best) >= minimum: return list(dict.fromkeys(best))
+        if len(best) >= minimum:
+            res = list(dict.fromkeys(best))
+            if key and not register_list(key, res, "Wikipedia"): raise ValueError(f"listan har orimlig storlek ({len(res)})")
+            return res
         raise ValueError(f"ingen lämplig tabell (hittade {len(best)} tickers, behövde {minimum}; tabellkolumner: {seen[:5]})")
     except Exception as e:
         print("Varning: Wikipedia-hämtning misslyckades (", url.split("/")[-1], "):", e, "– använder reservlista.")
-        if key: LIST_WARN[key] = str(e)[:140]
-        return fallback
+        return use_cache_or_fallback(key, fallback, str(e)[:100]) if key else fallback
 
 def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["symbol", "ticker"], SP500_FALLBACK, 400, key="SP500")
 NASDAQ_ALWAYS = ["SPCX", "NBIS", "CRWV", "ALAB", "RKLB", "TER"]   # bekräftade medlemmar 2026 (SPCX: snabbinträde efter börsnoteringen 12 juni; övriga: Nasdaq-100 omviktning 22 juni)
@@ -78,7 +117,7 @@ def nasdaq_api():
 
 def nasdaq100():
     api = nasdaq_api()
-    if len(api) >= 90: got = api; print("  Nasdaq-100 hämtad från Nasdaq API")
+    if register_list("NASDAQ", api, "Nasdaq API"): got = api; print("  Nasdaq-100 hämtad från Nasdaq API")
     else: got = _wiki("https://en.wikipedia.org/wiki/Nasdaq-100", ["ticker", "symbol"], NASDAQ_FALLBACK, 80, key="NASDAQ")
     return list(dict.fromkeys(got + NASDAQ_ALWAYS))
 
@@ -188,6 +227,8 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
     ("Dagens industri", "https://www.di.se/rss"),
     ("Google News – marknaden", "https://news.google.com/rss/search?q=stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – senaste timmen", "https://news.google.com/rss/search?q=stocks+OR+nasdaq+OR+earnings+when:1h&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – börsen idag", "https://news.google.com/rss/search?q=b%C3%B6rsen+OR+aktier+OR+stockholmsb%C3%B6rsen+when:3h&hl=sv&gl=SE&ceid=SE:sv"),
     ("Google News – börsen", "https://news.google.com/rss/search?q=b%C3%B6rsen+aktier+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
 ]
 
@@ -250,8 +291,8 @@ def session(t):
         if t.endswith(suf): return v
     return "Europe/Stockholm", 540
 
-def get_info(t):
-    try: return retry(lambda: yf.Ticker(t).info or {}, tries=2, wait=2)
+def get_info(t, tries=2, wait=2):
+    try: return retry(lambda: yf.Ticker(t).info or {}, tries=tries, wait=wait)
     except Exception: return {}
 
 def _ts(s):
@@ -509,6 +550,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     last20 = c.iloc[-21:-1]
     rng = (float(last20.max()) - float(last20.min())) / float(last20.mean()) * 100
     bo = bool(px > float(last20.max()) and volx >= 1.2 and px > sma50)      # breakout över 20-dagarshögsta på volym
+    rng20 = rng                                                              # 20-dagarsintervall i % (variabeln rng skrivs över längre ned)
     stag = bool(rng < 8 and abs(r1) < 3)                                    # stagnation: smalt intervall, ingen rörelse
     tech = (min(max(r1, 0), 30) / 30 * 25 + min(max(r3, 0), 60) / 60 * 25 + (px > sma50) * 15 + (px > sma200) * 15
             + (ema12 > ema26) * 10 + min(volx, 3) / 3 * 10)
@@ -550,7 +592,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
-            "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
+            "inf": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
 
 # ----------------------------------------------------------------------------------
@@ -935,10 +977,12 @@ def main():
 
     miss = [t for t in info if not info[t]]
     if miss:
-        print(f"  hämtar om bolagsinfo för {len(miss)} aktier (långsamt)…", flush=True)
-        for t in miss[:400]:
-            time.sleep(0.4); inf = get_info(t)
+        print(f"  hämtar om bolagsinfo för {len(miss)} aktier (långsamt, efter kort paus)…", flush=True)
+        time.sleep(25)                                                       # låt Yahoos gräns för anrop nollställas
+        for t in miss[:500]:
+            time.sleep(1.0); inf = get_info(t, tries=3, wait=4)
             if inf: info[t] = inf
+        print(f"  bolagsinfo saknas fortfarande för {sum(1 for t in miss if not info.get(t))} aktier", flush=True)
     recs, dropped = {}, []
     for t in deep:
         if t not in daily:
@@ -986,9 +1030,11 @@ def main():
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
+           "stats": {"extra_list": read_extra(), "universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
+                     "list_changes": {k: v["changes"][0] for k, v in _CACHE.items() if v.get("changes") and v["changes"][0]["ts"] >= (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)).strftime("%Y-%m-%d")}, "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
+    save_cache()
     print("Bygger kurshistorik för grafen…")
     try:
         intra_o = dl([t for t in recs if t not in intra], period="5d", interval="15m")
@@ -1021,10 +1067,42 @@ def select_light(light_only, ld, uni, mk_by):
         stats[k] = {"universe": len(members), "scanned": sum(1 for t in members if t in ld), "liquid": sum(1 for t in members if t in scored), "deep": len(top)}
     return sel, stats
 
+def news_live():
+    """Frekvent nyhetsflöde (körs var 15:e minut av news.yml): marknadsflöden + Google News för viktiga aktier. Skriver news.json."""
+    try: D = json.load(open("data.json", encoding="utf-8"))
+    except Exception: D = {}
+    stocks, rank = D.get("stocks", {}), D.get("rank", {})
+    want = []
+    try: want += [l.split("#")[0].strip() for l in open("news_tickers.txt", encoding="utf-8")]      # t.ex. dina innehav
+    except OSError: pass
+    want += rank.get("ALL", {}).get("mom", [])[:15]
+    for k, r in rank.items():
+        if k not in ("ALL", "DT"): want += r.get("mom", [])[:3]
+    want += rank.get("DT", {}).get("cand", [])[:10]
+    ex = (D.get("stats") or {}).get("extra_list", [])
+    if ex:
+        i0 = (int(time.time() // 900) * 20) % len(ex); want += (ex + ex)[i0:i0 + 20]               # roterande del av din aktielista
+    want = [t for t in dict.fromkeys(w for w in want if w)][:100]
+    feed = fetch_feeds()
+    def one(t):
+        name = re.sub(r"\b(Inc|Corp|Corporation|Ltd|plc|AB|ASA|SE|NV|AG|SA|Holdings?|Company)\b\.?", "", (stocks.get(t) or {}).get("n") or t).strip(" ,.")
+        try:
+            return t, (google_news(name + " aktie when:2d", "sv", "SE", "SE:sv") if t.endswith(".ST") else google_news(name + " stock when:2d"))
+        except Exception:
+            return t, []
+    news = {}
+    with ThreadPoolExecutor(max_workers=4) as ex_:
+        for t, items in ex_.map(one, want):
+            if items: news[t] = sorted(items, key=lambda x: -x["ts"])[:8]
+    out = {"updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "feed": feed[:80], "news": news}
+    with open("news.json", "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"Nyheter: {len(feed)} marknadsartiklar {dict(FEED_STATS)}; aktienyheter för {len(news)} av {len(want)} aktier")
+
 def intr_of(intra, t):
     return intraday_stats(intra[t]) if t in intra else None
 
 if __name__ == "__main__":
-    if "--daytrade" in sys.argv: live()
+    if "--news" in sys.argv: news_live()
+    elif "--daytrade" in sys.argv: live()
     elif "--lookup" in sys.argv: lookup(sys.argv[sys.argv.index("--lookup") + 1])
     else: main()
