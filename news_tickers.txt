@@ -1,0 +1,24 @@
+# Aktier som alltid får färska nyheter i nyhetsflödet (en Yahoo-ticker per rad). Rader med # ignoreras.
+# Det här är innehaven i din Nordea-portfölj. Lägg till fler vid behov.
+NVDA
+AAPL
+TSLA
+GOOGL
+MU
+MSFT
+MRVL
+PLTR
+SPCX
+TSM
+AMZN
+SMCI
+ASML
+NOW
+AMD
+LITE
+ALAB
+INTC
+SNPS
+AVGO
+NBIS
+FTNT
