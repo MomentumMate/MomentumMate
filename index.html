@@ -140,6 +140,9 @@ details.nwd summary::-webkit-details-marker{display:none}details.nwd summary:aft
 .plr.done{opacity:.5}.plr .btn.sm{padding:6px 10px}
 .tlk{color:var(--gd);text-decoration:underline;text-decoration-color:#e8b64a66;cursor:pointer}
 .pfrow{flex-wrap:wrap;gap:6px}
+.pbody[hidden],.psum[hidden]{display:none!important}
+.pchev{margin-left:8px;color:var(--gd);font-size:15px}
+.pmh{cursor:pointer;-webkit-user-select:none;user-select:none}
 .pfc{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .pfc.dragc{position:relative;z-index:8;box-shadow:0 6px 22px #000a,0 0 0 1px var(--gd);background:#1b1508}
 .nw.hl{border-color:var(--gd)!important;box-shadow:0 0 0 1px var(--gd)}
@@ -242,7 +245,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-08-b";
+const APPV="2026-10-08-c";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -406,8 +409,7 @@ function pfHero(p,c,mode){
   return`<div class="mod"${mode==="list"?` data-go="#/portfolio/${p.id}" style="margin-top:10px;cursor:pointer"`:` style="margin-top:10px"`}><div class="mh"><div class="ico">◔</div><h2>${esc(p.name).toUpperCase()}</h2>${mode==="list"?'<span class="go">›</span>':""}</div>
    <div><span class="big">${kr(c.tot)} kr</span><span class="pill ${cls(c.day)}">${sg(c.dayPct)} idag</span></div>
    <div class="mu" style="margin-top:2px">${c.day>=0?"+":"−"}${kr(Math.abs(c.day))} kr idag</div>
-   ${mode!=="list"&&snap.length>1?`<div style="margin-top:8px">${spark(snap.map(x=>x[1]),300,40).replace('class="sp"','style="width:100%;height:40px"')}<div class="mu" style="text-align:right">Värdeutveckling sedan ${esc(snap[0][0])}</div></div>`:""}
-   ${mode==="list"?"":`<div class="kv"><div><small>Insatt</small><b>${kr(c.cost)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(c.pnl)}">${c.pnl>=0?"+":"−"}${kr(Math.abs(c.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(c.ret)}">${sg(c.ret,1)}</b></div></div>`}
+      ${mode==="list"?"":`<div class="kv"><div><small>Insatt</small><b>${kr(c.cost)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(c.pnl)}">${c.pnl>=0?"+":"−"}${kr(Math.abs(c.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(c.ret)}">${sg(c.ret,1)}</b></div></div>`}
    ${c.rows.length?`<div class="alloc">${c.rows.map((r,i)=>`<i style="width:${r.w}%;background:${PAL[Math.min(i,PAL.length-1)]}"></i>`).join("")}</div>
    <div class="leg">${c.rows.slice(0,7).map((r,i)=>`<span><i style="background:${PAL[Math.min(i,PAL.length-1)]}"></i>${esc(r.s?r.s.d:r.h.t)} ${f(r.w,0)}%</span>`).join("")}${c.rows.length>7?`<span>+${c.rows.length-7} till</span>`:""}</div>
    ${mode==="list"?"":`<div class="chips" style="margin-top:10px">${Object.keys(hzw).sort().map(k=>`<span class="hz" style="color:${(HZ[k]||HZ.none)[1]};border-color:${(HZ[k]||HZ.none)[1]}66">${(HZ[k]||HZ.none)[0]} ${f(hzw[k],0)}%</span>`).join("")}</div>`}`:""}
@@ -627,6 +629,8 @@ function act(a,d){
     case"lkview":lkView(+d.idx);break;
     case"imp":importSheet(d.pid);break;
     case"addx":addExchangeSheet();break;
+    case"propinfo":infoSheet("psig");break;
+    case"proptoggle":{const mod=a_el(d.pid);if(!mod)break;const body=mod.querySelector(".pbody"),sum=mod.querySelector(".psum"),ch=mod.querySelector(".pchev"),nowCol=!body.hidden;body.hidden=nowCol;sum.hidden=!nowCol;ch.textContent=nowCol?"▾":"▴";Ui.pcol[d.pid]=nowCol;try{localStorage.setItem("mm_pcol",JSON.stringify(Ui.pcol))}catch(e){}break}
     case"psexp":{const p=getP(d.pid);if(p){const all=p.h.every(h=>open.has("h:"+h.t));p.h.forEach(h=>all?open.delete("h:"+h.t):open.add("h:"+h.t));route(true)}break}
     case"pfreorder":Ui.pfReorder=true;route();break;
     case"pfreorderdone":Ui.pfReorder=false;route();break;
@@ -1418,7 +1422,7 @@ function quoteStatus(){
   else t="Hämtar live-kurser…";
   return`<div class="mu" style="margin:6px 2px;font-size:11.5px">${t}</div>`
 }
-function quoteTick(){if(!/^#\/portfolio/.test(location.hash)||Date.now()-FHQ.t<20000)return;refreshQuotes().then(ch=>{if((ch||FHQ.t)&&/^#\/portfolio/.test(location.hash)&&!SH.classList.contains("on")&&!document.querySelector(".dragc,.drag"))route(true)})}
+function quoteTick(){if(!/^#\/portfolio/.test(location.hash)||Date.now()-FHQ.t<20000)return;refreshQuotes().then(ch=>{if((ch||FHQ.t)&&/^#\/portfolio/.test(location.hash)&&!SH.classList.contains("on")&&!document.querySelector(".dragc,.drag,#app details[open]"))route(true)})}
 setInterval(quoteTick,60000);
 /* ---------- Dra portföljknapparna (håll in en stund) ---------- */
 let CD=null,SUPP=0;
@@ -1550,6 +1554,7 @@ function planHTML(p){
    <div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div>
    <div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div></div>`
 }
+const a_el=pid=>{const h=document.querySelector(`.pmh[data-pid="${pid}"]`);return h&&h.closest(".mod")};
 function propHTML(p,c,sigs,rot,ideas){
   const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan:null,items=pl?pl.items:[];
   if(!pl&&!sigs.length&&!rot.length)return"";
@@ -1569,14 +1574,17 @@ function propHTML(p,c,sigs,rot,ideas){
   rot.forEach(x=>{if(planHas[x.b.h.t]&&items.some(it=>it.t===x.b.h.t&&it.a==="KÖP"))return;
     G.buy.push(`<div class="sr" data-act="rot" data-pid="${p.id}" data-a="${esc(x.a.h.t)}" data-b="${esc(x.b.h.t)}"><div class="m"><div>${flag(x.b.h.t)}${tlink(x.b.h.t,x.b.s.d)}<span class="sig BUY" style="margin-left:8px">KÖP MER</span> <span class="mu" style="font-size:11px">omfördelning · appens signal</span></div><div class="mu" style="white-space:normal">Byt ut ${esc(x.a.s.d)} (≈ ${kr(x.a.val)} kr): ${esc(x.a.s.d)} – ${esc(x.wa.join(", "))}. ${esc(x.b.s.d)} – ${esc(x.wb.join(", "))}.</div><div class="mu" style="font-size:11.5px">Tryck för att förifylla omfördelningen.</div></div><span style="color:var(--mu);font-size:22px">›</span></div>`)});
   const sec=(g,lab)=>G[g].length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab} (${G[g].length})</h2></div>${G[g].join("")}`:"";
+  const col=Ui.pcol[p.id]===true;
   const act=items.filter(i=>i.a!=="BEHÅLL"),tot0=(pl&&pl.total)||act.length,done=Math.max(0,tot0-act.length),sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
-  return`<div class="mod" style="margin-top:10px"><div class="mh" data-i="psig"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${tot0} genomförda</span>`:""}<span class="ii">ⓘ</span></div>
+  return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${tot0} genomförda</span>`:""}<span class="ii" data-act="propinfo">ⓘ</span><span class="pchev">${col?"▾":"▴"}</span></div>
+   <div class="psum mu" style="margin-top:4px;font-size:12px"${col?"":" hidden"}>Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr(sS-sB)} kr`:""}${pl?` · ${done}/${tot0} genomförda`:""}</div>
+   <div class="pbody"${col?" hidden":""}>
    ${pl?`<div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
    ${(()=>{const d=Math.floor((Date.now()-Date.parse(pl.date||""))/864e5);if(!(d>=0))return"";const old=d>=3;return`<div class="${old?"stat WAIT":"mu"}" style="${old?"":"margin:0 0 6px;font-size:12px"}">${old?`<b>FÖRSLAGET ÄR ${d} DAGAR GAMMALT</b>`:""}${old?"Kurser och signaler har ändrats sedan dess. Antal och urval uppdateras inte av sig själva – ta fram ett nytt förslag via ⋯ → 📋 Analys för chatt om du vill uppdatera det.":(d===0?"Förslaget gjordes i dag.":"Förslaget är "+d+" dag"+(d>1?"ar":"")+" gammalt. Belopp och appens signaler uppdateras löpande.")}</div>`})()}
    <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr(sS-sB)} kr</b></div></div>`:`<div class="mu" style="margin-bottom:4px">Appens signaler för dina innehav. Fler detaljer och förslag med antal får du genom att importera ett förslag.</div>`}
    ${sec("sell","SÄLJ / MINSKA")}${sec("buy","KÖP / ÖKA")}${sec("watch","BEVAKA")}${sec("hold","BEHÅLL")}
    ${ideas.length?`<details class="nwd"><summary>Idéer att undersöka (${ideas.length})</summary><div class="mu" style="margin-bottom:6px">Hög momentumpoäng, du äger dem inte.</div><div class="chips">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></details>`:""}
-   ${pl?`<div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div><div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div>`:""}</div>`
+   ${pl?`<div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div><div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div>`:""}</div></div>`
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
@@ -1610,6 +1618,7 @@ function sortRows(rows){
   else a.sort((x,y)=>y.val-x.val);
   return a
 }
+Ui.pcol=(()=>{try{return JSON.parse(localStorage.getItem("mm_pcol")||"{}")}catch(e){return{}}})();
 /* ---------- DEMO-DATA (visas bara när data.json saknas) ---------- */
 function horizonOf(s){const r1=s.r1m||0,r3=s.r3m||0,r6=s.r6m||0,eg=s.eg||0,rg=s.rg||0;
   if(s.sc>=60&&r1>5&&s.a50&&s.macd>0&&r3>10)return["1-3","Starkt kortsiktigt momentum: stark 1–3 mån-avkastning, över SMA50 och MACD uppåt."];
