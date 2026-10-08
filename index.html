@@ -236,7 +236,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-07-f";
+const APPV="2026-10-07-g";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1491,6 +1491,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const act=items.filter(i=>i.a!=="BEHÅLL"),done=act.filter(i=>i.done).length,sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
   return`<div class="mod" style="margin-top:10px"><div class="mh" data-i="psig"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${act.length} klara</span>`:""}<span class="ii">ⓘ</span></div>
    ${pl?`<div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
+   ${(()=>{const d=Math.floor((Date.now()-Date.parse(pl.date||""))/864e5);if(!(d>=0))return"";const old=d>=3;return`<div class="${old?"stat WAIT":"mu"}" style="${old?"":"margin:0 0 6px;font-size:12px"}">${old?`<b>FÖRSLAGET ÄR ${d} DAGAR GAMMALT</b>`:""}${old?"Kurser och signaler har ändrats sedan dess. Antal och urval uppdateras inte av sig själva – ta fram ett nytt förslag via ⋯ → 📋 Analys för chatt om du vill uppdatera det.":(d===0?"Förslaget gjordes i dag.":"Förslaget är "+d+" dag"+(d>1?"ar":"")+" gammalt. Belopp och appens signaler uppdateras löpande.")}</div>`})()}
    <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr(sS-sB)} kr</b></div></div>`:`<div class="mu" style="margin-bottom:4px">Appens signaler för dina innehav. Fler detaljer och förslag med antal får du genom att importera ett förslag.</div>`}
    ${sec("sell","SÄLJ / MINSKA")}${sec("buy","KÖP / ÖKA")}${sec("watch","BEVAKA")}${sec("hold","BEHÅLL")}
    ${ideas.length?`<details class="nwd"><summary>Idéer att undersöka (${ideas.length})</summary><div class="mu" style="margin-bottom:6px">Hög momentumpoäng, du äger dem inte.</div><div class="chips">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></details>`:""}
