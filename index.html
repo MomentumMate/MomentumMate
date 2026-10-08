@@ -245,7 +245,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-08-d";
+const APPV="2026-10-08-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -637,7 +637,7 @@ function act(a,d){
     case"addx":addExchangeSheet();break;
     case"rulesedit":rulesSheet(d.pid);break;
     case"rulesell":{const p=getP(d.pid);if(!p)break;const a=ruleSignals(p,calc(p)).find(x=>x.r.h.t===d.t);if(!a){toast("Signalen gäller inte längre");route(true);break}
-      const h=a.r.h,s0=S[h.t];execSheet(p,{t:h.t,a:"SÄLJ",q:a.q,px:a.r.px,ccy:s0?s0.ccy:h.ccy,n:h.n,why:a.why},{given:todayISO(),title:"Regelsignal: "+RLAB[a.k],after:(pp,q)=>{if(a.k==="VINST"){const hh=pp.h.find(x=>x.t===h.t);if(hh)hh.tps=(hh.tps||0)+1}}});break}
+      const h=a.r.h,s0=S[h.t];execSheet(p,{t:h.t,a:"SÄLJ",q:a.q,px:a.r.px,ccy:s0?s0.ccy:h.ccy,n:h.n,why:a.why},{given:todayISO(),title:"Regelsignal: "+RLAB[a.k],after:(pp,q,pr)=>{if(a.k==="VINST")tpStage(pp,h.t,pr)}});break}
     case"rulebuy":{const p=getP(d.pid),s0=S[d.t];if(!p||!s0)break;execSheet(p,{t:d.t,a:"KÖP",q:+d.q,px:s0.px,ccy:s0.ccy,n:s0.n,why:"Ersättare enligt regelsignal (poäng "+s0.sc+", RSI "+s0.rsi+")"},{given:todayISO(),title:"Ersättningsköp"});break}
     case"propinfo":infoSheet("psig");break;
     case"proptoggle":{const mod=a_el(d.pid);if(!mod)break;const body=mod.querySelector(".pbody"),sum=mod.querySelector(".psum"),ch=mod.querySelector(".pchev"),nowCol=!body.hidden;body.hidden=nowCol;sum.hidden=!nowCol;ch.textContent=nowCol?"▾":"▴";Ui.pcol[d.pid]=nowCol;try{localStorage.setItem("mm_pcol",JSON.stringify(Ui.pcol))}catch(e){}break}
@@ -1575,7 +1575,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const appLine=r=>r?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens signal: <span class="sig ${r.sig.k}" style="margin:0">${SIGL[r.sig.k]}</span> ${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div>`:"";
   const rotFor={};rot.forEach(x=>{(rotFor[x.b.h.t]=rotFor[x.b.h.t]||[]).push(x)});
   const G={sell:[],buy:[],watch:[],hold:[]};
-  const RA=ruleSignals(p,c),RP=replSuggest(p,c,RA),ruleT=new Set(RA.map(a=>a.r.h.t));
+  const RA=ruleSignals(p,c).filter(a=>!planHas[a.r.h.t]),RP=replSuggest(p,c,RA),ruleT=new Set(RA.map(a=>a.r.h.t));
   items.forEach((it,i)=>{const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":"hold";const r=rowBy[it.t],x=rotFor[it.t];
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
     G[g].push(`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${it.a}${it.q?" "+it.q+" st":""}</span></div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}${appLine(r)}${extra}</div>
@@ -1614,7 +1614,7 @@ function ruleSignals(p,c){
     const h=r.h,px=r.px,F=r.F;if(!(px>0)||!(h.q>0))return;
     const base=h.c,pk=Math.max(h.pk||base,px),stopBase=R.trail?Math.max(base,pk):base,stopPx=stopBase*(1-R.stop/100);let a=null;
     if(R.stop>0&&px<=stopPx)a={k:"STOPP",q:h.q,why:`Stopp −${R.stop} % nått: kursen ${f(px)} ligger under ${f(stopPx)} (${R.trail&&pk>base?"toppkurs "+f(pk):"inköpskurs "+f(base)} −${R.stop} %). Sälj hela innehavet.`};
-    else if(R.tp>0){const st=h.tps||0,th=R.tp*(st+1);if(r.ret>=th){const q=Math.min(h.q,Math.max(1,Math.floor(h.q*R.tpSell/100)));a={k:"VINST",q,why:`Vinstmål +${th} % nått (nu +${f(r.ret,1)} % mot inköpskursen). Ta hem ${R.tpSell} % (${q} st) och låt resten löpa med stopp. Nästa vinstmål +${R.tp*(st+2)} %.`}}}
+    else if(R.tp>0){const st=h.tps||0,th=R.tp*(st+1);if(r.ret>=th){const q=Math.min(h.q,Math.max(1,Math.floor(h.q*R.tpSell/100)));const nx=R.tp*(Math.max(st+1,Math.floor(r.ret/R.tp))+1);a={k:"VINST",q,why:`Vinstmål +${th} % nått (nu +${f(r.ret,1)} % mot inköpskursen). Ta hem ${R.tpSell} % (${q} st) och låt resten löpa med stopp. Nästa vinstmål +${nx} %.`}}}
     if(!a&&R.cap>0&&r.w>R.cap){const q=Math.min(h.q,Math.ceil((r.val-R.cap/100*c.tot)/(px*F)));if(q>0)a={k:"TAK",q,why:`Väger ${f(r.w,1)} % – över taket ${R.cap} % per aktie. Minska med ${q} st.`}}
     if(!a&&r.sig.k==="SELL")a={k:"TREND",q:h.q,why:"Appens trendsignal SÄLJ: "+r.sig.why.slice(0,2).join("; ")+". Sälj hela innehavet."};
     if(a){a.r=r;a.amt=a.q*px*F;out.push(a)}
@@ -1632,6 +1632,7 @@ function replSuggest(p,c,acts){
     res.set(a,list)});
   return res
 }
+function tpStage(pp,t,pr){const hh=pp.h.find(x=>x.t===t);if(!hh)return;const R=pp.rules||RULE_DEF,ret=(pr/hh.c-1)*100;hh.tps=Math.max((hh.tps||0)+1,Math.floor(ret/R.tp))}
 function rulesLine(p){return p.rules?`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span></div>`:""}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
@@ -1660,20 +1661,25 @@ function execSheet(p,it,o){
         if(it.a==="SÄLJ"){if(!pp.h.find(x=>x.t===it.t))return;sellHolding(pp,it.t,q,pr,d)}
         else addHolding(pp,it.t,q,pr,d,s?{}:Object.assign({},it.n?{n:it.n}:{},it.ccy?{ccy:it.ccy}:{}));
         pp.archive=pp.archive||[];const s2=S[it.t];pp.archive.unshift({t:it.t,n:s2?s2.n:(it.n||it.t),a:it.a,q,px:pr,ccy:planCc(it),why:it.why||"",given:o.given||"",title:o.title||"",done:d,amt:q*pr*fx(planCc(it))});
-        if(o.after)o.after(pp,q,pr,d)};
+        if(o.after)o.after(pp,q,pr,d);if(o.done)o.done(pp)};
       one(p);if(tw&&$("#ptw")&&$("#ptw").checked)one(tw);
-      if(o.done)o.done();save();snapshot();closeSheet();toast("Registrerat och arkiverat"+(tw&&$("#ptw")&&$("#ptw").checked?" i båda portföljerna":""));route(true)}})
+      save();snapshot();closeSheet();toast("Registrerat och arkiverat"+(tw&&$("#ptw")&&$("#ptw").checked?" i båda portföljerna":""));route(true)}})
 }
 function planApplySheet(pid,i){
   const p=getP(pid),it=p&&p.plan&&p.plan.items[i];if(!it)return;
-  execSheet(p,it,{given:p.plan.date||"",title:p.plan.title||"",done:()=>{const ix=p.plan.items.indexOf(it);if(ix>=0)p.plan.items.splice(ix,1)}})
+  execSheet(p,it,{given:p.plan.date||"",title:p.plan.title||"",after:(pp,q,pr)=>{if(it.tp)tpStage(pp,it.t,pr)},done:pp=>{if(!pp.plan)return;const ix=pp.plan.items.findIndex(x=>x.t===it.t&&x.a===it.a);if(ix>=0)pp.plan.items.splice(ix,1)}})
+}
+function mkPlan(j){
+  const items=(j.items||[]).filter(x=>x&&x.t&&x.a).map(x=>({t:String(x.t),a:String(x.a).toUpperCase().replace("SALJ","SÄLJ").replace("KOP","KÖP").replace("BEHALL","BEHÅLL"),q:+x.q||0,why:x.why||"",n:x.n||"",ccy:x.ccy||"",px:+x.px||0,done:false,tp:!!x.tp}));
+  if(!items.length)throw 0;
+  return{title:j.title||"Förslag",date:j.date||todayISO(),note:j.note||"",items,total:items.filter(i=>i.a!=="BEHÅLL").length}
 }
 function planImport(j){
-  const items=(j.items||[]).filter(x=>x&&x.t&&x.a).map(x=>({t:String(x.t),a:String(x.a).toUpperCase().replace("SALJ","SÄLJ").replace("KOP","KÖP").replace("BEHALL","BEHÅLL"),q:+x.q||0,why:x.why||"",n:x.n||"",ccy:x.ccy||"",px:+x.px||0,done:false}));
-  if(!items.length)throw 0;
-  let p=null;if(j.pf){const k=String(j.pf).toLowerCase();p=P.ps.find(x=>x.name.toLowerCase()===k)||P.ps.find(x=>x.name.toLowerCase().includes(k))}
-  p=p||getP(P.cur)||P.ps[0];if(!p)throw 0;
-  p.plan={title:j.title||"Förslag",date:j.date||todayISO(),note:j.note||"",items,total:items.filter(i=>i.a!=="BEHÅLL").length};P.cur=p.id;save();return p
+  const names=[].concat(j.pf||[]).map(x=>String(x).toLowerCase());let hit=[];
+  if(names.length)hit=P.ps.filter(x=>names.includes(x.name.toLowerCase()));
+  if(!hit.length&&names.length)hit=P.ps.filter(x=>names.some(n=>x.name.toLowerCase().includes(n)));
+  if(!hit.length){const p0=getP(P.cur)||P.ps[0];if(!p0)throw 0;hit=[p0]}
+  hit.forEach(p=>{p.plan=mkPlan(j)});P.cur=hit[0].id;save();return hit[0]
 }
 Ui.psort=(()=>{try{return localStorage.getItem("mm_psort")||"size"}catch(e){return"size"}})();
 function sortRows(rows){
