@@ -245,7 +245,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-08-e";
+const APPV="2026-10-09-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -635,6 +635,7 @@ function act(a,d){
     case"lkview":lkView(+d.idx);break;
     case"imp":importSheet(d.pid);break;
     case"addx":addExchangeSheet();break;
+    case"proprefresh":refreshSheet(d.pid);break;
     case"rulesedit":rulesSheet(d.pid);break;
     case"rulesell":{const p=getP(d.pid);if(!p)break;const a=ruleSignals(p,calc(p)).find(x=>x.r.h.t===d.t);if(!a){toast("Signalen gäller inte längre");route(true);break}
       const h=a.r.h,s0=S[h.t];execSheet(p,{t:h.t,a:"SÄLJ",q:a.q,px:a.r.px,ccy:s0?s0.ccy:h.ccy,n:h.n,why:a.why},{given:todayISO(),title:"Regelsignal: "+RLAB[a.k],after:(pp,q,pr)=>{if(a.k==="VINST")tpStage(pp,h.t,pr)}});break}
@@ -1569,7 +1570,7 @@ function planHTML(p){
 const a_el=pid=>{const h=document.querySelector(`.pmh[data-pid="${pid}"]`);return h&&h.closest(".mod")};
 function propHTML(p,c,sigs,rot,ideas){
   const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan:null,items=pl?pl.items:[];
-  if(!pl&&!sigs.length&&!rot.length&&!p.rules)return"";
+  if(!p.h.length)return"";
   const rowBy={};c.rows.forEach(r=>{rowBy[r.h.t]=r});const planHas={};items.forEach((it,i)=>{(planHas[it.t]=planHas[it.t]||[]).push(i)});
   const tlink=(t,l)=>S[t]?`<b class="tlk" data-act="gostock" data-t="${esc(t)}">${esc(l)}</b>`:`<b>${esc(l)}</b>`,flag=t=>`<span class="fg">${flagOf(t)}</span>`,nm=(t,it)=>{const s=S[t];return s?s.n:(it&&it.n)||t},dn=t=>{const s=S[t];return s?s.d:t};
   const appLine=r=>r?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens signal: <span class="sig ${r.sig.k}" style="margin:0">${SIGL[r.sig.k]}</span> ${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div>`:"";
@@ -1578,7 +1579,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const RA=ruleSignals(p,c).filter(a=>!planHas[a.r.h.t]),RP=replSuggest(p,c,RA),ruleT=new Set(RA.map(a=>a.r.h.t));
   items.forEach((it,i)=>{const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":"hold";const r=rowBy[it.t],x=rotFor[it.t];
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
-    G[g].push(`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${it.a}${it.q?" "+it.q+" st":""}</span></div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}${appLine(r)}${extra}</div>
+    G[g].push(`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${it.a}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}${appLine(r)}${extra}</div>
      <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>`}</div></div>`)});
   RA.forEach(a=>{const r=a.r,h=r.h,repl=RP.get(a)||[];
     G.sell.push(`<div class="sr rls"><div class="m"><div>${flag(h.t)}${tlink(h.t,r.s?r.s.d:h.t)}<span class="pla S">${RLAB[a.k]} ${a.q} st</span></div><div class="mu">${esc(r.s?r.s.n:(h.n||h.t))} · ≈ ${kr(a.amt)} kr · vikt ${f(r.w,1)} %</div><div class="mu" style="white-space:normal">${esc(a.why)}</div>
@@ -1593,7 +1594,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const sec=(g,lab)=>G[g].length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab} (${G[g].length})</h2></div>${G[g].join("")}`:"";
   const col=Ui.pcol[p.id]===true;
   const act=items.filter(i=>i.a!=="BEHÅLL"),tot0=(pl&&pl.total)||act.length,done=Math.max(0,tot0-act.length),sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
-  return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${tot0} genomförda</span>`:""}<span class="ii" data-act="propinfo">ⓘ</span><span class="pchev">${col?"▾":"▴"}</span></div>
+  return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${tot0} genomförda</span>`:""}<span class="ii" data-act="proprefresh" data-pid="${p.id}" title="Uppdatera förslag och signaler">🔄</span><span class="ii" data-act="propinfo">ⓘ</span><span class="pchev">${col?"▾":"▴"}</span></div>
    <div class="psum mu" style="margin-top:4px;font-size:12px"${col?"":" hidden"}>Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr(sS-sB)} kr`:""}${pl?` · ${done}/${tot0} genomförda`:""}</div>
    <div class="pbody"${col?" hidden":""}>
    ${rulesLine(p)}
@@ -1633,7 +1634,7 @@ function replSuggest(p,c,acts){
   return res
 }
 function tpStage(pp,t,pr){const hh=pp.h.find(x=>x.t===t);if(!hh)return;const R=pp.rules||RULE_DEF,ret=(pr/hh.c-1)*100;hh.tps=Math.max((hh.tps||0)+1,Math.floor(ret/R.tp))}
-function rulesLine(p){return p.rules?`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span></div>`:""}
+function rulesLine(p){return`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px">Appen ger signal när en regel slår till och föreslår vad du kan köpa i stället. Toppkursen är den högsta kurs appen sett sedan köpet.</p>
@@ -1644,6 +1645,52 @@ function rulesSheet(pid){
   <div class="acts"><button class="btn" id="rgo" style="flex:1">Spara</button>${p.rules?'<button class="btn ghost" id="rdel">Ta bort regler</button>':""}</div>`,()=>{
     $("#rgo").onclick=()=>{const v=i=>parseFloat($("#r"+i).value);p.rules={stop:v(1)>=0?v(1):RULE_DEF.stop,tp:v(2)>0?v(2):RULE_DEF.tp,tpSell:Math.min(100,v(3)>0?v(3):RULE_DEF.tpSell),cap:v(4)>=0?v(4):RULE_DEF.cap,maxRsi:v(5)>0?v(5):RULE_DEF.maxRsi,repl:Math.max(0,Math.round(v(6)>=0?v(6):RULE_DEF.repl)),trail:$("#r7").checked};save();closeSheet();route(true);toast("Reglerna är sparade")};
     if($("#rdel"))$("#rdel").onclick=()=>{delete p.rules;save();closeSheet();route(true)}})
+}
+/* ======================= v12: AUTOFÖRSLAG OCH UPPDATERA-KNAPP ======================= */
+function regimeSnap(){const o={};(D.markets||[]).forEach(m=>{try{const st=mstats(m.k);if(st&&typeof st.tr==="number")o[m.k]={tr:st.tr,av:st.av}}catch(e){}});return{u:D.updated||"",o}}
+function regimeCheck(){try{const cur=JSON.parse(localStorage.getItem("mm_reg_cur")||"null"),now=regimeSnap();if(!cur||cur.u!==now.u){localStorage.setItem("mm_reg_prev",JSON.stringify(cur||now));localStorage.setItem("mm_reg_cur",JSON.stringify(now))}}catch(e){}}
+function regimeNote(){
+  const out={warn:false,text:"",avoid:new Set()};let prev=null;try{prev=JSON.parse(localStorage.getItem("mm_reg_prev")||"null")}catch(e){}const cur=regimeSnap();
+  if(!prev||!prev.o)return out;
+  ["NASDAQ","SP500"].forEach(k=>{const a=prev.o[k],b=cur.o[k];if(a&&b&&a.tr-b.tr>=20){out.warn=true;out.text+=`${MK(k).n}: andel över SMA200 ${a.tr} % → ${b.tr} % sedan förra skanningen. `;if(k==="NASDAQ")out.avoid.add("Technology")}});
+  return out
+}
+function autoPlan(p,o){
+  o=o||{};const R=Object.assign({},RULE_DEF,p.rules||{}),pp=Object.assign({},p,{rules:R}),c=calc(pp),items=[],cash=+o.cash||0;
+  const RA=ruleSignals(pp,c),sold=new Set(RA.map(a=>a.r.h.t)),reg=regimeNote();
+  RA.forEach(a=>{const h=a.r.h,s0=S[h.t];items.push({t:h.t,a:"SÄLJ",q:a.q,why:a.why,tp:a.k==="VINST",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:a.r.px,done:false})});
+  let pool=RA.reduce((x,a)=>x+a.amt,0)+cash;const tot0=c.tot+cash;
+  const secW={};c.rows.forEach(r=>{const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
+  const cands=[],held=new Set(p.h.map(h=>h.t)),avoid=s=>reg.avoid.has(s.sec);
+  c.rows.forEach(r=>{if(sold.has(r.h.t)||!r.s)return;if(r.sig.k==="BUY"&&r.w<R.cap*0.95&&r.s.rsi<=R.maxRsi&&!avoid(r.s))cands.push({s:r.s,held:true,score:r.s.sc+3})});
+  ((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).map(t=>S[t]).filter(s=>s&&s.px>0&&!held.has(s.t)&&s.sc>=60&&s.rsi<=R.maxRsi&&s.a50&&(s.a200||s.sh)&&s.macd>0&&s.inf!==false&&!avoid(s)).slice(0,40).forEach(s=>cands.push({s,held:false,score:s.sc}));
+  cands.forEach(x=>{if((secW[x.s.sec]||0)/Math.max(tot0,1)>0.45)x.score-=15});
+  cands.sort((a,b)=>b.score-a.score);
+  const maxBuys=reg.warn?1:Math.max(1,(R.repl||2)+1);let nb=0;const used=new Set();
+  for(const x of cands){if(nb>=maxBuys||pool<2500)break;if(used.has(x.s.t))continue;
+    const s=x.s,per=s.px*fx(s.ccy),cur=(c.rows.find(r=>r.h.t===s.t)||{val:0}).val,room=Math.max(0,(R.cap>0?R.cap/100*tot0:pool)-cur),share=pool/Math.max(1,maxBuys-nb);
+    const q=Math.min(Math.floor(Math.min(share,pool)/per),Math.floor(room/per));if(q<1)continue;used.add(s.t);pool-=q*per;nb++;
+    items.push({t:s.t,a:"KÖP",q,why:`${x.held?"Appens KÖP MER":"Nytt momentum"}: poäng ${s.sc}, RSI ${s.rsi}, 1 mån ${f(s.r1m,1)} %, 3 mån ${f(s.r3m,1)} %${s.grn>=4?`, Graham ${s.grn}/6`:""}${s.mf?", Magic Formula ja":""}${s.sec?" · "+(SECSV[s.sec]||s.sec):""}. Stopp ≈ ${f(s.px*(1-R.stop/100))} ${s.cur}.`,n:s.n,ccy:s.ccy,px:s.px,done:false})}
+  c.rows.forEach(r=>{if(sold.has(r.h.t))return;const h=r.h,s=r.s,u=s?s.cur:(h.ccy||""),pk=Math.max(h.pk||h.c,r.px),base=R.trail?Math.max(h.c,pk):h.c;
+    items.push({t:h.t,a:"BEHÅLL",q:0,why:(s?`Appen: ${SIGL[r.sig.k]} (poäng ${s.sc}, RSI ${s.rsi}${s.rsi>R.maxRsi?" – överköpt, köp inte mer":""}). `:"")+`Stopp ≈ ${f(base*(1-R.stop/100))} ${u}, nästa vinstmål ≈ ${f(h.c*(1+R.tp*((h.tps||0)+1)/100))} ${u}.`,n:h.n||"",ccy:s?s.ccy:h.ccy,px:r.px,done:false})});
+  const hh=t=>{try{return new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
+  const note=`Genererat ${hh(new Date().toISOString())} av appens regelmotor · data från skanning ${D.updated?hh(D.updated)+" UTC":"demo"}${FHQ.ok?" + live-kurser":""} · ${cash>0?"kassa att investera "+kr(cash)+" kr":"ingen ny kassa angiven (bara försäljningar finansierar köp)"}. ${reg.warn?"MARKNADSVARNING: "+reg.text+"Max 1 nytt köp, och tech undviks. ":""}Regler: ${rulesTxt(R)}. Räkneexempel, ingen rådgivning.`;
+  return{title:"Autoförslag "+new Date().toLocaleDateString("sv-SE"),date:todayISO(),note,items,total:items.filter(i=>i.a!=="BEHÅLL").length,auto:true}
+}
+async function refreshAll(pid,cash){
+  toast("Hämtar färska data…");
+  if(!DEMO){try{const r=await loadData();if(r&&r.d){D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData()}}catch(e){}}
+  await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{})]);regimeCheck();
+  const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
+  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash})});
+  save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
+}
+function refreshSheet(pid){
+  const p=getP(pid);if(!p)return;const ag=D.updated?Math.round((Date.now()-Date.parse(D.updated))/3600000):null;
+  sheet(`<h3>🔄 Uppdatera förslag & signaler</h3><p class="mu" style="margin-top:-4px">Hämtar senaste skanningen, nyheter och live-kurser och räknar om signalerna för innehaven i “${esc(p.name)}”${p.twin&&getP(p.twin)?" och “"+esc(getP(p.twin).name)+"”":""}. Regelmotorn gör sedan ett nytt förslag som <b>ersätter det nuvarande</b>.</p>
+  <label class="fld"><span>Kassa att investera (kr, valfritt)</span><input id="rk" type="number" inputmode="decimal" step="any" value="${p.cashHint>0?p.cashHint:""}" placeholder="0 – bara försäljningar finansierar köp"></label>
+  <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" UTC"+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Skanningen körs tre gånger per dag; live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.</div>
+  <button class="btn wide" id="rgo2">Uppdatera nu</button>`,()=>{$("#rgo2").onclick=()=>{const k=parseFloat($("#rk").value)||0;closeSheet();refreshAll(pid,k)}})
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
@@ -1757,7 +1804,7 @@ async function loadNews(){
 }
 (async()=>{
   const t0=performance.now();introRun(t0);setTimeout(introHide,7000);
-  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData();await Promise.all([loadLive(),loadNews()]);snapshot();route();startMate();
+  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData();regimeCheck();await Promise.all([loadLive(),loadNews()]);snapshot();route();startMate();
   setInterval(async()=>{const h=location.hash,a=await loadLive(),b=await loadNews();if((!h||/#\/(daytrade|home)/.test(h))&&a)route(true);else if((!h||/#\/(home|news)/.test(h))&&b)route(true)},120000)
 })();
 </script></body></html>
