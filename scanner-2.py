@@ -227,7 +227,13 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
     ("Dagens industri", "https://www.di.se/rss"),
     ("Google News – marknaden", "https://news.google.com/rss/search?q=stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – senaste timmen", "https://news.google.com/rss/search?q=stocks+OR+nasdaq+OR+earnings+when:1h&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – börsen idag", "https://news.google.com/rss/search?q=b%C3%B6rsen+OR+aktier+OR+stockholmsb%C3%B6rsen+when:3h&hl=sv&gl=SE&ceid=SE:sv"),
     ("Google News – börsen", "https://news.google.com/rss/search?q=b%C3%B6rsen+aktier+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Google News – Asia markets", "https://news.google.com/rss/search?q=asia+stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Europe markets", "https://news.google.com/rss/search?q=europe+stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Fed rates economy", "https://news.google.com/rss/search?q=federal+reserve+OR+interest+rate+OR+trade+war+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – earnings reports", "https://news.google.com/rss/search?q=earnings+report+stock+when:1d&hl=en-US&gl=US&ceid=US:en"),
 ]
 
 def read_extra():
@@ -483,6 +489,22 @@ def num(x, d=1):
         return round(float(x), d)
     except Exception: return None
 
+def earn_date(info):
+    """Nästa rapportdatum från Yahoo Finance (earningsDate)."""
+    import datetime as _dt
+    for key in ("earningsDate", "earningsDates"):
+        v = info.get(key)
+        if not v: continue
+        if isinstance(v, list):
+            now = _dt.datetime.now(_dt.timezone.utc)
+            future = sorted([x for x in v if isinstance(x, (int, float)) and _dt.datetime.fromtimestamp(x, _dt.timezone.utc) >= now - _dt.timedelta(days=1)])
+            if future: return _dt.datetime.fromtimestamp(future[0], _dt.timezone.utc).strftime("%Y-%m-%d")
+            nums = [x for x in v if isinstance(x, (int, float))]
+            if nums: return _dt.datetime.fromtimestamp(max(nums), _dt.timezone.utc).strftime("%Y-%m-%d")
+        elif isinstance(v, (int, float)):
+            return _dt.datetime.fromtimestamp(v, _dt.timezone.utc).strftime("%Y-%m-%d")
+    return None
+
 def short_about(txt, n=240):
     """Kortar Yahoos företagsbeskrivning till ~2 meningar."""
     t = re.sub(r"\s+", " ", (txt or "")).strip()
@@ -588,9 +610,9 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "gr": gr, "grn": sum(grc), "grc": grc, "ey": num(ey), "roc": num(roc), "mfr": {}, "mf": False, "_ex": excl,
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
-            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
+            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"), "ed": earn_date(info),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
-            "hi": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
+            "inf": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
 
 # ----------------------------------------------------------------------------------
@@ -1065,10 +1087,42 @@ def select_light(light_only, ld, uni, mk_by):
         stats[k] = {"universe": len(members), "scanned": sum(1 for t in members if t in ld), "liquid": sum(1 for t in members if t in scored), "deep": len(top)}
     return sel, stats
 
+def news_live():
+    """Frekvent nyhetsflöde (körs var 15:e minut av news.yml): marknadsflöden + Google News för viktiga aktier. Skriver news.json."""
+    try: D = json.load(open("data.json", encoding="utf-8"))
+    except Exception: D = {}
+    stocks, rank = D.get("stocks", {}), D.get("rank", {})
+    want = []
+    try: want += [l.split("#")[0].strip() for l in open("news_tickers.txt", encoding="utf-8")]      # t.ex. dina innehav
+    except OSError: pass
+    want += rank.get("ALL", {}).get("mom", [])[:15]
+    for k, r in rank.items():
+        if k not in ("ALL", "DT"): want += r.get("mom", [])[:3]
+    want += rank.get("DT", {}).get("cand", [])[:10]
+    ex = (D.get("stats") or {}).get("extra_list", [])
+    if ex:
+        i0 = (int(time.time() // 900) * 20) % len(ex); want += (ex + ex)[i0:i0 + 20]               # roterande del av din aktielista
+    want = [t for t in dict.fromkeys(w for w in want if w)][:100]
+    feed = fetch_feeds()
+    def one(t):
+        name = re.sub(r"\b(Inc|Corp|Corporation|Ltd|plc|AB|ASA|SE|NV|AG|SA|Holdings?|Company)\b\.?", "", (stocks.get(t) or {}).get("n") or t).strip(" ,.")
+        try:
+            return t, (google_news(name + " aktie when:2d", "sv", "SE", "SE:sv") if t.endswith(".ST") else google_news(name + " stock when:2d"))
+        except Exception:
+            return t, []
+    news = {}
+    with ThreadPoolExecutor(max_workers=4) as ex_:
+        for t, items in ex_.map(one, want):
+            if items: news[t] = sorted(items, key=lambda x: -x["ts"])[:8]
+    out = {"updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "feed": feed[:80], "news": news}
+    with open("news.json", "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"Nyheter: {len(feed)} marknadsartiklar {dict(FEED_STATS)}; aktienyheter för {len(news)} av {len(want)} aktier")
+
 def intr_of(intra, t):
     return intraday_stats(intra[t]) if t in intra else None
 
 if __name__ == "__main__":
-    if "--daytrade" in sys.argv: live()
+    if "--news" in sys.argv: news_live()
+    elif "--daytrade" in sys.argv: live()
     elif "--lookup" in sys.argv: lookup(sys.argv[sys.argv.index("--lookup") + 1])
     else: main()

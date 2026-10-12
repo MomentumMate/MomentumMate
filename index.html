@@ -21,7 +21,8 @@ a{color:inherit}
 .back{width:36px;height:36px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--gd);display:grid;place-items:center;font-size:22px;text-decoration:none;flex:none}
 .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#b8862b,#ffd98a);display:grid;place-items:center;font-weight:700;color:#1a1200;font-size:13px;flex:none}
 /* moduler */
-.mod{background:linear-gradient(180deg,#14100a,#0b0905);border:1px solid var(--bd);border-radius:22px;padding:16px;margin-bottom:12px;display:block}
+.mod{background:linear-gradient(180deg,#14100a,#0b0905);border:1px solid var(--bd);border-radius:22px;padding:20px 16px 14px;margin-bottom:12px;display:block;overflow:hidden;position:relative}
+.mod::before{content:"";position:absolute;top:0;left:0;right:0;height:3.5px;background:linear-gradient(90deg,var(--gd) 0%,#c8953060 75%,transparent 100%);border-radius:22px 22px 0 0;pointer-events:none}
 .mh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .mh .ico{width:36px;height:36px;border-radius:12px;background:#1b1508;display:grid;place-items:center;color:var(--gd);font-size:18px}
 .mh h2{margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1}
@@ -402,8 +403,7 @@ function vHome(){
     <div class="mu" style="margin-top:4px">${P.ps.length} portfölj${P.ps.length>1?"er":""} · ${T.n} innehav · ${T.day>=0?"+":"−"}${kr(Math.abs(T.day))} kr idag</div>
     <div class="al">${badN?`<span class="sig SELL" style="margin:0">⚠ ${badN} saknar data</span>`:""}${sigN?`<span class="sig SELL" style="margin:0">${sigN} sälj/omfördela</span>`:""}${rotN?`<span class="sig TRIM" style="margin:0">${rotN} byte</span>`:""}${buyN?`<span class="sig BUY" style="margin:0">${buyN} köp mer</span>`:""}${watchN?`<span class="sig WATCH" style="margin:0">${watchN} bevaka</span>`:""}${!sigN&&!rotN&&!buyN&&!watchN&&!badN?'<span class="sig HOLD" style="margin:0">Inga signaler – allt ser lugnt ut</span>':""}</div>`
    :`<div class="mu" style="font-size:14px">Lägg in dina innehav i en eller flera portföljer och få dagliga signaler för köp, sälj och omfördelning.</div><div class="chips" style="margin-top:10px"><span class="chip on">+ Skapa portfölj</span></div>`}</div>
-  <div class="mod"><div class="mh" data-go="#/desk"><div class="ico">▥</div><h2>BÖRSDESK</h2><span class="go">›</span></div>
-   <div class="chips">${orderedMkts().map(m=>mchip(m,"")).join("")}<span class="chip mk on" data-act="addx">＋ Börs</span></div>
+  <div class="mod" data-go="#/desk"><div class="mh"><div class="ico">▥</div><h2>BÖRSDESK</h2><span class="go">›</span></div>
    ${top.length?`<div style="margin-top:10px"><small>Dagens starkaste momentum</small>${top.map(s=>`<div class="sr" data-go="#/stock/${enc(s.t)}"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`:""}</div>
   <div class="mod" data-go="#/daytrade"><div class="mh"><div class="ico">⚡</div><h2>DAGHANDEL</h2><span class="go">›</span></div>
    ${ps?`<div class="stat ${pdx?pdx.st.k:"WAIT"}" style="margin-top:0"><b>★ DIN AKTIE IDAG: ${esc(ps.d)}</b>${pdx?esc(pdx.st.t):ps.px+" "+ps.cur+" "+sg(ps.chg)}</div>`:""}
@@ -519,7 +519,7 @@ function resHtml(q,lim){const r=search(q,lim);return r.length?r.map(srow).join("
 function vStock(t){
   const s=S[t];if(!s){view(topbar("Aktie")+'<div class="empty">Aktien hittades inte i datan.</div>');return}
   open.add(s.t);const inP=[];P.ps.forEach(p=>{const h=p.h.find(x=>x.t===t);if(h)inP.push(p.name+": "+f(h.q,h.q%1?2:0)+" st @ "+f(h.c))});
-  view(`${topbar(fl(s)+" "+esc(s.d))}${Ui.back?`<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="goback">↩ Tillbaka till ${esc(Ui.back.label)}</span></div>`:""}<div class="mod"><div class="mu">${esc(s.n)} · ${s.m.map(k=>esc(MK(k).n)).join(", ")}</div>
+  view(`${topbar(fl(s)+" "+esc(s.d))}${edWarn(s)}${Ui.back?`<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="goback">↩ Tillbaka till ${esc(Ui.back.label)}</span></div>`:""}<div class="mod"><div class="mu">${esc(s.n)} · ${s.m.map(k=>esc(MK(k).n)).join(", ")}</div>
   <div><span class="big">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}">${sg(s.chg)}</span></div>
   <div class="al">${hz(s.h)}${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}</div>${s.al.length?alerts(s):""}
   <div class="chips" style="margin-top:8px"><span class="chip" data-act="chart" data-t="${esc(s.t)}">📈 Graf</span></div>
@@ -837,29 +837,42 @@ function ans(q){
   return"Jag hittade inget på det. Prova en ticker (t.ex. NVDA), eller <span class='lnk' data-act='mq' data-q='hjälp'>hjälp</span>."
 }
 function marketBrief(){
-  const feed=(D.feed||[]).slice(0,20),mks=D.markets||[],up=D.updated?hhmm(D.updated)+" UTC":"–";
+  const feed=(D.feed||[]).slice(0,30),mks=D.markets||[],up=D.updated?hhmm(D.updated)+" UTC":"–";
   const hld=new Set(P.ps.flatMap(p=>p.h.map(h=>h.t)));
-  const held=s=>hld.has(s.t)?` <b>(du äger ${esc(s.d)})</b>`:"";
-  const mkline=m=>{try{const st=mstats(m.k);if(!st)return"";return`<b>${esc(MK(m.k).n)}</b>: ${st.tr}% över SMA200, snittpoäng ${f(st.av,1)}.`}catch(e){return""}};
+  const mkline=m=>{try{const st=mstats(m.k);if(!st)return"";return`<b>${esc(MK(m.k).n)}</b>: ${st.tr} % över SMA200, snittpoäng ${f(st.av,1)}.`}catch(e){return""}};
   const mkdata=mks.map(mkline).filter(Boolean);
-  const topN=feed.slice(0,8).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("");
+  const topN=feed.slice(0,12).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("");
   const movers=[],losers=[];Object.values(S).forEach(s=>{if(!s||!s.px||!s.d)return;if(s.chg>=5&&hld.has(s.t))movers.push(s);if(s.chg<=-5&&hld.has(s.t))losers.push(s)});
   movers.sort((a,b)=>b.chg-a.chg);losers.sort((a,b)=>a.chg-b.chg);
   const pf=P.ps.map(p=>{const c=calc(p);return{n:p.name,tot:c.tot,day:c.day,dayPct:c.dayPct}}).filter(x=>x.tot>0);
+  // rapportdatum inom 7 dagar
+  const earns=[];P.ps.forEach(p=>p.h.forEach(h=>{const s=S[h.t];if(!s||!s.ed)return;const d=Math.ceil((Date.parse(s.ed)-Date.now())/864e5);if(d>=0&&d<=7&&!earns.some(x=>x.t===h.t))earns.push({t:h.t,d:s.d,ed:s.ed,days:d,pn:p.name})}));
+  earns.sort((a,b)=>a.days-b.days);
+  // globala nyheter: kategorisera
+  const asia=feed.filter(n=>/asia|china|japan|nikkei|hang.seng|shanghai|hong.kong|korea|kospi|sensex|india/i.test(n.h));
+  const europe=feed.filter(n=>/europe|dax|ftse|stoxx|cac|omx|stockholms|norsk|oslo|köpenhamn|london/i.test(n.h));
+  const macro=feed.filter(n=>/fed|rate|inflation|gdp|trade.war|tariff|geopolit|sanctions|oil.price|crude|opec|treasury|bond.yield|dollar|recession|employment/i.test(n.h));
+  const earnNews=feed.filter(n=>/earning|rapport|revenue|profit|guidance|beat|miss|quarterly/i.test(n.h));
   let html=`<div class="mod" style="margin-top:0"><div class="mh"><div class="ico">📊</div><h2>MARKNADSRAPPORT</h2></div>`;
-  html+=`<div class="mu" style="margin:4px 0">Skanningsdata: ${up}${FHQ.ok?" + live-kurser":""}. Uppdateras med nästa skanning.</div>`;
-  html+=`<p style="margin:8px 0"><b>Dina portföljer idag</b></p>`;
-  pf.forEach(x=>{html+=`<div class="mu">${esc(x.n)}: <b>${kr(x.tot)} kr</b> · <span class="${cls(x.dayPct)}">${sg(x.dayPct,2)} idag (${x.day>=0?"+":""}${kr(x.day)} kr)</span></div>`});
+  html+=`<div class="mu" style="margin:4px 0">Data: ${up}${FHQ.ok?" + live-kurser":""}. Uppdateras med nästa skanning.</div>`;
+  if(pf.length){html+=`<p style="margin:8px 0"><b>Dina portföljer</b></p>`;
+    pf.forEach(x=>{html+=`<div class="mu">${esc(x.n)}: <b>${kr(x.tot)} kr</b> · <span class="${cls(x.dayPct)}">${sg(x.dayPct,2)} idag (${x.day>=0?"+":""}${kr(x.day)} kr)</span></div>`})}
   if(movers.length||losers.length){html+=`<p style="margin:8px 0"><b>Stora rörelser i dina innehav</b></p>`;
     movers.forEach(s=>{html+=`<div class="mu up">${esc(s.d)}: ${sg(s.chg,1)} (${f(s.px)} ${esc(s.cur)})</div>`});
     losers.forEach(s=>{html+=`<div class="mu dn">${esc(s.d)}: ${sg(s.chg,1)} (${f(s.px)} ${esc(s.cur)})</div>`})}
-  html+=`<p style="margin:8px 0"><b>Marknadsläge</b></p><div class="mu" style="white-space:normal">${mkdata.join(" ")}</div>`;
+  if(earns.length){html+=`<p style="margin:8px 0"><b>📅 Kommande rapporter (dina innehav)</b></p>`;
+    earns.forEach(e=>{html+=`<div class="mu">📅 <b>${esc(e.d)}</b> rapporterar ${esc(e.ed)}${e.days===0?" <b>(IDAG)</b>":e.days===1?" (imorgon)":" (om "+e.days+" dagar)"} · ${esc(e.pn)}</div>`})}
+  html+=`<p style="margin:8px 0"><b>Marknadsläge – alla börser</b></p><div class="mu" style="white-space:normal">${mkdata.join(" ")}</div>`;
   const reg=regimeNote();if(reg.warn)html+=`<div class="stat WAIT" style="margin:8px 0"><b>MARKNADSVARNING</b>${esc(reg.text)}</div>`;
-  if(topN)html+=`<p style="margin:8px 0"><b>Senaste nyheter</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${topN}</ul>`;
+  if(asia.length){html+=`<p style="margin:8px 0"><b>Asien & Stillahavsregionen</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${asia.slice(0,5).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("")}</ul>`}
+  if(europe.length){html+=`<p style="margin:8px 0"><b>Europa & Norden</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${europe.slice(0,5).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("")}</ul>`}
+  if(macro.length){html+=`<p style="margin:8px 0"><b>Makro & geopolitik</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${macro.slice(0,5).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("")}</ul>`}
+  if(earnNews.length){html+=`<p style="margin:8px 0"><b>Rapporter & resultat</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${earnNews.slice(0,5).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("")}</ul>`}
+  if(topN&&!asia.length&&!europe.length&&!macro.length){html+=`<p style="margin:8px 0"><b>Senaste nyheter</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${topN}</ul>`}
   const sigS=[],sigB=[];P.ps.forEach(p=>{const c=calc(p);c.rows.forEach(r=>{if(r.sig.k==="SELL")sigS.push(`${esc(r.s?r.s.d:r.h.t)} i ${esc(p.name)}`);else if(r.sig.k==="BUY"&&r.w<12)sigB.push(`${esc(r.s?r.s.d:r.h.t)} i ${esc(p.name)}`)})});
   if(sigS.length)html+=`<p style="margin:8px 0"><b>Säljsignaler</b></p><div class="mu">${sigS.join(", ")}</div>`;
   if(sigB.length)html+=`<p style="margin:8px 0"><b>Köpsignaler</b></p><div class="mu">${sigB.join(", ")}</div>`;
-  html+=`<div class="mu" style="margin-top:12px;font-size:11.5px">Rapporten är sammanställd av appens regelmotor och nyhetsflöde, ingen AI. Ingen rådgivning.</div></div>`;
+  html+=`<div class="mu" style="margin-top:12px;font-size:11.5px">Rapporten är sammanställd av appens regelmotor och nyhetsflöde (RSS + Google News: Asien, Europa, USA, makro, rapporter). Ingen AI-tolkning – rubrikerna visas som de är. Ingen rådgivning.</div></div>`;
   return html
 }
 function mateSheet(){
@@ -1375,6 +1388,7 @@ const SVA={
 "NOKIA.HE":"Nätverksutrustning och telekomteknik (Nokia)."
 };
 const f52=(s,k)=>typeof s[k]==="number"?f(s[k])+" "+(s.cur||""):"–";
+function edWarn(s){if(!s||!s.ed)return"";const d=Math.ceil((Date.parse(s.ed)-Date.now())/864e5);if(d<0||d>14)return"";return`<div class="stat WAIT" style="margin:6px 0"><b>📅 RAPPORT ${esc(s.ed)}${d===0?" (IDAG)":d===1?" (IMORGON)":" (om "+d+" dagar)"}</b>${esc(s.d)} presenterar kvartalsrapport.</div>`}
 function aboutHTML(s){
   if(!s)return"";
   const f=[],sec=s.sec?(SECSV[s.sec]||s.sec):"",txt=SVA[s.t]||"";
