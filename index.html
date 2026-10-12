@@ -166,7 +166,7 @@ details.nwd summary::-webkit-details-marker{display:none}details.nwd summary:aft
 .fl em{font-style:normal;font-weight:700;border-radius:50%;width:20px;height:20px;display:grid;place-items:center;font-size:11px;flex:none}
 .fl em.B{background:#143a24;color:var(--up)}.fl em.S{background:#4a1d16;color:#ffb4a3}
 /* mate */
-#mate{position:fixed;right:12px;bottom:calc(80px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#2a2010,#0b0905);border:1px solid #5a4418;box-shadow:0 0 20px #e8b64a44;z-index:30;display:grid;place-items:center;cursor:pointer;padding:0}
+#mate{position:fixed;right:12px;bottom:calc(80px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:radial-gradient(ellipse at 38% 32%,#302818,#1a1208 50%,#0a0804);border:1px solid #5a4418;box-shadow:0 5px 16px #000a,0 0 18px #e8b64a33,inset 0 1px 3px #ffffff18,inset 0 -2px 4px #00000080;z-index:30;display:grid;place-items:center;cursor:pointer;padding:0}
 #mb{position:fixed;right:12px;bottom:calc(144px + env(safe-area-inset-bottom,0px));max-width:min(310px,calc(100vw - 24px));background:#17120a;border:1px solid #6a5420;border-radius:16px 16px 4px 16px;padding:11px 13px;font-size:13.5px;line-height:1.38;z-index:30;box-shadow:0 8px 30px #000a;opacity:0;transform:translateY(10px) scale(.96);pointer-events:none;transition:opacity .25s,transform .25s}
 #mb.on{opacity:1;transform:none;pointer-events:auto}
 #mb.alert{border-color:#ffd166;box-shadow:0 0 22px #ffd16655,0 8px 30px #000a}
@@ -246,7 +246,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-09-b";
+const APPV="2026-10-09-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -634,6 +634,7 @@ function act(a,d){
     case"news":Ui.news=d.v;route(true);break;
     case"dpick":{const on=dayPick()===d.t;setPick(on?null:d.t);toast(on?"Borttagen":"★ Vald som din aktie idag");route(true);break}
     case"mopen":$("#mb").classList.remove("on");mateSheet();break;
+    case"matetab":Ui.mateTab=d.v;closeSheet();setTimeout(mateSheet,260);break;
     case"mclose":$("#mb").classList.remove("on");break;
     case"mgo":{const g=$("#mbm").dataset.go;$("#mb").classList.remove("on");if(g)location.hash=g;break}
     case"mq":mAsk(d.q);break;
@@ -835,9 +836,37 @@ function ans(q){
   const r=search(q,1)[0];if(r){const p=P.ps.flatMap(p=>p.h.filter(h=>h.t===r.t).map(()=>p.name));return L([`${nmS(r)} – ${esc(r.n)}: ${r.px} ${r.cur} (${sg(r.chg)}), poäng ${r.sc}, ${hz(r.h)}`,r.al.length?"Signaler: "+r.al.map(a=>esc(a.t)).join(", "):"Inga aktiva signaler.",p.length?"Finns i: "+p.map(esc).join(", "):"",`<span class='lnk' data-go='#/stock/${enc(r.t)}'>Öppna analys ›</span> <span class='lnk' data-act='add' data-t='${esc(r.t)}'>+ Portfölj</span>`])}
   return"Jag hittade inget på det. Prova en ticker (t.ex. NVDA), eller <span class='lnk' data-act='mq' data-q='hjälp'>hjälp</span>."
 }
+function marketBrief(){
+  const feed=(D.feed||[]).slice(0,20),mks=D.markets||[],up=D.updated?hhmm(D.updated)+" UTC":"–";
+  const hld=new Set(P.ps.flatMap(p=>p.h.map(h=>h.t)));
+  const held=s=>hld.has(s.t)?` <b>(du äger ${esc(s.d)})</b>`:"";
+  const mkline=m=>{try{const st=mstats(m.k);if(!st)return"";return`<b>${esc(MK(m.k).n)}</b>: ${st.tr}% över SMA200, snittpoäng ${f(st.av,1)}.`}catch(e){return""}};
+  const mkdata=mks.map(mkline).filter(Boolean);
+  const topN=feed.slice(0,8).map(n=>`<li>${esc(n.h)} <span class="mu">(${esc(n.src)}, ${ago(n.ts)})</span></li>`).join("");
+  const movers=[],losers=[];Object.values(S).forEach(s=>{if(!s||!s.px||!s.d)return;if(s.chg>=5&&hld.has(s.t))movers.push(s);if(s.chg<=-5&&hld.has(s.t))losers.push(s)});
+  movers.sort((a,b)=>b.chg-a.chg);losers.sort((a,b)=>a.chg-b.chg);
+  const pf=P.ps.map(p=>{const c=calc(p);return{n:p.name,tot:c.tot,day:c.day,dayPct:c.dayPct}}).filter(x=>x.tot>0);
+  let html=`<div class="mod" style="margin-top:0"><div class="mh"><div class="ico">📊</div><h2>MARKNADSRAPPORT</h2></div>`;
+  html+=`<div class="mu" style="margin:4px 0">Skanningsdata: ${up}${FHQ.ok?" + live-kurser":""}. Uppdateras med nästa skanning.</div>`;
+  html+=`<p style="margin:8px 0"><b>Dina portföljer idag</b></p>`;
+  pf.forEach(x=>{html+=`<div class="mu">${esc(x.n)}: <b>${kr(x.tot)} kr</b> · <span class="${cls(x.dayPct)}">${sg(x.dayPct,2)} idag (${x.day>=0?"+":""}${kr(x.day)} kr)</span></div>`});
+  if(movers.length||losers.length){html+=`<p style="margin:8px 0"><b>Stora rörelser i dina innehav</b></p>`;
+    movers.forEach(s=>{html+=`<div class="mu up">${esc(s.d)}: ${sg(s.chg,1)} (${f(s.px)} ${esc(s.cur)})</div>`});
+    losers.forEach(s=>{html+=`<div class="mu dn">${esc(s.d)}: ${sg(s.chg,1)} (${f(s.px)} ${esc(s.cur)})</div>`})}
+  html+=`<p style="margin:8px 0"><b>Marknadsläge</b></p><div class="mu" style="white-space:normal">${mkdata.join(" ")}</div>`;
+  const reg=regimeNote();if(reg.warn)html+=`<div class="stat WAIT" style="margin:8px 0"><b>MARKNADSVARNING</b>${esc(reg.text)}</div>`;
+  if(topN)html+=`<p style="margin:8px 0"><b>Senaste nyheter</b></p><ul style="margin:4px 0;padding-left:18px;font-size:13px">${topN}</ul>`;
+  const sigS=[],sigB=[];P.ps.forEach(p=>{const c=calc(p);c.rows.forEach(r=>{if(r.sig.k==="SELL")sigS.push(`${esc(r.s?r.s.d:r.h.t)} i ${esc(p.name)}`);else if(r.sig.k==="BUY"&&r.w<12)sigB.push(`${esc(r.s?r.s.d:r.h.t)} i ${esc(p.name)}`)})});
+  if(sigS.length)html+=`<p style="margin:8px 0"><b>Säljsignaler</b></p><div class="mu">${sigS.join(", ")}</div>`;
+  if(sigB.length)html+=`<p style="margin:8px 0"><b>Köpsignaler</b></p><div class="mu">${sigB.join(", ")}</div>`;
+  html+=`<div class="mu" style="margin-top:12px;font-size:11.5px">Rapporten är sammanställd av appens regelmotor och nyhetsflöde, ingen AI. Ingen rådgivning.</div></div>`;
+  return html
+}
 function mateSheet(){
-  const first=insights().slice(0,3);
-  sheet(`<h3>Mate</h3><div class="chat" id="chat"><div class="bub">${first.length?"Hej! Det här är viktigast just nu:":"Hej! Allt ser lugnt ut just nu."}</div>${first.map(i=>`<div class="bub">${i.txt}${i.go?` <span class="lnk" data-go="${i.go}">Öppna ›</span>`:""}${i.rot?` <span class="lnk" data-act="rot" data-pid="${i.rot.pid}" data-a="${esc(i.rot.a)}" data-b="${esc(i.rot.b)}">Omfördela ›</span>`:""}</div>`).join("")}</div>
+  const first=insights().slice(0,3);Ui.mateTab=Ui.mateTab||"signals";
+  const tabs=`<div class="chips" style="margin:0 0 8px">${[["signals","📝 Signaler & förslag"],["market","📊 Marknadsrapport"]].map(x=>`<span class="chip${Ui.mateTab===x[0]?" on":""}" data-act="matetab" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>`;
+  if(Ui.mateTab==="market"){sheet(`<h3>Mate</h3>${tabs}${marketBrief()}`);return}
+  sheet(`<h3>Mate</h3>${tabs}<div class="chat" id="chat"><div class="bub">${first.length?"Hej! Det här är viktigast just nu:":"Hej! Allt ser lugnt ut just nu."}</div>${first.map(i=>`<div class="bub">${i.txt}${i.go?` <span class="lnk" data-go="${i.go}">Öppna ›</span>`:""}${i.rot?` <span class="lnk" data-act="rot" data-pid="${i.rot.pid}" data-a="${esc(i.rot.a)}" data-b="${esc(i.rot.b)}">Omfördela ›</span>`:""}</div>`).join("")}</div>
   <div class="chips scrollx" style="margin-bottom:10px">${[["Köp/sälj-signaler","signaler"],["Min portfölj","min portfolj"],["Daghandel idag","daghandel"],["Starkaste momentum","momentum"],["Värdeaktier","varde"],["Marknadsläge","marknad"]].map(x=>`<span class="chip" data-act="mq" data-q="${x[1]}">${x[0]}</span>`).join("")}</div>
   <div class="srch"><input id="mi" placeholder="Fråga Mate – t.ex. NVDA, portfölj, daghandel…" autocomplete="off" enterkeyhint="send"></div>
   <div class="mu" style="margin-top:8px">Mate är en regelbaserad assistent som läser dina data – ingen AI-modell. <span class="lnk" data-act="mmute">${mateOff?"Slå på":"Tysta"} popup-kommentarer</span></div>`)
