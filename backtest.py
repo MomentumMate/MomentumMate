@@ -71,9 +71,11 @@ def score_panel(close, vol, cfg):
         sc = sc.where(turn >= cfg["minturnover"])
     return sc, m121
 
-def month_ends(idx):
+def period_ends(idx, freq="M"):
+    """Sista handelsdagen i varje månad (M) eller kvartal (Q)."""
     s = pd.Series(idx, index=idx)
-    return list(s.groupby([idx.year, idx.month]).last())
+    key = [idx.year, idx.month] if freq == "M" else [idx.year, idx.quarter]
+    return list(s.groupby(key).last())
 
 def run(close, vol, cfg):
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
@@ -84,7 +86,7 @@ def run(close, vol, cfg):
     pxf = close.ffill()
     last_day = {t: (alive[t][alive[t]].index[-1] if alive[t].any() else None) for t in close.columns}
     dates = close.index
-    rebs = set(month_ends(dates))
+    rebs = set(period_ends(dates, cfg.get("reb", "M")))
     start_i = max(cfg["look"] + 5, 210)
     if start_i >= len(dates) - 5:
         raise SystemExit("För kort historik för att backtesta.")
@@ -135,6 +137,19 @@ def run(close, vol, cfg):
                         if px == px:
                             cash += hold[t]["sh"] * px * (1 - cost); trades.append(("band", t, d))
                         del hold[t]
+                # återställ vikterna till lika stora (trimma vinnare, fyll på eftersläntrare)
+                if cfg.get("reweight") and hold:
+                    tot = value(i); target = tot / cfg["n"]
+                    for t, h in list(hold.items()):
+                        px = p.get(t)
+                        if px != px or px <= 0: continue
+                        cur = h["sh"] * px
+                        if cur > target * (1 + cfg.get("rw_band", 0.25)):
+                            sell = (cur - target) / px
+                            h["sh"] -= sell; cash += sell * px * (1 - cost); trades.append(("trim", t, d))
+                        elif cur < target * (1 - cfg.get("rw_band", 0.25)) and cash > 0:
+                            add = min(target - cur, cash)
+                            h["sh"] += add * (1 - cost) / px; cash -= add; trades.append(("add", t, d))
                 # fyll på upp till n med de högst rankade
                 room = cfg["n"] - len(hold)
                 if room > 0:
@@ -179,7 +194,7 @@ def benchmark(close, years, start_i=210):
 
 # ----------------------------------------------------------------------------- main
 DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=True,
-           trendfilter=True, minturnover=3e6, cost_bps=15)
+           trendfilter=True, minturnover=3e6, cost_bps=15, reb="M", reweight=False, rw_band=0.25)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -188,6 +203,7 @@ def main():
     ap.add_argument("--out", default="backtest.json")
     ap.add_argument("--cache", default=None)
     ap.add_argument("--quick", action="store_true", help="kör bara grundfallet")
+    ap.add_argument("--combo", action="store_true", help="testa kombinationer i stället för en ändring i taget")
     a = ap.parse_args()
 
     if a.universe:
@@ -211,6 +227,42 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    BEST = dict(voladj=False, band_out=30, n=20, stop=12)      # bäst enligt enskildtesterna
+    if a.combo:
+        variants = {
+            "A. Nuvarande grundfall": {},
+            "B. Bästa enskilda kombinerat (ingen vol-just, band 30, 20 st, stopp 12)": dict(BEST),
+            "C. B + kvartalsvis ombalansering": dict(BEST, reb="Q"),
+            "D. B + likaviktning vid ombalansering": dict(BEST, reweight=True),
+            "E. B + kvartal + likaviktning": dict(BEST, reb="Q", reweight=True),
+            "F. E men stopp 15 %": dict(BEST, reb="Q", reweight=True, stop=15),
+            "G. E men stopp 20 %": dict(BEST, reb="Q", reweight=True, stop=20),
+            "H. E men utan stopp": dict(BEST, reb="Q", reweight=True, stop=0),
+            "I. E men 15 innehav": dict(BEST, reb="Q", reweight=True, n=15, band_out=25),
+            "J. E men 30 innehav": dict(BEST, reb="Q", reweight=True, n=30, band_out=45),
+            "K. E men band 40": dict(BEST, reb="Q", reweight=True, band_out=40),
+            "L. E utan trendfilter": dict(BEST, reb="Q", reweight=True, trendfilter=False),
+            "M. E med 12-1 och vol-just ändå": dict(BEST, reb="Q", reweight=True, voladj=True),
+            "N. E med högt courtage (50 bp)": dict(BEST, reb="Q", reweight=True, cost_bps=50),
+            "O. E med mycket högt courtage (100 bp)": dict(BEST, reb="Q", reweight=True, cost_bps=100),
+        }
+        res = {}
+        for name, over in variants.items():
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr = run(close, vol, cfg)
+                res[name] = stats(e, tr, years)
+                print(f"\n=== {name} ===")
+                for k, v in res[name].items(): print(f"   {k:<18}{v}")
+            except Exception as ex:
+                print(f"\n=== {name} === FEL: {ex}"); res[name] = {"fel": str(ex)[:120]}
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "år": round(years, 1), "aktier": int(close.shape[1]),
+               "jämförelseindex": bench, "varianter": res, "läge": "kombinationer",
+               "varning": "Survivorship bias och ingen fundamenta – se föregående körning."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     variants = {"Grundfall (12-1, vol-just, band 10/20, stopp 12 %)": {}}
     if not a.quick:
