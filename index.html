@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-13-e";
+const APPV="2026-10-13-f";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1955,12 +1955,12 @@ function planSheet(t,pid){
 function holdingsSheet(){
   const all=[...new Set(P.ps.flatMap(p=>p.h.map(h=>h.t)))].sort();
   const miss=all.filter(t=>!S[t]), ok=all.filter(t=>S[t]);
-  const txt="# Aktier du äger som inte ingår i något bevakat index.\n"
-    +"# De hämtas för att portföljen ska kunna värderas, men deltar INTE i rankning\n"
-    +"# eller i urvalet av köpkandidater. Lägg filen i repots rot som holdings.txt.\n"
+  const txt="# Aktier som inte fångas av något bevakat index (t.ex. utländska bolag som TSM).\n"
+    +"# De hämtas och analyseras exakt som alla andra aktier: samma poäng, samma rankning.\n"
+    +"# Lägg filen i repots rot som holdings.txt.\n"
     +all.join("\n")+"\n";
   sheet(`<h3>📄 Innehav till skannern</h3>
-  <p class="mu" style="margin-top:-4px">Aktier du äger men som inte ligger i något index får ingen kurs. Lägg listan nedan som <b>holdings.txt</b> i repots rot, så hämtas de. De påverkar varken rankning eller köpförslag.</p>
+  <p class="mu" style="margin-top:-4px">Aktier som inte ligger i något bevakat index får ingen kurs. Lägg listan nedan som <b>holdings.txt</b> i repots rot, så hämtas de och analyseras <b>precis som alla andra aktier</b> – samma poäng, samma rankning, samma signaler.</p>
   ${miss.length?`<div class="stat WAIT" style="margin:6px 0"><b>${miss.length} INNEHAV SAKNAR DATA</b>${miss.map(esc).join(", ")}</div>`:'<div class="stat OK" style="margin:6px 0"><b>ALLA INNEHAV HAR DATA</b>Du behöver inte göra något.</div>'}
   <label class="fld"><span>Innehåll till holdings.txt (${all.length} aktier)</span><textarea id="hx" rows="8" style="font-family:monospace;font-size:12px">${esc(txt)}</textarea></label>
   <button class="btn wide" id="hxc">Kopiera</button>`,()=>{
