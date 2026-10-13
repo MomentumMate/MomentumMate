@@ -541,6 +541,35 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     pc = float(prev["Close"]); chg = (px / pc - 1) * 100
     def ret(n): return (px / float(c.iloc[-n - 1]) - 1) * 100 if len(c) > n else 0.0
     r1, r3, r6 = ret(21), ret(63), ret(126)
+
+    # --- 12-1-momentum: 12 månaders avkastning EXKLUSIVE den senaste månaden.
+    # Senaste månaden utelämnas för att den statistiskt tenderar att vända (kortsiktig reversal).
+    m121, m_short = None, False
+    if len(c) > 253:
+        m121 = (float(c.iloc[-22]) / float(c.iloc[-253]) - 1) * 100
+    elif len(c) > 127:
+        m121 = (float(c.iloc[-22]) / float(c.iloc[-127]) - 1) * 100   # 6-1 som reserv
+        m_short = True
+
+    # --- volatilitet: årlig standardavvikelse på dagsavkastning (126 dagar) ---
+    vol = None
+    try:
+        rr = c.pct_change().dropna()
+        if len(rr) >= 60:
+            vol = float(rr.iloc[-126:].std() * (252 ** 0.5) * 100)
+    except Exception:
+        vol = None
+
+    # --- likviditet: snittomsättning per dag (20 dagar), omräknad till USD ---
+    FXU = {"USD": 1.0, "SEK": 0.10, "NOK": 0.096, "DKK": 0.147, "EUR": 1.08, "GBp": 0.0127,
+           "GBP": 1.27, "CHF": 1.12, "JPY": 0.0066, "HKD": 0.128, "CAD": 0.73}
+    adv = None
+    try:
+        v20s = vols.iloc[-20:].astype(float)
+        p20s = c.iloc[-len(v20s) - 1:-1].astype(float)
+        adv = float((v20s.values * p20s.values).mean()) * FXU.get((mk0 or {}).get("ccy", "USD"), 1.0)
+    except Exception:
+        adv = None
     v20 = float(vols.iloc[-20:].mean()) if len(vols) else 0
     volx = float(vols.iloc[-1]) / v20 if v20 else 1.0
     rs = rsi(c)
@@ -574,10 +603,41 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     bo = bool(px > float(last20.max()) and volx >= 1.2 and px > sma50)      # breakout över 20-dagarshögsta på volym
     rng20 = rng                                                              # 20-dagarsintervall i % (variabeln rng skrivs över längre ned)
     stag = bool(rng < 8 and abs(r1) < 3)                                    # stagnation: smalt intervall, ingen rörelse
-    tech = (min(max(r1, 0), 30) / 30 * 25 + min(max(r3, 0), 60) / 60 * 25 + (px > sma50) * 15 + (px > sma200) * 15
-            + (ema12 > ema26) * 10 + min(volx, 3) / 3 * 10)
-    fund = min(max(eg, 0), 50) / 50 * 40 + min(max(rg, 0), 30) / 30 * 40 + min(max(pm, 0), 25) / 25 * 20
-    score = round(tech * .6 + fund * .25 + (sent + 1) / 2 * 15, 1)
+    # ===================== POÄNGMODELL v2 =====================
+    # Kärnan är 12-1-momentum delat med volatiliteten (avkastning per enhet risk) –
+    # det mått momentumforskningen och de flesta kvantitativa fonder använder.
+    if m121 is not None and vol and vol > 5:
+        vam = m121 / vol                                   # typiskt -1 .. +2.5
+        mom = min(max((vam + 0.30) / 2.30, 0), 1) * 100   # taket slår i vid vam ≈ 2,0
+        if m_short: mom *= 0.85                            # kortare historik = mindre tillförlitlig
+    else:
+        mom = min(max(r3, 0), 60) / 60 * 100               # reserv när historiken är kort
+
+    # Trendkvalitet: rätt ordning på glidande medelvärden och stigande långtidstrend
+    trend = ((px > sma50) * 30 + (px > sma200) * 30 + (sma50 > sma200) * 20 + (sma200 > sma200_prev) * 20)
+
+    volconf = min(volx, 2.5) / 2.5 * 100                   # volymbekräftelse
+
+    # Överhettning: extrem uppgång senaste månaden och extremt RSI vänder oftare ned
+    heat = 0.0
+    if r1 > 25: heat += min((r1 - 25) / 25, 1) * 15
+    if rs > 80: heat += min((rs - 80) / 15, 1) * 10
+
+    tech = max(0.0, min(100.0, mom * .55 + trend * .30 + volconf * .15 - heat))
+
+    # Fundamenta: tillväxt + kvalitet (marginal och avkastning på eget kapital)
+    roe = info.get("returnOnEquity")
+    fund = (min(max(eg, 0), 50) / 50 * 35 + min(max(rg, 0), 30) / 30 * 35
+            + min(max(pm, 0), 25) / 25 * 15 + min(max((roe or 0) * 100, 0), 35) / 35 * 15)
+
+    score = tech * .60 + fund * .35 + (sent + 1) / 2 * 5
+
+    # Likviditetsavdrag: tunt handlade aktier går inte att komma ur till angiven kurs
+    if adv is not None:
+        if adv < 300_000: score -= 25
+        elif adv < 1_000_000: score -= 12
+        elif adv < 3_000_000: score -= 5
+    score = round(max(0.0, min(100.0, score)), 1)
 
     hit = bool(chg >= 5 or (us and px - pc >= 3) or pre_vol >= 50_000)
     c1 = bool(px > float(prev["High"])); c2 = bool(pc > sma200_prev) if sma200_prev == sma200_prev else None
@@ -605,7 +665,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "adv": (round(adv) if adv else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "hi": round(float(max(closes[-252:])), 2), "lo": round(float(min(closes[-252:])), 2),

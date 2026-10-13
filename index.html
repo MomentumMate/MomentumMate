@@ -139,6 +139,8 @@ details.nwd summary::-webkit-details-marker{display:none}details.nwd summary:aft
 .pla{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:8px;font-size:11.5px;font-weight:700}
 .pla.S{background:#3a1a14;color:#f0846f}.pla.B{background:#143a24;color:#7ddc9b}.pla.H{background:#2a2410;color:var(--gd)}
 .plr.done{opacity:.5}.plr .btn.sm{padding:6px 10px}
+.rep{display:inline-flex;align-items:center;gap:3px;background:#2a1f08;border:1px solid #8a6a18;color:#ffd166;border-radius:6px;padding:1px 5px;font-size:10.5px;font-weight:700;white-space:nowrap;margin-left:5px}
+.rep.soon{background:#3a2a08;border-color:#c89530;color:#ffe7a8}
 .tlk{color:var(--gd);text-decoration:underline;text-decoration-color:#e8b64a66;cursor:pointer}
 .pfrow{flex-wrap:wrap;gap:6px}
 .pbody[hidden],.psum[hidden]{display:none!important}
@@ -248,7 +250,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-09-f";
+const APPV="2026-10-12-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -342,7 +344,7 @@ function card(s,i,o={}){
   const val=o.val,sc=val?((s.vs&&s.vs[o.mk])||0):s.sc;
   const sub=val?`P/E ${s.pe??"–"} · P/B ${s.pb??"–"} · Graham ${s.grn}/6`:`RSI ${s.rsi} · vol ${s.vx}×`;
   return`<div class="c${open.has(s.t)?" o":""}${i<=3&&!o.compact?" t3":""}" data-t="${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b><span class="gb" data-act="chart" data-t="${esc(s.t)}" aria-label="Graf">📈</span>${s.dok?'<span class="tag">DAGHANDEL</span>':""}</div><div class="mu">${coName(s)}</div><div class="mu">${sub}</div></div>
+  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b><span class="gb" data-act="chart" data-t="${esc(s.t)}" aria-label="Graf">📈</span>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}</div><div class="mu">${sub}</div></div>
   ${spark(s.sp)}<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>
   <div class="al2">${hz(s.h)}${s.al.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}${s.al.length>2?`<span class="ab">+${s.al.length-2}</span>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk)}</div>`
@@ -351,7 +353,7 @@ function detail(s,mk,extra=""){
   const crit=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
   const n=s.dt.filter(x=>x===true).length,na=s.dt.some(x=>x==null);
   const mfp=(s.mfr&&(s.mfr[mk]!=null?s.mfr[mk]:s.mfr[s.m[0]]));
-  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>
+  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
   <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
   <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>${s.sh?`<div class="mu">⚠ Kort kurshistorik (${s.nb} handelsdagar) – SMA200 saknas.</div>`:""}
   <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
@@ -431,7 +433,7 @@ function vPortOverview(){
   if(Ui.pfReorder){pfReorderView();return}
   const items=P.ps.map(p=>({p,c:calc(p)})),tot=items.reduce((a,x)=>a+x.c.tot,0),day=items.reduce((a,x)=>a+x.c.day,0);
   view(`${topbar("Portfölj")}${staleBanner()}
-  <div class="chips pfrow">${P.ps.map(x=>`<span class="chip pfc" data-act="psel" data-id="${x.id}">${esc(x.name)}</span>`).join("")}<span class="chip on" data-act="newport">＋ Ny</span>${P.ps.length>1?'<span class="chip" data-act="pfreorder">↕ Ordning</span>':""}<span class="chip" data-act="pmenu" data-pid="${P.cur||P.ps[0].id}">⋯</span></div>
+  <div class="chips pfrow">${P.ps.map(x=>`<span class="chip pfc" data-act="psel" data-id="${x.id}">${esc(x.name)}</span>`).join("")}<span class="chip on" data-act="newport">＋ Ny</span><span class="chip" data-act="newpf">✨ Föreslå portfölj</span>${P.ps.length>1?'<span class="chip" data-act="pfreorder">↕ Ordning</span>':""}<span class="chip" data-act="pmenu" data-pid="${P.cur||P.ps[0].id}">⋯</span></div>
   ${quoteStatus()}
   ${P.ps.length>1?`<div class="mu" style="margin:8px 2px 0">Totalt alla portföljer: <b style="color:var(--tx)">${kr(tot)} kr</b> · <span class="${cls(day)}">${day>=0?"+":"−"}${kr(Math.abs(day))} kr idag</span></div>`:""}
   ${items.map(x=>pfHero(x.p,x.c,"list")).join("")}
@@ -443,7 +445,7 @@ function pfReorderView(){
   <div class="acts" style="margin-top:12px"><button class="btn" data-act="pfreorderdone" style="flex:1">Klar</button></div>`)
 }
 function vPort(id){
-  if(!P.ps.length){view(topbar("Portfölj")+`<div class="mod"><div class="mh"><div class="ico">◔</div><h2>KOM IGÅNG</h2></div><p style="margin:0 0 14px;font-size:14.5px">Skapa en portfölj och registrera dina innehav – antal, inköpskurs och datum. Kurser, utveckling och signaler uppdateras automatiskt varje dygn.</p><button class="btn wide" data-act="newport">Skapa portfölj</button></div><div class="stat WAIT" style="margin-top:12px"><b>FÖRSVANN DINA PORTFÖLJER?</b>Portföljerna sparas bara i just den här appen på just den här enheten. <b>Safari och appen på hemskärmen sparar var för sig</b>, och sparade data försvinner om du tar bort ikonen från hemskärmen. Öppna den app där du la in dem, eller importera din säkerhetskopia: skapa en portfölj och välj ⋯ → Importera backup. Gör ⋯ → Exportera backup efter större ändringar och spara texten i Anteckningar.</div>`);return}
+  if(!P.ps.length){view(topbar("Portfölj")+`<div class="mod"><div class="mh"><div class="ico">◔</div><h2>KOM IGÅNG</h2></div><p style="margin:0 0 14px;font-size:14.5px">Skapa en portfölj och registrera dina innehav – antal, inköpskurs och datum. Kurser, utveckling och signaler uppdateras automatiskt varje dygn.</p><button class="btn wide" data-act="newport">Skapa portfölj</button><button class="btn wide ghost" data-act="newpf" style="margin-top:8px">✨ Låt appen föreslå en portfölj</button></div><div class="stat WAIT" style="margin-top:12px"><b>FÖRSVANN DINA PORTFÖLJER?</b>Portföljerna sparas bara i just den här appen på just den här enheten. <b>Safari och appen på hemskärmen sparar var för sig</b>, och sparade data försvinner om du tar bort ikonen från hemskärmen. Öppna den app där du la in dem, eller importera din säkerhetskopia: skapa en portfölj och välj ⋯ → Importera backup. Gör ⋯ → Exportera backup efter större ändringar och spara texten i Anteckningar.</div>`);return}
   if(!id){vPortOverview();return}
   const p=getP(id)||getP(P.cur)||P.ps[0];P.cur=p.id;save();const c=calc(p);
   const sigs=c.rows.filter(r=>["SELL","TRIM","BUY","WATCH"].includes(r.sig.k)),rot=rotation(c.rows),needAct=rot.length>0||c.rows.some(r=>r.sig.k==="SELL"||r.sig.k==="TRIM");
@@ -465,7 +467,7 @@ function vPort(id){
 function holdCard(r,p){
   const h=r.h,s=r.s,key="h:"+h.t,n=f(h.q,h.q%1?2:0);
   return`<div class="c${open.has(key)?" o":""}" data-t="${esc(key)}"><div class="r"><div class="n w">${f(r.w,0)}%</div>
-  <div class="m"><div>${s?fl(s):`<span class="fg">${flagOf(h.t)}</span>`}<b>${esc(s?s.d:h.t)}</b>${s?`<span class="gb" data-act="chart" data-t="${esc(h.t)}" aria-label="Graf">📈</span>`:""}</div><div class="mu">${esc(s?s.n:(h.n||"Ingen live-data"))} · ${n} st · GAV ${f(h.c)}</div></div>
+  <div class="m"><div>${s?fl(s):`<span class="fg">${flagOf(h.t)}</span>`}<b>${esc(s?s.d:h.t)}</b>${s?`<span class="gb" data-act="chart" data-t="${esc(h.t)}" aria-label="Graf">📈</span>`:""}${repChip(s)}</div><div class="mu">${esc(s?s.n:(h.n||"Ingen live-data"))} · ${n} st · GAV ${f(h.c)}</div></div>
   ${s?spark(s.sp):""}<div class="p"><b>${kr(r.val)} kr</b><div class="${cls(r.ret)}">${sg(r.ret,1)}</div><div class="mu" style="font-size:11.5px;white-space:nowrap">${f(r.px)} ${s?esc(s.cur):esc(h.ccy||"")} ${s?`<span class="${cls(s.chg)}">${sg(s.chg,2)}</span>`:""}</div></div></div>
   <div class="al2"><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span>${r.hl?`<span class="sig SELL">⚠ ${esc(r.hl.short)}</span>`:""}${s?hz(s.h):""}</div>
   <div class="d">${s?aboutHTML(s):""}<div class="g"><div><small>Kurs</small><b>${f(r.px)} ${s?s.cur:""}</b></div><div><small>Idag</small><b class="${cls(s?s.chg:0)}">${s?sg(s.chg):"–"}</b></div><div><small>Vikt</small><b>${f(r.w,1)}%</b></div>
@@ -648,6 +650,7 @@ function act(a,d){
     case"imp":importSheet(d.pid);break;
     case"addx":addExchangeSheet();break;
     case"twinsheet":twinSheet(d.pid);break;
+    case"newpf":newPfSheet();break;
     case"proprefresh":refreshSheet(d.pid);break;
     case"rulesedit":rulesSheet(d.pid);break;
     case"rulesell":{const p=getP(d.pid);if(!p)break;const a=rulesOf(calc(p)).find(x=>x.r.h.t===d.t);if(!a){toast("Signalen gäller inte längre");route(true);break}
@@ -1388,8 +1391,10 @@ const SVA={
 "NOVN.SW":"Läkemedelsbolag (Novartis).",
 "NOKIA.HE":"Nätverksutrustning och telekomteknik (Nokia)."
 };
+const epDays=s=>{if(!s||!s.ed)return null;const d=Math.ceil((Date.parse(s.ed+"T12:00:00Z")-Date.now())/864e5);return(d<0||d>14)?null:d};
+const repChip=s=>{const d=epDays(s);if(d==null)return"";const lbl=d===0?"idag":d===1?"imorgon":"om "+d+" d";return`<span class="rep${d<=3?" soon":""}" title="Kvartalsrapport ${s.ed}">📅 ${s.ed.slice(5)} ${lbl}</span>`};
 const f52=(s,k)=>typeof s[k]==="number"?f(s[k])+" "+(s.cur||""):"–";
-function edWarn(s){if(!s||!s.ed)return"";const d=Math.ceil((Date.parse(s.ed)-Date.now())/864e5);if(d<0||d>14)return"";return`<div class="stat WAIT" style="margin:6px 0"><b>📅 RAPPORT ${esc(s.ed)}${d===0?" (IDAG)":d===1?" (IMORGON)":" (om "+d+" dagar)"}</b>${esc(s.d)} presenterar kvartalsrapport.</div>`}
+function edWarn(s){const d=epDays(s);if(d==null)return"";return`<div class="chips" style="margin:0 0 8px"><span class="rep${d<=3?" soon":""}" style="font-size:12px;padding:3px 8px">📅 Rapportdag ${esc(s.ed)} · ${d===0?"idag":d===1?"imorgon":"om "+d+" dagar"}</span></div>`}
 function aboutHTML(s){
   if(!s)return"";
   const f=[],sec=s.sec?(SECSV[s.sec]||s.sec):"",txt=SVA[s.t]||"";
@@ -1566,7 +1571,7 @@ function chatExport(pid){
   const p=getP(pid);if(!p)return"";
   const c=calc(p),held=new Set(p.h.map(h=>h.t)),F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),L=[];
   const yn=(b,a,b2)=>b?a:b2,when=D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo";
-  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${s.sh?"saknas (kort historik)":yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}% | horisont ${s.h==="none"||!s.h?"–":s.h}${typeof s.hi==="number"&&typeof s.lo==="number"?` | 52L ${s.lo} | 52H ${s.hi}`:""} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.inf===false?"okänt":s.grn+"/6"} | Magic Formula ${s.inf===false?"okänt":yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}${s.inf===false?" | bolagsinfo saknas":""}`;
+  const tech=s=>`poäng ${s.sc} | RSI ${s.rsi} | SMA50 ${yn(s.a50,"över","under")} | SMA200 ${s.sh?"saknas (kort historik)":yn(s.a200,"över","under")} | MACD ${s.macd>0?"upp":"ner"} | 1m ${F(s.r1m)}% | 3m ${F(s.r3m)}%${typeof s.m121==="number"?` | 12-1 ${F(s.m121)}%`:""}${s.vol?` | vol ${F(s.vol,0)}%`:""} | horisont ${s.h==="none"||!s.h?"–":s.h}${typeof s.hi==="number"&&typeof s.lo==="number"?` | 52L ${s.lo} | 52H ${s.hi}`:""} | P/E ${F(s.pe)} | P/B ${F(s.pb)} | Graham ${s.inf===false?"okänt":s.grn+"/6"} | Magic Formula ${s.inf===false?"okänt":yn(s.mf,"ja","nej")}${s.sh?" | kort historik":""}${s.inf===false?" | bolagsinfo saknas":""}`;
   L.push("MOMENTUMMATE – PORTFÖLJANALYS FÖR CHATT");
   L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${when} · app ${APPV} · modellen är regelbaserad och ingen rådgivning`);
   L.push(`Portfölj "${p.name}": värde ${Math.round(c.tot)} kr · insatt ${Math.round(c.cost)} kr · avkastning ${F(c.ret)}% · idag ${F(c.dayPct,2)}% · realiserat ${Math.round(p.re||0)} kr · ${p.h.length} innehav`);
@@ -1771,6 +1776,68 @@ function refreshSheet(pid){
   <label class="fld" style="flex-direction:row;gap:8px;align-items:center"><input id="rinc" type="checkbox" style="width:auto"><span>Räkna även med intäkterna från föreslagna försäljningar (när du angett belopp)</span></label>
   <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" UTC"+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.</div>
   <button class="btn wide" id="rgo2">Uppdatera nu</button>`,()=>{$("#rgo2").onclick=()=>{const k=parseFloat($("#rk").value)||0,inc=$("#rinc").checked;closeSheet();refreshAll(pid,k,inc)}})
+}
+/* ============ v13: PORTFÖLJFÖRSLAG (kapital + horisont + sektorspridning) ============ */
+const HZ_CFG={
+  "1-3":{n:"Kort (1–3 mån)",lo:10,hi:14,minSc:65,maxRsi:78,stop:10,tp:25,cap:14,sect:5},
+  "3-6":{n:"Medel (3–6 mån)",lo:8,hi:12,minSc:58,maxRsi:75,stop:12,tp:35,cap:16,sect:5},
+  "6-12":{n:"Lång (6–12 mån)",lo:7,hi:10,minSc:52,maxRsi:72,stop:15,tp:45,cap:18,sect:4},
+  "12-24":{n:"Mycket lång (1–2 år)",lo:6,hi:9,minSc:45,maxRsi:70,stop:18,tp:60,cap:20,sect:4}};
+function sectorMomentum(){
+  const by={};Object.values(S).forEach(x=>{if(!x||!x.sec||!(x.sc>0)||!x.px)return;(by[x.sec]=by[x.sec]||[]).push(x)});
+  return Object.entries(by).map(([sec,arr])=>{const top=arr.slice().sort((a,b)=>b.sc-a.sc).slice(0,12);
+    const av=top.reduce((a,x)=>a+x.sc,0)/top.length,tr=top.filter(x=>x.a200).length/top.length*100;
+    return{sec,av:Math.round(av*10)/10,tr:Math.round(tr),n:arr.length}}).filter(x=>x.n>=3).sort((a,b)=>b.av-a.av)
+}
+function buildPortfolio(cap,hz,o){
+  o=o||{};const C=HZ_CFG[hz]||HZ_CFG["3-6"],reg=regimeNote();
+  const nWant=Math.max(C.lo,Math.min(C.hi,Math.round(cap/60000)+C.lo-1));
+  const secs=sectorMomentum(),secRank={};secs.forEach((x,i)=>secRank[x.sec]=i);
+  const hot=new Set(secs.slice(0,C.sect).map(x=>x.sec));
+  const pool=Object.values(S).filter(x=>x&&x.px>0&&x.sc>=C.minSc&&x.rsi<=C.maxRsi&&x.a50&&(x.a200||x.sh)&&x.macd>0&&x.inf!==false
+    &&!(reg.avoid&&reg.avoid.has(x.sec))&&(!o.onlyHot||hot.has(x.sec)));
+  const scored=pool.map(x=>{let v=x.sc;if(x.grn>=4)v+=4;if(x.mf)v+=4;if(hot.has(x.sec))v+=5;
+    if(secRank[x.sec]!=null)v-=secRank[x.sec]*0.6;if(x.rsi>72)v-=(x.rsi-72)*1.1;
+    const ed=epDays(x);if(ed!=null&&ed<=5)v-=6;return{s:x,v:Math.round(v*10)/10}}).sort((a,b)=>b.v-a.v);
+  const picks=[],perSec={},maxPerSec=Math.max(2,Math.ceil(nWant/Math.max(2,C.sect-1)));
+  for(const c of scored){if(picks.length>=nWant)break;const sec=c.s.sec||"?";
+    if((perSec[sec]||0)>=maxPerSec)continue;perSec[sec]=(perSec[sec]||0)+1;picks.push(c)}
+  const capF=C.cap/100,budget=cap*0.95;
+  // vikt per innehav: lätt övervikt mot högre prioritet, normaliserad så att summan aldrig överstiger budgeten
+  const raw=picks.map((c,i)=>1+(picks.length-i)/Math.max(1,picks.length)*0.25),rsum=raw.reduce((a,x)=>a+x,0);
+  const alloc=raw.map(x=>Math.min(budget*x/rsum,cap*capF));
+  const items=picks.map((c,i)=>{const s=c.s,per=s.px*fx(s.ccy);let w=alloc[i];
+    const q=Math.max(0,Math.floor(w/per));return{t:s.t,a:"KÖP",q,pri:c.v,n:s.n,ccy:s.ccy,px:s.px,per,
+      why:`#${i+1} ${SECSV[s.sec]||s.sec||"–"}: poäng ${s.sc}, RSI ${s.rsi}, 3 mån ${f(s.r3m,1)} %${s.grn>=4?`, Graham ${s.grn}/6`:""}${s.mf?", Magic Formula ja":""}. Stopp ≈ ${f(s.px*(1-C.stop/100))} ${s.cur}, vinstmål ≈ ${f(s.px*(1+C.tp/100))} ${s.cur}.`}});
+  let items2=items.filter(x=>x.q>0);
+  // fyll på med hela aktier så länge budgeten räcker och taket per aktie håller
+  let rest=budget-items2.reduce((a,x)=>a+x.q*x.per,0);
+  for(let k=0;k<400&&rest>0;k++){let any=false;
+    for(const x of items2){const val=x.q*x.per;if(rest>=x.per&&val+x.per<=cap*capF){x.q++;rest-=x.per;any=true}}
+    if(!any)break}
+  items2.forEach(x=>{delete x.per});
+  const spent=items2.reduce((a,x)=>a+x.q*x.px*fx(x.ccy),0),secMix={};
+  items2.forEach(x=>{const sec=S[x.t].sec||"?";secMix[sec]=(secMix[sec]||0)+x.q*x.px*fx(x.ccy)});
+  const mixTxt=Object.entries(secMix).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${SECSV[k]||k} ${Math.round(v/spent*100)} %`).join(" · ");
+  const note=`Förslag för ${kr(cap)} kr, horisont ${C.n}. ${items2.length} innehav i ${Object.keys(secMix).length} sektorer, ${kr(spent)} kr placerat (${kr(cap-spent)} kr kvar som kassa). Sektorer: ${mixTxt}. Regler: stopp −${C.stop} %, vinstmål +${C.tp} %, tak ${C.cap} % per aktie. Starkaste sektorer just nu: ${secs.slice(0,C.sect).map(x=>`${SECSV[x.sec]||x.sec} (${x.av})`).join(", ")}.${reg.warn?" MARKNADSVARNING: "+reg.text:""} Räkneexempel, ingen rådgivning.`;
+  return{title:`Portföljförslag ${kr(cap)} kr · ${C.n}`,date:todayISO(),note,items:items2,total:items2.length,auto:true,cash:cap,cfg:C}
+}
+function newPfSheet(){
+  const secs=sectorMomentum().slice(0,6);
+  sheet(`<h3>✨ Föreslå portfölj</h3><p class="mu" style="margin-top:-4px">Appen väljer aktier med högt momentum, spridda över de sektorer som är starkast just nu, och sätter antal, stopp och vinstmål efter din horisont.</p>
+  <label class="fld"><span>Kapital att investera (kr)</span><input id="nk" type="number" inputmode="decimal" step="any" placeholder="t.ex. 300000"></label>
+  <label class="fld"><span>Placeringshorisont</span><select id="nh">${Object.entries(HZ_CFG).map(([k,v])=>`<option value="${k}"${k==="3-6"?" selected":""}>${v.n} – ${v.lo}–${v.hi} innehav, stopp −${v.stop} %, mål +${v.tp} %</option>`).join("")}</select></label>
+  <label class="fld" style="flex-direction:row;gap:8px;align-items:center"><input id="nhot" type="checkbox" checked style="width:auto"><span>Endast sektorer med starkast momentum</span></label>
+  <label class="fld"><span>Namn på portföljen</span><input id="nn" value="Momentum ${new Date().toLocaleDateString("sv-SE")}"></label>
+  <div class="mu" style="font-size:11.5px;margin:4px 0 10px">Starkaste sektorer nu: ${secs.map(x=>`${esc(SECSV[x.sec]||x.sec)} <b style="color:var(--tx)">${x.av}</b>`).join(" · ")||"(ingen data)"}</div>
+  <button class="btn wide" id="ngo2">Skapa förslag</button>`,()=>{
+    $("#ngo2").onclick=()=>{const cap=parseFloat($("#nk").value);if(!(cap>=10000)){toast("Ange minst 10 000 kr");return}
+      const hz=$("#nh").value,pl=buildPortfolio(cap,hz,{onlyHot:$("#nhot").checked});
+      if(!pl.items.length){toast("Inga aktier klarar kriterierna just nu – prova längre horisont");return}
+      const C=pl.cfg,np={id:uid(),name:$("#nn").value.trim()||"Ny portfölj",h:[],tx:[],re:0,plan:pl,cashHint:cap,
+        rules:{stop:C.stop,trail:true,tp:C.tp,tpSell:50,cap:C.cap,maxRsi:C.maxRsi,repl:3}};
+      P.ps.push(np);P.cur=np.id;save();snapshot();closeSheet();location.hash="#/portfolio/"+np.id;route(true);
+      toast(pl.items.length+" aktier föreslagna – registrera köpen när du handlat")}})
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
