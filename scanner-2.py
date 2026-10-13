@@ -521,6 +521,59 @@ def num(x, d=1):
         return round(float(x), d)
     except Exception: return None
 
+def _fin_row(df, *names):
+    """Hämtar en rad ur ett Yahoo-bokslut. Radnamnen skiljer sig mellan yfinance-versioner,
+    därför provas flera stavningar. Returnerar en lista med år, nyaste först."""
+    try:
+        if df is None or df.empty: return None
+        idx = {str(i).lower().replace(" ", ""): i for i in df.index}
+        for n in names:
+            k = n.lower().replace(" ", "")
+            if k in idx:
+                ser = df.loc[idx[k]].dropna()
+                if len(ser): return [float(x) for x in ser.tolist()]
+    except Exception:
+        pass
+    return None
+
+def piotroski(tk):
+    """Piotroski F-score (0–9). Delar som kräver jämförelse mot föregående år hoppas över
+    när Yahoo saknar historiken. Returnerar (poäng, antal bedömda delar)."""
+    try:
+        bs, cf, fin = tk.balance_sheet, tk.cashflow, tk.financials
+    except Exception:
+        return None, 0
+    ta  = _fin_row(bs, "Total Assets")
+    ni  = _fin_row(fin, "Net Income", "Net Income Common Stockholders", "Net Income From Continuing Operations")
+    ocf = _fin_row(cf, "Operating Cash Flow", "Total Cash From Operating Activities")
+    ltd = _fin_row(bs, "Long Term Debt", "Long Term Debt And Capital Lease Obligation")
+    ca  = _fin_row(bs, "Current Assets", "Total Current Assets")
+    cl  = _fin_row(bs, "Current Liabilities", "Total Current Liabilities")
+    sh  = _fin_row(bs, "Ordinary Shares Number", "Share Issued")
+    gp  = _fin_row(fin, "Gross Profit")
+    rev = _fin_row(fin, "Total Revenue", "Operating Revenue")
+    pts = [0]; n = [0]
+    def add(cond):
+        n[0] += 1
+        if cond: pts[0] += 1
+    two = lambda *xs: all(x and len(x) > 1 for x in xs)
+    roa = None
+    if ni and ta:
+        roa = [ni[i] / ta[i] for i in range(min(len(ni), len(ta))) if ta[i]]
+    # Lönsamhet
+    if roa: add(roa[0] > 0)                                   # 1 positiv ROA
+    if ocf: add(ocf[0] > 0)                                   # 2 positivt kassaflöde
+    if roa and len(roa) > 1: add(roa[0] > roa[1])             # 3 stigande ROA
+    if ocf and ni: add(ocf[0] > ni[0])                        # 4 kassaflöde över vinst (låga periodiseringar)
+    # Skuld och likviditet
+    if two(ltd, ta): add(ltd[0] / ta[0] <= ltd[1] / ta[1])    # 5 minskad långfristig skuld
+    if two(ca, cl): add(ca[0] / cl[0] > ca[1] / cl[1])        # 6 bättre kassalikviditet
+    if two(sh): add(sh[0] <= sh[1] * 1.01)                    # 7 inga nya aktier
+    # Effektivitet
+    if two(gp, rev): add(gp[0] / rev[0] > gp[1] / rev[1])     # 8 bättre bruttomarginal
+    if two(rev, ta): add(rev[0] / ta[0] > rev[1] / ta[1])     # 9 bättre kapitalomsättning
+    return (pts[0], n[0]) if n[0] >= 5 else (None, n[0])
+
 def earn_date(info):
     """Nästa rapportdatum från Yahoo Finance (earningsDate)."""
     if not info or not isinstance(info, dict):
@@ -1116,6 +1169,26 @@ def main():
             dropped.append([t, "analysfel: " + str(e)[:60], uni[t]])
             print("Hoppar över", t, "–", e)
     print(f"Analys: {len(recs)} aktier klara, {len(dropped)} saknas (Yahoo saknar data eller för kort historik).")
+
+    # Piotroski F-score hämtas bara för de bäst rankade – varje aktie kostar tre extra anrop
+    try:
+        FS_TOP = 70
+        cand = sorted(recs.values(), key=lambda r: -r["sc"])[:FS_TOP]
+        print(f"Hämtar Piotroski F-score för {len(cand)} toppkandidater…", flush=True)
+        def _fs(r):
+            try:
+                p, n = piotroski(yf.Ticker(r["t"]))
+                return r["t"], p, n
+            except Exception:
+                return r["t"], None, 0
+        done = 0
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            for t, p, n in ex.map(_fs, cand):
+                if p is not None:
+                    recs[t]["fs"], recs[t]["fsn"] = p, n; done += 1
+        print(f"  F-score klart för {done} av {len(cand)} aktier", flush=True)
+    except Exception as e:
+        print("  F-score hoppades över:", str(e)[:80])
     if len(recs) < max(10, 0.3 * len(deep)):
         print(f"FEL: bara {len(recs)} av {len(deep)} aktier kunde analyseras. Behåller gamla data.json.")
         sys.exit(1)
