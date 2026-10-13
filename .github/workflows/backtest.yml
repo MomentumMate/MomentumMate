@@ -1,0 +1,52 @@
+name: Backtest
+
+# Validerar den tekniska kärnan i modellen mot historisk data.
+# Körs manuellt (Actions -> Backtest -> Run workflow) och en gång i månaden.
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Antal år att testa"
+        default: "10"
+      quick:
+        description: "Bara grundfallet (snabbare)"
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 4 1 * *"
+
+permissions:
+  contents: write
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Kör backtest
+        run: |
+          python backtest.py --years "${{ github.event.inputs.years || 10 }}" \
+            ${{ github.event.inputs.quick == 'true' && '--quick' || '' }} \
+            --out backtest.json 2>&1 | tee backtest.log
+      - name: Publicera resultatet på grenen backtest
+        run: |
+          [ -f backtest.json ] || exit 0
+          mkdir /tmp/bt && cp backtest.json backtest.log /tmp/bt/ && cd /tmp/bt
+          git init -q -b backtest
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A && git commit -qm "backtest $(date -u +%F)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin backtest
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backtest
+          path: |
+            backtest.json
+            backtest.log
