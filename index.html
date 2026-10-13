@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-13-b";
+const APPV="2026-10-13-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -602,7 +602,7 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Analys av min aktielista</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#rbs").onclick=()=>{closeSheet();setTimeout(()=>rebSheet(pid),260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
@@ -1601,11 +1601,11 @@ function chatExport(pid){
 }
 async function listExport(){
   const F=(x,d=1)=>x==null||isNaN(x)?"–":(+x).toFixed(d),yn=(b,a,c)=>b?a:c,L=[];
-  let want=new Set(((D.stats&&D.stats.extra_list)||[]));
+  let want=new Set();
   if(!want.size){try{const r=await fetch("extra_tickers.txt?t="+Date.now());if(r.ok)(await r.text()).split("\n").forEach(l=>{const x=l.split("#")[0].trim();if(x)want.add(x)})}catch(e){}}
-  const arr=SL.filter(s=>want.has(s.t)||s.m.includes("EXTRA")||s.m.includes("WATCH")).sort((a,b)=>b.sc-a.sc),have=new Set(arr.map(s=>s.t)),miss=[...want].filter(x=>!have.has(x));
+  const arr=SL.slice().sort((a,b)=>b.sc-a.sc).slice(0,200),have=new Set(arr.map(s=>s.t)),miss=[];
   const val=s=>s.inf===false?"okänt":null;
-  L.push(`MOMENTUMMATE – ANALYS AV MIN AKTIELISTA (${arr.length} aktier, sorterade på momentumpoäng)`);
+  L.push(`MOMENTUMMATE – TOPPKANDIDATER, ALLA BÖRSER (${arr.length} aktier, sorterade på momentumpoäng)`);
   L.push(`Skapad ${new Date().toLocaleString("sv-SE")} · skanningsdata ${D.updated?D.updated.slice(0,16).replace("T"," ")+" UTC":"demo"} · app ${APPV} · kurser är skanningens senaste, inte slutkurser`);
   L.push("kolumner: ticker | namn | kurs | idag% | poäng | RSI | SMA50 | SMA200 | MACD | 1m% | 3m% | 52L | 52H | horisont | P/E | Graham | Magic Formula | marknader   (okänt = Yahoo gav ingen bolagsinformation)");
   arr.forEach(s=>L.push([s.t,s.n===s.t?"(namn saknas)":s.n,s.px+" "+s.cur,F(s.chg,1)+"%",F(s.sc),s.rsi,yn(s.a50,"över","under"),s.sh?"saknas":yn(s.a200,"över","under"),s.macd>0?"upp":"ner",F(s.r1m),F(s.r3m),typeof s.lo==="number"?s.lo:"–",typeof s.hi==="number"?s.hi:"–",(!s.h||s.h==="none")?"–":s.h,val(s)||F(s.pe),val(s)||s.grn+"/6",val(s)||yn(s.mf,"ja","nej"),s.m.join(",")].join(" | ")));
@@ -1741,11 +1741,12 @@ function rebSheet(pid){const p=getP(pid);if(!p)return;const cur=(p.reb&&p.reb.fr
     $("#rfgo").onclick=()=>{const f=$("#rf").value;if(!f)delete p.reb;else p.reb={freq:f,last:(p.reb&&p.reb.last)||todayISO()};save();closeSheet();route(true);toast(f?"Påminnelse sparad":"Påminnelse avstängd")}})}
 const VALID=`<details class="nwd" style="margin:0 0 8px"><summary>🔬 Vad valideringen visade</summary>
 <div class="mu" style="white-space:normal;font-size:12px;line-height:1.5">
-Modellen är backtestad på 355 aktier över 10 år (2016–2026). Standardvärdena nedan kommer från det testet, inte från tyckande.
-<br><br><b>Det fungerade:</b> i Norden gav modellen 18,6 % per år mot indexets 14,1 %, med mildare nedgång (−28 % mot −36 %). I Europa ungefär som index men med bättre riskjusterad avkastning.
-<br><br><b>Det fungerade inte:</b> på amerikanska aktier slog index varje variant i varje delprov — 25,9 % mot bästa modellvariantens 22,4 %. Perioden dominerades av några få megabolag som steg oavbrutet, och en modell som roterar ur vinnare förlorar då.
-<br><br><b>Att hålla länge lönade sig.</b> Att sälja vid brott mot SMA50 var sämst av allt: 5 % per år och 20 dagars innehavstid. Band plus absolut momentum gav 92–182 dagars innehav och bäst resultat.
-<br><br><b>Förbehåll:</b> tickerlistan är dagens indexmedlemmar, så resultaten är för optimistiska. Fundamenta (tillväxt, Graham, Piotroski) ingår inte i testet och är ovaliderade. Historik är ingen garanti.
+Modellen är backtestad på 792 aktier över 10 år (2016–2026): 518 amerikanska, 157 europeiska och 117 nordiska, från stora till mindre bolag. Standardvärdena nedan kommer från det testet, inte från tyckande.
+<br><br><b>Inställningarna är de mest robusta som testats.</b> Av åtta varianter var denna den enda som aldrig hamnade sämre än fjärde plats i något av tolv delprov (medelplacering 2,4 av 8). Appens tidigare standardvärden hamnade sist eller näst sist i varje delprov.
+<br><br><b>Mot index:</b> modellen slår jämförelseindexet i 6 av 12 delprov. Den vinner i Norden och Europa över hela perioden, och i USA över perioden som helhet (24,1 % mot indexets 20,4 %).
+<br><br><b>Den vann inte alltid.</b> Under periodens andra hälft presterade index bättre på samtliga marknader. Antingen har marknaden ändrat karaktär de senaste åren, eller så var första halvans resultat delvis tur. Räkna inte med att modellen slår index varje år.
+<br><br><b>Att hålla länge lönade sig.</b> Att sälja vid brott mot SMA50 var sämst av allt: 5 % per år och 20 dagars innehavstid. Band plus absolut momentum gav 92–182 dagars innehav och klart bättre resultat.
+<br><br><b>Förbehåll:</b> tickerlistorna är dagens indexmedlemmar, så bolag som gått under saknas och resultaten är för optimistiska. Fundamenta (tillväxt, Graham, Piotroski) ingår inte i testet och är ovaliderade. Verklig handel har dessutom spread och slippage som testet inte räknar med. Historik är ingen garanti.
 </div></details>`;
 function rulesLine(p){return twinWarn(p)+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
 function rulesSheet(pid){
