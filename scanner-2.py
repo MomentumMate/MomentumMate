@@ -22,6 +22,13 @@ NEWS_KEEP = 6
 # ----------------------------------------------------------------------------------
 # TICKERLISTOR
 # ----------------------------------------------------------------------------------
+OMXS_MID = [  # OMX Stockholm Mid Cap och större Small Cap – nordisk motsvarighet till S&P 400/600.
+    "LAGR-B.ST","BUFAB.ST","NOLA-B.ST","THULE.ST","VITR.ST","BIOT.ST","AAK.ST","ADDT-B.ST","BEIJ-B.ST","CTT.ST",
+    "FAG.ST","GARO.ST","HEM.ST","INSTAL.ST","LIAB.ST","MEKO.ST","MYCR.ST","NCAB.ST","NETEL.ST","NIBE-B.ST",
+    "OEM-B.ST","PACT.ST","RVRC.ST","SECT-B.ST","SYSR.ST","TROAX.ST","VIMIAN.ST","XVIVO.ST","BICO.ST","CIBUS.ST",
+    "COOR.ST","DOM.ST","EOLU-B.ST","FNOX.ST","HOFI.ST","HTRO.ST","IVSO.ST","JOMA.ST","KAR.ST","LIME.ST",
+    "MCOV-B.ST","MIPS.ST","MMGR-B.ST","MTRS.ST","NEWA-B.ST","NOBI.ST","NP3.ST","PDX.ST","PENG-B.ST","PLAZ-B.ST",
+    "QLINEA.ST","RAY-B.ST","SAGA-B.ST","SDIP-B.ST","SEZI.ST","SOBI.ST","STOR-B.ST","SVOL-B.ST","TETY.ST","VNV.ST"]
 OMXS = ["VOLV-B.ST","ERIC-B.ST","HM-B.ST","ABB.ST","ATCO-A.ST","ATCO-B.ST","SEB-A.ST","SWED-A.ST","SHB-A.ST","INVE-B.ST",
         "SAND.ST","ASSA-B.ST","EVO.ST","SINCH.ST","NIBE-B.ST","HEXA-B.ST","ALFA.ST","ESSITY-B.ST","BOL.ST","SKA-B.ST",
         "TELIA.ST","SAAB-B.ST","GETI-B.ST","EPI-A.ST","KINV-B.ST","LIFCO-B.ST","ELUX-B.ST","SCA-B.ST","SSAB-A.ST","SKF-B.ST",
@@ -157,6 +164,11 @@ def nyse_all():
     except Exception as e:
         print("Varning: kunde inte hämta NYSE-listan:", e); return []
 
+def stoxx600():
+    """STOXX Europe 600 – europeisk motsvarighet till S&P 400/600 i bredd.
+    Wikipedia listar bolagen med Yahoo-kompatibla tickers i kolumnen Ticker."""
+    return _wiki("https://en.wikipedia.org/wiki/STOXX_Europe_600", ["ticker", "symbol"], [], 300, key="STOXX600")
+
 def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], [], 300, key="SP400")
 def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400, key="SP600")
 
@@ -211,6 +223,7 @@ PRESETS = {
     "TSX": {"n": "Kanada (TSX)", "flag": "🇨🇦", "cur": "C$", "ccy": "CAD", "reg": None, "tickers": [
         "RY.TO","TD.TO","ENB.TO","CNR.TO","BN.TO","BMO.TO","CP.TO","BNS.TO","TRP.TO","CNQ.TO",
         "SU.TO","ATD.TO","MFC.TO","SHOP.TO","CM.TO","WCN.TO","NTR.TO","IFC.TO","FTS.TO","AEM.TO"]},
+    "STOXX600": {"n": "STOXX Europe 600", "flag": "🇪🇺", "cur": "€", "ccy": "EUR", "reg": "EU", "mixed": True, "tickers": stoxx600},
     "SP400": {"n": "S&P MidCap 400", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp400},
     "SP600": {"n": "S&P SmallCap 600", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp600},
     "NASDAQ_ALL": {"n": "Nasdaq (alla)", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "light": True, "tickers": nasdaq_all},
@@ -227,7 +240,8 @@ PRESETS = {
     "MIB": {"n": "Milano (FTSE MIB)", "flag": "🇮🇹", "cur": "€", "ccy": "EUR", "reg": "EU", "tickers": [
         "ENEL.MI","ISP.MI","UCG.MI","ENI.MI","STLAM.MI","RACE.MI","G.MI","MB.MI","PRY.MI","LDO.MI","TRN.MI","SRG.MI","BAMI.MI","BPE.MI","MONC.MI","CPR.MI","DIA.MI","REC.MI","TIT.MI","AMP.MI"]},
 }
-DEFAULT_PRESETS = ("OMXC", "OSE", "OMXH", "DAX", "CAC", "FTSE", "AEX", "SMI", "IBEX", "MIB")
+DEFAULT_PRESETS = ("OMXC", "OSE", "OMXH", "DAX", "CAC", "FTSE", "AEX", "SMI", "IBEX", "MIB",
+                   "SP400", "SP600", "STOXX600")   # mellanstora och mindre bolag, symmetriskt USA/Europa
 # Breddad 2026-10: backtestet visade att modellen fungerar bäst i Norden och Europa,
 # men poolen var starkt USA-tung. Fler europeiska börser jämnar ut urvalet.
 GROUP_NAMES = {"EU": ("Europa", "🇪🇺")}
@@ -238,7 +252,7 @@ def _preset(k):
 
 # ---- BÖRSER. Lägg till en rad för att utöka (k = unik nyckel, source = lista eller funktion) ----
 MARKETS = [
-    {"k": "OMXS",   "n": "OMX Stockholm", "flag": "🇸🇪", "cur": "kr", "ccy": "SEK", "reg": "EU", "source": OMXS},
+    {"k": "OMXS",   "n": "OMX Stockholm", "flag": "🇸🇪", "cur": "kr", "ccy": "SEK", "reg": "EU", "source": lambda: list(dict.fromkeys(OMXS + OMXS_MID))},
     {"k": "SP500",  "n": "S&P 500",       "flag": "🇺🇸", "cur": "$",  "ccy": "USD", "source": sp500},
     {"k": "NASDAQ", "n": "Nasdaq-100",    "flag": "🇺🇸", "cur": "$",  "ccy": "USD", "source": nasdaq100},
     {"k": "DOW",    "n": "Dow Jones",     "flag": "🇺🇸", "cur": "$",  "ccy": "USD", "source": dow30},
@@ -1141,7 +1155,10 @@ def main():
                                  "reg": e.get("reg") or base.get("reg"), "mixed": bool(e.get("mixed")), "light": bool(base.get("light")), "source": []})
         for t in tickers:
             if k not in uni.setdefault(t, []): uni[t].append(k)
-    extra = [t for t in read_extra() if t not in uni]
+    # Egna tickers togs bort 2026-10: en handplockad lista gav de aktierna bevakning som
+    # motsvarande bolag på andra börser inte fick, vilket gjorde urvalet ojämnt.
+    # Universumet definieras nu enbart av börslistorna.
+    extra = []
     if extra:
         markets_used.append({"k": "EXTRA", "n": "Egna tickers", "flag": "⭐", "cur": "$", "ccy": "USD", "hidden": True, "mixed": True, "source": extra})
         for t in extra: uni[t] = ["EXTRA"]
@@ -1246,7 +1263,7 @@ def main():
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"extra_list": read_extra(), "universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
+           "stats": {"extra_list": [], "universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
                      "list_changes": {k: v["changes"][0] for k, v in _CACHE.items() if v.get("changes") and v["changes"][0]["ts"] >= (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)).strftime("%Y-%m-%d")}, "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
@@ -1289,15 +1306,14 @@ def news_live():
     except Exception: D = {}
     stocks, rank = D.get("stocks", {}), D.get("rank", {})
     want = []
-    try: want += [l.split("#")[0].strip() for l in open("news_tickers.txt", encoding="utf-8")]      # t.ex. dina innehav
-    except OSError: pass
     want += rank.get("ALL", {}).get("mom", [])[:15]
     for k, r in rank.items():
         if k not in ("ALL", "DT"): want += r.get("mom", [])[:3]
     want += rank.get("DT", {}).get("cand", [])[:10]
-    ex = (D.get("stats") or {}).get("extra_list", [])
-    if ex:
-        i0 = (int(time.time() // 900) * 20) % len(ex); want += (ex + ex)[i0:i0 + 20]               # roterande del av din aktielista
+    # Nyheterna följer rankningen, inte någon personlig lista: de högst rankade aktierna
+    # på varje marknad får färska nyheter, oavsett vilken börs de tillhör.
+    for k, r in rank.items():
+        if k not in ("ALL", "DT"): want += r.get("mom", [])[3:8]
     want = [t for t in dict.fromkeys(w for w in want if w)][:100]
     feed = fetch_feeds()
     def one(t):
