@@ -50,22 +50,24 @@ def score_panel(close, vol, cfg):
     Allt bygger på rullande fönster i pandas, som per definition inte ser framåt.
     """
     r = close.pct_change()
+    MP = {"min_periods": None}
     # 12-1: avkastning från t-252 till t-21 (senaste månaden utelämnad)
     m121 = (close.shift(cfg["skip"]) / close.shift(cfg["look"]) - 1) * 100
     if cfg["voladj"]:
-        ann = r.rolling(126).std() * math.sqrt(252) * 100
+        ann = r.rolling(126, min_periods=90).std() * math.sqrt(252) * 100
         vam = m121 / ann.replace(0, np.nan)
         mom = ((vam + 0.30) / 2.30).clip(0, 1) * 100
     else:
         mom = (m121 / 60).clip(0, 1) * 100
-    s50, s200 = close.rolling(50).mean(), close.rolling(200).mean()
+    s50 = close.rolling(50, min_periods=40).mean()
+    s200 = close.rolling(200, min_periods=160).mean()
     trend = ((close > s50).astype(float) * 30 + (close > s200).astype(float) * 30
              + (s50 > s200).astype(float) * 20 + (s200 > s200.shift(1)).astype(float) * 20)
     sc = mom * 0.65 + trend * 0.35
     if cfg["trendfilter"]:
         sc = sc.where(close > s200)                      # bara aktier över sitt långa medelvärde
     if cfg["minturnover"] > 0 and vol is not None:
-        turn = (close * vol).rolling(20).mean()
+        turn = (close * vol).rolling(20, min_periods=12).mean()
         sc = sc.where(turn >= cfg["minturnover"])
     return sc, m121
 
@@ -76,6 +78,11 @@ def month_ends(idx):
 def run(close, vol, cfg):
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
+    # Olika börser har olika helgdagar, så panelen har hål. Utan detta försvinner innehav
+    # ur värderingen de dagarna och kapitalkurvan ser ut att kollapsa.
+    alive = close.notna()
+    pxf = close.ffill()
+    last_day = {t: (alive[t][alive[t]].index[-1] if alive[t].any() else None) for t in close.columns}
     dates = close.index
     rebs = set(month_ends(dates))
     start_i = max(cfg["look"] + 5, 210)
@@ -87,11 +94,22 @@ def run(close, vol, cfg):
     cost = cfg["cost_bps"] / 10000.0
 
     def value(i):
-        p = close.iloc[i]
-        return cash + sum(h["sh"] * p.get(t, np.nan) for t, h in hold.items() if p.get(t) == p.get(t))
+        p = pxf.iloc[i]
+        v = cash
+        for t, h in hold.items():
+            q = p.get(t)
+            v += h["sh"] * (q if q == q else h["px"])      # saknad kurs: använd senast kända
+        return v
 
     for i in range(start_i, len(dates)):
-        d, p = dates[i], close.iloc[i]
+        d, p = dates[i], pxf.iloc[i]
+        # avnoterade bolag säljs till sista kända kurs i stället för att tyst försvinna
+        for t in list(hold):
+            ld = last_day.get(t)
+            if ld is not None and d > ld:
+                q = p.get(t)
+                cash += hold[t]["sh"] * (q if q == q else hold[t]["px"]) * (1 - cost)
+                trades.append(("delisted", t, d)); del hold[t]
         # --- dagliga stopp (gäller mellan ombalanseringarna) ---
         for t in list(hold):
             px = p.get(t)
@@ -139,7 +157,8 @@ def run(close, vol, cfg):
 # ----------------------------------------------------------------------------- mått
 def stats(e, trades, years):
     if len(e) < 30: return {}
-    r = e.pct_change().dropna()
+    r = e.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
+    if not len(r) or e.iloc[0] <= 0: return {}
     cagr = (e.iloc[-1] / e.iloc[0]) ** (1 / years) - 1
     vol = r.std() * math.sqrt(252)
     dd = (e / e.cummax() - 1).min()
