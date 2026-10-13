@@ -716,7 +716,10 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     fund = (min(max(eg, 0), 50) / 50 * 35 + min(max(rg, 0), 30) / 30 * 35
             + min(max(pm, 0), 25) / 25 * 15 + min(max((roe or 0) * 100, 0), 35) / 35 * 15)
 
-    score = tech * .60 + fund * .35 + (sent + 1) / 2 * 5
+    # Nyhetssentimentet ingick tidigare med 5 %. Det byggde på att räkna positiva och negativa
+    # ord i rubriker, vilket inte fångar innebörden i en nyhet. Komponenten är borttagen ur poängen.
+    # Sentimentet sparas fortfarande i posten och visas i appen, men styr inte urvalet.
+    score = tech * .62 + fund * .38
 
     # Likviditetsavdrag: tunt handlade aktier går inte att komma ur till angiven kurs
     if adv is not None:
