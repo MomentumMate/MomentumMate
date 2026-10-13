@@ -211,20 +211,37 @@ def main():
         tick = [x.split("#")[0].strip() for x in open(a.universe) if x.split("#")[0].strip()]
     else:
         sys.path.insert(0, ".")
-        from scanner import PRESETS
+        import scanner as SC
         tick = []
         for k in ("SP500", "NASDAQ", "OMXS", "DAX", "CAC", "FTSE", "OMXC", "OSE"):
-            v = PRESETS.get(k, {}).get("tickers")
+            v = SC.PRESETS.get(k, {}).get("tickers")
             if callable(v):
                 try: v = v()
-                except Exception: v = []
-            if isinstance(v, list): tick += v
+                except Exception as ex:
+                    print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
+            if isinstance(v, list) and v: tick += v
+            else: print(f"  VARNING: {k} gav 0 aktier")
+        # Reservlistor om nätet mot Wikipedia fallerar – annars tappar vi hela USA
+        if not any("." not in t for t in tick):
+            for nm in ("SP500_FALLBACK", "NASDAQ_FALLBACK", "DOW_FALLBACK"):
+                fb = getattr(SC, nm, None)
+                if isinstance(fb, (list, tuple)) and fb:
+                    tick += list(fb); print(f"  använder {nm} ({len(fb)} aktier)")
         tick = sorted(set(tick))
-    print(f"Universum: {len(tick)} aktier")
+    def _grp(t):
+        if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
+        return "Europa/övrigt" if "." in t else "USA"
+    from collections import Counter
+    comp = Counter(_grp(t) for t in tick)
+    print(f"Universum: {len(tick)} aktier – " + ", ".join(f"{k} {v}" for k, v in sorted(comp.items())))
+    if comp.get("USA", 0) < 50:
+        print("  VARNING: få eller inga amerikanska aktier. Resultaten gäller då inte USA-tunga portföljer.")
 
     close, vol = load_prices(tick, a.years, a.cache)
     years = (close.index[-1] - close.index[210]).days / 365.25
 
+    comp2 = Counter(_grp(t) for t in close.columns)
+    print("Nedladdat: " + ", ".join(f"{k} {v}" for k, v in sorted(comp2.items())))
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
