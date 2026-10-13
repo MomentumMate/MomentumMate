@@ -204,6 +204,7 @@ def main():
     ap.add_argument("--cache", default=None)
     ap.add_argument("--quick", action="store_true", help="kör bara grundfallet")
     ap.add_argument("--combo", action="store_true", help="testa kombinationer i stället för en ändring i taget")
+    ap.add_argument("--robust", action="store_true", help="håller vinnaren på data den inte valts på?")
     a = ap.parse_args()
 
     if a.universe:
@@ -227,6 +228,83 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- robusthetstest: delar perioden och universumet ----------
+    if a.robust:
+        BEST = dict(voladj=False, band_out=30, n=20, stop=12)
+        CAND = {
+            "A. Nuvarande grundfall": {},
+            "B. Bästa enskilda kombinerat": dict(BEST),
+            "E. B+kvartal+likavikt (stopp 12)": dict(BEST, reb="Q", reweight=True),
+            "F. E men stopp 15": dict(BEST, reb="Q", reweight=True, stop=15),
+            "G. E men stopp 20": dict(BEST, reb="Q", reweight=True, stop=20),
+            "H. E utan stopp": dict(BEST, reb="Q", reweight=True, stop=0),
+            "I. E men 15 innehav": dict(BEST, reb="Q", reweight=True, n=15, band_out=25),
+            "L. E utan trendfilter": dict(BEST, reb="Q", reweight=True, trendfilter=False),
+        }
+        def group(cols):
+            us, nordic, eur = [], [], []
+            for t in cols:
+                if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): nordic.append(t)
+                elif "." in t: eur.append(t)
+                else: us.append(t)
+            return {"USA": us, "Norden": nordic, "Europa utom Norden": eur}
+        grp = group(list(close.columns))
+        idx = close.index
+        mid = idx[len(idx) // 2]
+        WARM = pd.Timedelta(days=430)
+        segments = {
+            "Hela perioden": (idx[0], idx[-1]),
+            "Första halvan": (idx[0], mid),
+            "Andra halvan": (mid - WARM, idx[-1]),
+        }
+        tests = {}
+        for segn, (s0, s1) in segments.items():
+            for un, cols in [("Alla marknader", list(close.columns))] + list(grp.items()):
+                cols = [c for c in cols if c in close.columns]
+                if len(cols) < 40: 
+                    print(f"  hoppar över {segn} / {un}: bara {len(cols)} aktier"); continue
+                sub = close.loc[s0:s1, cols]; subv = vol.loc[s0:s1, cols]
+                if len(sub) < 500: continue
+                yrs = (sub.index[-1] - sub.index[min(210, len(sub)-1)]).days / 365.25
+                if yrs < 1.5: continue
+                be, bst = benchmark(sub, yrs)
+                row = {"_index": bst.get("CAGR_%"), "_indexSharpe": bst.get("Sharpe"), "_aktier": len(cols)}
+                for cn, over in CAND.items():
+                    cfg = dict(DEF); cfg.update(over)
+                    try:
+                        e, tr = run(sub, subv, cfg); st = stats(e, tr, yrs)
+                        row[cn] = {"CAGR_%": st.get("CAGR_%"), "Sharpe": st.get("Sharpe"),
+                                   "max_nedgång_%": st.get("max_nedgång_%")}
+                    except Exception as ex:
+                        row[cn] = {"fel": str(ex)[:60]}
+                key = f"{segn} | {un}"
+                tests[key] = row
+                print(f"\n=== {key}  ({len(cols)} aktier, {yrs:.1f} år) ===")
+                print(f"   {'index':<34}{row['_index']:>8} %   Sharpe {row['_indexSharpe']}")
+                for cn in CAND:
+                    v = row[cn]
+                    if "fel" in v: print(f"   {cn:<34}  FEL {v['fel']}"); continue
+                    print(f"   {cn:<34}{v['CAGR_%']:>8} %   Sharpe {v['Sharpe']:<6} nedgång {v['max_nedgång_%']} %")
+        # hur stabil är rangordningen?
+        print("\n=== STABILITET: placering per delprov (1 = bäst Sharpe) ===")
+        ranks = {cn: [] for cn in CAND}
+        for key, row in tests.items():
+            ok = {cn: row[cn]["Sharpe"] for cn in CAND if isinstance(row.get(cn), dict) and row[cn].get("Sharpe") is not None}
+            order = sorted(ok, key=lambda c: -ok[c])
+            for i, cn in enumerate(order): ranks[cn].append(i + 1)
+        summary = {}
+        for cn, rs in ranks.items():
+            if rs:
+                summary[cn] = {"medelplacering": round(sum(rs) / len(rs), 2), "bästa": min(rs),
+                               "sämsta": max(rs), "antal_delprov": len(rs)}
+        for cn, v in sorted(summary.items(), key=lambda x: x[1]["medelplacering"]):
+            print(f"   {cn:<34} medel {v['medelplacering']:<6} spann {v['bästa']}–{v['sämsta']}  ({v['antal_delprov']} prov)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "robusthet", "delprov": tests, "stabilitet": summary,
+               "varning": "Survivorship bias och ingen fundamenta. Delproven överlappar delvis i tid."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     BEST = dict(voladj=False, band_out=30, n=20, stop=12)      # bäst enligt enskildtesterna
     if a.combo:
