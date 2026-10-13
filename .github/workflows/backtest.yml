@@ -16,6 +16,10 @@ on:
         description: "Testa kombinationer i stället för en ändring i taget"
         type: boolean
         default: false
+      robust:
+        description: "Robusthetstest: delar perioden och marknaderna"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 4 1 * *"
 
@@ -38,6 +42,7 @@ jobs:
           python backtest.py --years "${{ github.event.inputs.years || 10 }}" \
             ${{ github.event.inputs.quick == 'true' && '--quick' || '' }} \
             ${{ github.event.inputs.combo == 'true' && '--combo' || '' }} \
+            ${{ github.event.inputs.robust == 'true' && '--robust' || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
