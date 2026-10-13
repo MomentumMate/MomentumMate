@@ -20,6 +20,10 @@ on:
         description: "Robusthetstest: delar perioden och marknaderna"
         type: boolean
         default: false
+      exits:
+        description: "Utgångstest: vilken utgång låter vinnarna löpa längst"
+        type: boolean
+        default: false
   schedule:
     - cron: "0 4 1 * *"
 
@@ -43,6 +47,7 @@ jobs:
             ${{ github.event.inputs.quick == 'true' && '--quick' || '' }} \
             ${{ github.event.inputs.combo == 'true' && '--combo' || '' }} \
             ${{ github.event.inputs.robust == 'true' && '--robust' || '' }} \
+            ${{ github.event.inputs.exits == 'true' && '--exits' || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
