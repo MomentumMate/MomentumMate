@@ -77,9 +77,22 @@ def period_ends(idx, freq="M"):
     key = [idx.year, idx.month] if freq == "M" else [idx.year, idx.quarter]
     return list(s.groupby(key).last())
 
+def exit_panels(close, cfg):
+    """Nivåer för de utgångar som inte är ett fast procentstopp."""
+    out = {}
+    if cfg.get("exit_sma50"):
+        out["sma50"] = close.rolling(50, min_periods=40).mean()
+    if cfg.get("exit_sma200"):
+        out["sma200"] = close.rolling(200, min_periods=160).mean()
+    if cfg.get("exit_atr"):
+        # ATR saknar high/low i panelen, så vi använder dagsrörelsens standardavvikelse som motsvarighet
+        out["atr"] = (close.pct_change().abs().rolling(14, min_periods=10).mean() * close) * 1.6
+    return out
+
 def run(close, vol, cfg):
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
+    EX = exit_panels(close, cfg)
     # Olika börser har olika helgdagar, så panelen har hål. Utan detta försvinner innehav
     # ur värderingen de dagarna och kapitalkurvan ser ut att kollapsa.
     alive = close.notna()
@@ -91,7 +104,7 @@ def run(close, vol, cfg):
     if start_i >= len(dates) - 5:
         raise SystemExit("För kort historik för att backtesta.")
 
-    cash, hold = 1.0, {}          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
+    cash, hold, hold_days = 1.0, {}, []          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
     eq, eqdates, trades = [], [], []
     cost = cfg["cost_bps"] / 10000.0
 
@@ -120,8 +133,24 @@ def run(close, vol, cfg):
             h = hold[t]
             h["peak"] = max(h["peak"], px)
             base = h["peak"] if cfg["trail"] else h["px"]
-            if cfg["stop"] > 0 and px <= base * (1 - cfg["stop"] / 100):
-                cash += h["sh"] * px * (1 - cost); trades.append(("stop", t, d)); del hold[t]
+            why = None
+            if cfg["stop"] > 0 and px <= base * (1 - cfg["stop"] / 100): why = "stop"
+            if why is None and "sma50" in EX:
+                lv = EX["sma50"].iat[i, close.columns.get_loc(t)]
+                if lv == lv and px < lv: why = "sma50"
+            if why is None and "sma200" in EX:
+                lv = EX["sma200"].iat[i, close.columns.get_loc(t)]
+                if lv == lv and px < lv: why = "sma200"
+            if why is None and "atr" in EX:
+                a = EX["atr"].iat[i, close.columns.get_loc(t)]
+                if a == a and px <= h["peak"] - cfg["exit_atr"] * a: why = "atr"
+            if why is None and cfg.get("exit_score", 0) > 0:
+                s_ = sc.iat[i, close.columns.get_loc(t)]
+                if s_ == s_ and s_ < cfg["exit_score"]: why = "svag poäng"
+            if why:
+                cash += h["sh"] * px * (1 - cost)
+                hold_days.append((i - h["i"]))
+                trades.append((why, t, d)); del hold[t]
 
         # --- ombalansering ---
         if d in rebs:
@@ -135,7 +164,7 @@ def run(close, vol, cfg):
                     if t not in keep:
                         px = p.get(t)
                         if px == px:
-                            cash += hold[t]["sh"] * px * (1 - cost); trades.append(("band", t, d))
+                            cash += hold[t]["sh"] * px * (1 - cost); hold_days.append(i - hold[t]["i"]); trades.append(("band", t, d))
                         del hold[t]
                 # återställ vikterna till lika stora (trimma vinnare, fyll på eftersläntrare)
                 if cfg.get("reweight") and hold:
@@ -163,14 +192,14 @@ def run(close, vol, cfg):
                         amt = min(target, cash)
                         sh = amt * (1 - cost) / px
                         cash -= amt
-                        hold[t] = {"sh": sh, "px": px, "peak": px}; trades.append(("buy", t, d))
+                        hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
         eq.append(value(i)); eqdates.append(d)
 
     e = pd.Series(eq, index=pd.DatetimeIndex(eqdates)).dropna()
-    return e, trades
+    return e, trades, hold_days
 
 # ----------------------------------------------------------------------------- mått
-def stats(e, trades, years):
+def stats(e, trades, years, hold_days=None):
     if len(e) < 30: return {}
     r = e.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
     if not len(r) or e.iloc[0] <= 0: return {}
@@ -184,7 +213,12 @@ def stats(e, trades, years):
             "Sharpe": round(float(cagr / vol), 2) if vol > 0 else None,
             "max_nedgång_%": round(float(dd) * 100, 1),
             "affärer": len(trades), "köp": buys,
-            "köp_per_år": round(buys / years, 1)}
+            "köp_per_år": round(buys / years, 1),
+            "innehavstid_dagar": (round(float(np.median(hold_days)) * 1.4) if hold_days else None),
+            "längsta_innehav_dagar": (round(max(hold_days) * 1.4) if hold_days else None),
+            "utgångar": {k: sum(1 for t in trades if t[0] == k)
+                         for k in ("stop", "sma50", "sma200", "atr", "svag poäng", "band") 
+                         if any(t[0] == k for t in trades)}}
 
 def benchmark(close, years, start_i=210):
     sub = close.iloc[start_i:]
@@ -194,7 +228,8 @@ def benchmark(close, years, start_i=210):
 
 # ----------------------------------------------------------------------------- main
 DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=True,
-           trendfilter=True, minturnover=3e6, cost_bps=15, reb="M", reweight=False, rw_band=0.25)
+           trendfilter=True, minturnover=3e6, cost_bps=15, reb="M", reweight=False, rw_band=0.25,
+           exit_sma50=False, exit_sma200=False, exit_atr=0, exit_score=0)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -205,6 +240,7 @@ def main():
     ap.add_argument("--quick", action="store_true", help="kör bara grundfallet")
     ap.add_argument("--combo", action="store_true", help="testa kombinationer i stället för en ändring i taget")
     ap.add_argument("--robust", action="store_true", help="håller vinnaren på data den inte valts på?")
+    ap.add_argument("--exits", action="store_true", help="jämför utgångsmekanismer för swinghandel")
     a = ap.parse_args()
 
     if a.universe:
@@ -245,6 +281,54 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- utgångstest: vilken utgång låter vinnarna löpa längst? ----------
+    if a.exits:
+        CORE = dict(voladj=False, band_out=30, n=20, reb="Q", reweight=True)   # validerad kärna
+        EX = {
+            "1. Enbart band 10/30 (ingen annan utgång)": dict(CORE, stop=0),
+            "2. Fast stopp 15 % från toppkurs": dict(CORE, stop=15),
+            "3. Fast stopp 20 % från toppkurs": dict(CORE, stop=20),
+            "4. Trendbrott: stängning under SMA50": dict(CORE, stop=0, exit_sma50=True),
+            "5. Långsam trend: stängning under SMA200": dict(CORE, stop=0, exit_sma200=True),
+            "6. ATR-stopp: topp minus 5 ATR": dict(CORE, stop=0, exit_atr=5),
+            "7. ATR-stopp: topp minus 8 ATR": dict(CORE, stop=0, exit_atr=8),
+            "8. ATR-stopp: topp minus 12 ATR": dict(CORE, stop=0, exit_atr=12),
+            "9. Stagnation: poäng under 30": dict(CORE, stop=0, exit_score=30),
+            "10. Stagnation: poäng under 45": dict(CORE, stop=0, exit_score=45),
+            "11. SMA200 + ATR 8 (båda)": dict(CORE, stop=0, exit_sma200=True, exit_atr=8),
+            "12. ATR 8 + stagnation 30": dict(CORE, stop=0, exit_atr=8, exit_score=30),
+            "13. Stopp 20 % + stagnation 30": dict(CORE, stop=20, exit_score=30),
+        }
+        def grp2(t):
+            if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
+            return "Europa" if "." in t else "USA"
+        groups = {"Alla marknader": list(close.columns)}
+        for g in ("USA", "Norden", "Europa"):
+            cc = [t for t in close.columns if grp2(t) == g]
+            if len(cc) >= 40: groups[g] = cc
+        res = {}
+        for gn, cols in groups.items():
+            sub, subv = close[cols], vol[cols]
+            yrs = (sub.index[-1] - sub.index[210]).days / 365.25
+            be, bst = benchmark(sub, yrs)
+            print(f"\n########## {gn}  ({len(cols)} aktier) ##########")
+            print(f"   {'index (köp och behåll)':<44}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}  nedgång {bst['max_nedgång_%']} %")
+            res[gn] = {"_index": bst}
+            for nm, over in EX.items():
+                cfg = dict(DEF); cfg.update(over)
+                try:
+                    e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, yrs, hd)
+                    res[gn][nm] = st
+                    print(f"   {nm:<44}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                          f"  innehav {st['innehavstid_dagar']} d  köp/år {st['köp_per_år']}")
+                except Exception as ex:
+                    print(f"   {nm:<44} FEL {str(ex)[:50]}"); res[gn][nm] = {"fel": str(ex)[:120]}
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "utgångar", "år": round(years, 1), "grupper": res,
+               "varning": "Survivorship bias och ingen fundamenta. Innehavstiden är median i kalenderdagar."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- robusthetstest: delar perioden och universumet ----------
     if a.robust:
@@ -290,7 +374,7 @@ def main():
                 for cn, over in CAND.items():
                     cfg = dict(DEF); cfg.update(over)
                     try:
-                        e, tr = run(sub, subv, cfg); st = stats(e, tr, yrs)
+                        e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, yrs, hd)
                         row[cn] = {"CAGR_%": st.get("CAGR_%"), "Sharpe": st.get("Sharpe"),
                                    "max_nedgång_%": st.get("max_nedgång_%")}
                     except Exception as ex:
@@ -346,8 +430,8 @@ def main():
         for name, over in variants.items():
             cfg = dict(DEF); cfg.update(over)
             try:
-                e, tr = run(close, vol, cfg)
-                res[name] = stats(e, tr, years)
+                e, tr, hd = run(close, vol, cfg)
+                res[name] = stats(e, tr, years, hd)
                 print(f"\n=== {name} ===")
                 for k, v in res[name].items(): print(f"   {k:<18}{v}")
             except Exception as ex:
@@ -380,8 +464,8 @@ def main():
     for name, over in variants.items():
         cfg = dict(DEF); cfg.update(over)
         try:
-            e, tr = run(close, vol, cfg)
-            res[name] = stats(e, tr, years)
+            e, tr, hd = run(close, vol, cfg)
+            res[name] = stats(e, tr, years, hd)
             print(f"\n=== {name} ===")
             for k, v in res[name].items(): print(f"   {k:<18}{v}")
         except Exception as ex:
