@@ -169,7 +169,8 @@ details.nwd summary::-webkit-details-marker{display:none}details.nwd summary:aft
 .fl em{font-style:normal;font-weight:700;border-radius:50%;width:20px;height:20px;display:grid;place-items:center;font-size:11px;flex:none}
 .fl em.B{background:#143a24;color:var(--up)}.fl em.S{background:#4a1d16;color:#ffb4a3}
 /* mate */
-#mate{position:fixed;right:12px;bottom:calc(80px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:radial-gradient(ellipse at 38% 32%,#302818,#1a1208 50%,#0a0804);border:1px solid #5a4418;box-shadow:0 5px 16px #000a,0 0 18px #e8b64a33,inset 0 1px 3px #ffffff18,inset 0 -2px 4px #00000080;z-index:30;display:grid;place-items:center;cursor:pointer;padding:0}
+#mate{position:fixed;right:12px;bottom:calc(80px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;background:transparent;border:0;z-index:30;display:block;cursor:pointer;padding:0;overflow:visible;filter:drop-shadow(0 5px 14px #000a)}
+#mate svg{display:block;width:100%;height:100%;overflow:visible}
 #mb{position:fixed;right:12px;bottom:calc(144px + env(safe-area-inset-bottom,0px));max-width:min(310px,calc(100vw - 24px));background:#17120a;border:1px solid #6a5420;border-radius:16px 16px 4px 16px;padding:11px 13px;font-size:13.5px;line-height:1.38;z-index:30;box-shadow:0 8px 30px #000a;opacity:0;transform:translateY(10px) scale(.96);pointer-events:none;transition:opacity .25s,transform .25s}
 #mb.on{opacity:1;transform:none;pointer-events:auto}
 #mb.alert{border-color:#ffd166;box-shadow:0 0 22px #ffd16655,0 8px 30px #000a}
@@ -211,10 +212,10 @@ nav a{min-width:0}nav a svg{width:21px;height:21px}
  <a data-go="#/search" data-n="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Sök</a>
 </nav>
 <div id="mb"><span class="x" data-act="mclose" aria-label="Stäng">×</span><div id="mbt"></div><span class="more" id="mbm" data-act="mgo">Visa ›</span></div>
-<button id="mate" data-act="mopen" aria-label="Mate – din assistent"><svg width="44" height="44" viewBox="0 0 54 54"><defs><radialGradient id="mgGold" cx=".38" cy=".32" r=".65" fx=".35" fy=".28"><stop offset="0%" stop-color="#e0be50"/><stop offset="20%" stop-color="#c89530"/><stop offset="45%" stop-color="#9a6a18"/><stop offset="70%" stop-color="#6a4810"/><stop offset="90%" stop-color="#3a2808"/><stop offset="100%" stop-color="#2a1a04"/></radialGradient></defs>
+<button id="mate" data-act="mopen" aria-label="Mate – din assistent"><svg width="44" height="44" viewBox="0 0 54 54"><defs><radialGradient id="mgGold" cx=".38" cy=".32" r=".65" fx=".35" fy=".28"><stop offset="0%" stop-color="#e0be50"/><stop offset="20%" stop-color="#c89530"/><stop offset="45%" stop-color="#9a6a18"/><stop offset="70%" stop-color="#6a4810"/><stop offset="90%" stop-color="#3a2808"/><stop offset="100%" stop-color="#2a1a04"/></radialGradient><radialGradient id="mgEdge" cx=".5" cy=".5" r=".5"><stop offset="0%" stop-color="#2a1a04" stop-opacity="0"/><stop offset="86%" stop-color="#2a1a04" stop-opacity="0"/><stop offset="95%" stop-color="#7a5a18" stop-opacity=".25"/><stop offset="100%" stop-color="#8a6a2a" stop-opacity=".5"/></radialGradient></defs>
 <g><animateTransform id="mw" attributeName="transform" type="rotate" values="0 27 27;-16 27 27;16 27 27;-9 27 27;0 27 27" dur=".7s" begin="indefinite"/>
 <g><animateTransform attributeName="transform" type="translate" values="0 0;0 2.2;0 0" dur="2.2s" repeatCount="indefinite"/>
-<circle cx="27" cy="27" r="25" fill="url(#mgGold)"/>
+<circle cx="27" cy="27" r="26.5" fill="url(#mgGold)"/><circle cx="27" cy="27" r="26.5" fill="url(#mgEdge)"/>
 <g transform="rotate(18 27 27)"><path d="M12.9 21.9A15 15 0 0 1 41.1 21.9" fill="none" stroke="#e8b64a" stroke-opacity=".22" stroke-width="7" stroke-linecap="round"/>
 <path d="M41.1 32.1A15 15 0 0 1 12.9 32.1" fill="none" stroke="#e8b64a" stroke-width="7" stroke-linecap="round"/>
 <rect x="20.5" y="17" width="4" height="8.5" rx="2" fill="#ffd166"><animate attributeName="height" values="8.5;8.5;1;8.5" keyTimes="0;.86;.93;1" dur="3s" repeatCount="indefinite"/><animate attributeName="y" values="17;17;20.7;17" keyTimes="0;.86;.93;1" dur="3s" repeatCount="indefinite"/></rect>
@@ -242,7 +243,7 @@ const shortA=a=>({sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.incl
 let D=null,S={},SL=[],DEMO=false,OLD=false,H={};
 const Ui={tab:{},dt:false,shown:{},news:"all"},open=new Set();
 const MK=k=>(D.markets.find(m=>m.k===k))||{n:k,flag:"",cur:""};
-const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5}[c]||1);
+const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5,NOK:.95,DKK:1.54,GBP:13.3,GBX:.133,CHF:11.8,JPY:.069,TWD:.33,HKD:1.35,INR:.125,AUD:6.9,KRW:.0073,CAD:7.6}[c]||1);
 function indexData(){S=D.stocks;SL=Object.values(S);SL.forEach(s=>{s._k=norm(s.d+" "+s.n+" "+s.t)})}
 async function loadData(){
   try{const r=await fetch(DATA_URL+"?t="+Date.now());if(!r.ok)throw 0;const j=await r.json();if(!j.stocks)throw "old";return{d:j,demo:false,old:false}}
@@ -250,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-12-a";
+const APPV="2026-10-12-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -522,7 +523,7 @@ function resHtml(q,lim){const r=search(q,lim);return r.length?r.map(srow).join("
 function vStock(t){
   const s=S[t];if(!s){view(topbar("Aktie")+'<div class="empty">Aktien hittades inte i datan.</div>');return}
   open.add(s.t);const inP=[];P.ps.forEach(p=>{const h=p.h.find(x=>x.t===t);if(h)inP.push(p.name+": "+f(h.q,h.q%1?2:0)+" st @ "+f(h.c))});
-  view(`${topbar(fl(s)+" "+esc(s.d))}${edWarn(s)}${Ui.back?`<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="goback">↩ Tillbaka till ${esc(Ui.back.label)}</span></div>`:""}<div class="mod"><div class="mu">${esc(s.n)} · ${s.m.map(k=>esc(MK(k).n)).join(", ")}</div>
+  view(`${topbar(fl(s)+" "+esc(s.d))}${edWarn(s)}<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="plansheet" data-t="${esc(s.t)}">🎯 Handelsplan</span></div>${Ui.back?`<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="goback">↩ Tillbaka till ${esc(Ui.back.label)}</span></div>`:""}<div class="mod"><div class="mu">${esc(s.n)} · ${s.m.map(k=>esc(MK(k).n)).join(", ")}</div>
   <div><span class="big">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}">${sg(s.chg)}</span></div>
   <div class="al">${hz(s.h)}${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}</div>${s.al.length?alerts(s):""}
   <div class="chips" style="margin-top:8px"><span class="chip" data-act="chart" data-t="${esc(s.t)}">📈 Graf</span></div>
@@ -651,6 +652,7 @@ function act(a,d){
     case"addx":addExchangeSheet();break;
     case"twinsheet":twinSheet(d.pid);break;
     case"newpf":newPfSheet();break;
+    case"plansheet":planSheet(d.t,d.pid||P.cur);break;
     case"proprefresh":refreshSheet(d.pid);break;
     case"rulesedit":rulesSheet(d.pid);break;
     case"rulesell":{const p=getP(d.pid);if(!p)break;const a=rulesOf(calc(p)).find(x=>x.r.h.t===d.t);if(!a){toast("Signalen gäller inte längre");route(true);break}
@@ -1439,8 +1441,8 @@ async function addWatch(i){
     closeSheet();toast(it.rec?"⭐ Tillagd i Min bevakning – skanning startad":"⭐ Tillagd – analysen kommer efter nästa skanning");route(true);setTimeout(()=>{location.hash="#/desk/WATCH"},350)}
 }
 /* ======================= v8: KORTA MARKNADSKNAPPAR, FLAGGOR, ORDNING, GRAF ======================= */
-const SHORT={SP400:"SP400",SP600:"SP600",NASDAQ_ALL:"Nasdaq+",NYSE_ALL:"NYSE+",ALL:"Alla",EU:"EUR",OMXS:"OMXS",SP500:"SP500",NASDAQ:"Nasdaq",DOW:"DowJ",OMXC:"DK",OSE:"NO",DAX:"DE",CAC:"FR",FTSE:"GB",AEX:"NL",OMXH:"FI",SMI:"CH",IBEX:"ES",MIB:"IT",CRYPTO:"Krypto",WATCH:"Bevakn."};
-const DEF_ORDER=["ALL","EU","OMXS","SP500","NASDAQ","DOW","OMXC","OSE","DAX","CAC","FTSE","SP400","SP600","NASDAQ_ALL","NYSE_ALL","AEX","OMXH","SMI","IBEX","MIB","CRYPTO","WATCH"];
+const SHORT={SP400:"SP400",SP600:"SP600",NASDAQ_ALL:"Nasdaq+",NYSE_ALL:"NYSE+",ALL:"Alla",EU:"EUR",OMXS:"OMXS",SP500:"SP500",NASDAQ:"Nasdaq",DOW:"DowJ",OMXC:"DK",OSE:"NO",DAX:"DE",CAC:"FR",FTSE:"GB",AEX:"NL",OMXH:"FI",SMI:"CH",IBEX:"ES",MIB:"IT",CRYPTO:"Krypto",WATCH:"Bevakn.",NIKKEI:"JP",TWSE:"TW",HSI:"HK",NIFTY:"IN",ASX:"AU",KOSPI:"KR",TSX:"CA",ASIA:"Asien"};
+const DEF_ORDER=["ALL","EU","ASIA","OMXS","SP500","NASDAQ","DOW","OMXC","OSE","DAX","CAC","FTSE","NIKKEI","TWSE","HSI","NIFTY","KOSPI","ASX","TSX","SP400","SP600","NASDAQ_ALL","NYSE_ALL","AEX","OMXH","SMI","IBEX","MIB","CRYPTO","WATCH"];
 const MKO="mm_mkorder";
 function orderedMkts(){
   const base=D.markets.filter(m=>!m.hidden);let o=[];try{o=JSON.parse(localStorage.getItem(MKO))||[]}catch(e){}
@@ -1448,7 +1450,7 @@ function orderedMkts(){
   return base.slice().sort((a,b)=>rank(a.k)-rank(b.k))
 }
 const mchip=(m,sel,attrs)=>`<span class="chip mk${m.k===sel?" on":""}" ${attrs||`data-go="#/desk/${m.k}"`}>${m.flag} ${esc(SHORT[m.k]||m.n)}</span>`;
-const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦"};
+const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦",".TW":"🇹🇼",".NS":"🇮🇳",".BO":"🇮🇳",".AX":"🇦🇺",".KS":"🇰🇷",".KQ":"🇰🇷",".SA":"🇧🇷",".SS":"🇨🇳",".SZ":"🇨🇳",".NZ":"🇳🇿"};
 const flagOf=t=>{if(/-USD$/.test(t))return"🪙";for(const k in SUFF)if(t.endsWith(k))return SUFF[k];return"🇺🇸"};
 const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 /* ---------- Ändra ordning (dra och släpp) ---------- */
@@ -1838,6 +1840,68 @@ function newPfSheet(){
         rules:{stop:C.stop,trail:true,tp:C.tp,tpSell:50,cap:C.cap,maxRsi:C.maxRsi,repl:3}};
       P.ps.push(np);P.cur=np.id;save();snapshot();closeSheet();location.hash="#/portfolio/"+np.id;route(true);
       toast(pl.items.length+" aktier föreslagna – registrera köpen när du handlat")}})
+}
+/* ============ v14: ENTRY, STOPP, POSITIONSSTORLEK OCH CHECKLISTA ============ */
+function sma(sp,n){if(!sp||sp.length<n)return null;const a=sp.slice(-n);return a.reduce((x,y)=>x+y,0)/a.length}
+function tradePlan(s,R){
+  if(!s||!(s.px>0))return null;R=Object.assign({},RULE_DEF,R||{});
+  const px=s.px,atr=s.atr>0?s.atr:px*0.02,sp=s.sp||[],s20=sma(sp,20),s10=sma(sp,10);
+  const swing=sp.length>10?Math.min(...sp.slice(-10)):px-2*atr;
+  // Entry: nära kurs om läget är normalt, annars invänta rekyl när aktien är utsträckt
+  const extAtr=s20?(px-s20)/atr:0,hot=s.rsi>=70||extAtr>2.2;
+  const eLo=hot?Math.max(s20||px-1.5*atr,px-1.8*atr):px-0.5*atr, eHi=hot?px-0.6*atr:px+0.3*atr;
+  // Stopp: under närmaste struktur, men aldrig lösare än regelns procentstopp
+  const sATR=px-2*atr,sPct=px*(1-R.stop/100),stop=Math.max(Math.min(sATR,swing-0.2*atr),sPct);
+  const entry=(eLo+eHi)/2,risk=entry-stop,t1=entry+2*risk,t2=entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
+  return{px,atr,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,stopPct:(1-stop/entry)*100,
+    why:hot?`Utsträckt läge (RSI ${s.rsi}${s20?`, ${f((px/s20-1)*100,1)} % över 20-dagars medel`:""}) – invänta rekyl.`:"Normalt läge – köp i zonen eller på styrka."}
+}
+function posSize(cap,riskPct,entry,stop,ccy){
+  const r=entry-stop;if(!(cap>0)||!(r>0))return null;
+  const riskKr=cap*riskPct/100,perSh=r*fx(ccy||"USD"),q=Math.floor(riskKr/perSh);
+  const val=q*entry*fx(ccy||"USD");
+  return{q,riskKr,val,w:val/cap*100,lossKr:q*perSh}
+}
+const CHK=[
+ {k:"Marknadsläge",f:(s,t)=>{const r=regimeNote();return r.warn?{p:0,w:"Marknadsvarning aktiv"}:{p:10,w:"Inga breddvarningar"}}},
+ {k:"Trend",f:s=>s.a50&&s.a200?{p:15,w:"Över SMA50 och SMA200"}:s.a50||s.a200?{p:7,w:"Delvis över medelvärden"}:{p:0,w:"Under båda medelvärdena"}},
+ {k:"Momentum",f:s=>s.sc>=70?{p:15,w:`Poäng ${s.sc}`}:s.sc>=58?{p:10,w:`Poäng ${s.sc}`}:s.sc>=50?{p:5,w:`Poäng ${s.sc}`}:{p:0,w:`Svag poäng ${s.sc}`}},
+ {k:"Volym",f:s=>s.vx>=1.3?{p:10,w:`Volym ${s.vx}× snittet`}:s.vx>=0.9?{p:6,w:`Volym ${s.vx}×`}:{p:2,w:`Låg volym ${s.vx}×`}},
+ {k:"Inte överköpt",f:s=>s.rsi<=70?{p:10,w:`RSI ${s.rsi}`}:s.rsi<=80?{p:5,w:`RSI ${s.rsi} – något hett`}:{p:0,w:`RSI ${s.rsi} – kraftigt överköpt`}},
+ {k:"Risk/avkastning",f:(s,t)=>t&&t.rr>=2.5?{p:15,w:`${f(t.rr,1)}:1`}:t&&t.rr>=2?{p:10,w:`${f(t.rr,1)}:1`}:t?{p:3,w:`Endast ${f(t.rr,1)}:1`}:{p:0,w:"Saknas"}},
+ {k:"Likviditet",f:s=>s.adv==null?{p:5,w:"Okänd omsättning"}:s.adv>=5e6?{p:10,w:`${kr(s.adv/1e6)} MUSD/dag`}:s.adv>=1e6?{p:6,w:`${kr(s.adv/1e6)} MUSD/dag`}:{p:0,w:"Tunt handlad"}},
+ {k:"Rapportrisk",f:s=>{const d=epDays(s);return d==null?{p:10,w:"Ingen rapport inom 14 dagar"}:d<=3?{p:0,w:`Rapport om ${d} dagar`}:{p:5,w:`Rapport om ${d} dagar`}}},
+ {k:"Fundamenta",f:s=>{let n=0;if(s.eg>0)n++;if(s.rg>0)n++;if(s.pm>0)n++;if(s.grn>=4)n++;if(s.mf)n++;
+   return n>=3?{p:5,w:`${n} av 5 kriterier`}:n>=2?{p:3,w:`${n} av 5 kriterier`}:{p:0,w:`Endast ${n} av 5`}}}];
+function checklist(s,t){const rows=CHK.map(c=>Object.assign({k:c.k},c.f(s,t)));
+  const tot=rows.reduce((a,x)=>a+x.p,0),max=100;
+  const worst=rows.slice().sort((a,b)=>a.p-b.p)[0];
+  return{rows,tot,max,worst,verdict:tot>=75?"GODKÄND":tot>=60?"TVEKSAM":"UNDERKÄND"}}
+function planSheet(t,pid){
+  const s=S[t];if(!s){toast("Ingen data för "+t);return}
+  const p=pid&&getP(pid),R=(p&&p.rules)||RULE_DEF,tp=tradePlan(s,R),ck=checklist(s,tp);
+  const cap=(p?calc(p).tot:0)||100000,u=s.cur;
+  const vcls=ck.verdict==="GODKÄND"?"OK":ck.verdict==="TVEKSAM"?"WAIT":"BAD";
+  sheet(`<h3>${fl(s)} ${esc(s.d)} – handelsplan</h3>
+  <div class="stat ${vcls}"><b>CHECKLISTA: ${ck.verdict} ${ck.tot}/${ck.max}</b>Svagast: ${esc(ck.worst.k)} – ${esc(ck.worst.w)}</div>
+  <div class="mh" style="margin:10px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">NIVÅER</h2></div>
+  <div class="g"><div><small>Kurs nu</small><b>${f(tp.px)} ${esc(u)}</b></div>
+   <div><small>Köpzon</small><b>${f(tp.eLo)}–${f(tp.eHi)}</b></div>
+   <div><small>Stopp</small><b class="dn">${f(tp.stop)} (−${f(tp.stopPct,1)} %)</b></div>
+   <div><small>Mål 1 (2R)</small><b class="up">${f(tp.t1)}</b></div>
+   <div><small>Mål 2 (3R)</small><b class="up">${f(tp.t2)}</b></div>
+   <div><small>Risk/avkastning</small><b>${f(tp.rr,1)}:1</b></div></div>
+  <div class="mu" style="white-space:normal;margin:6px 0 2px">${esc(tp.why)} Stoppet ligger under närmaste stöd och som mest ${R.stop} % från köpkursen. ATR (dagssvängning) ${f(tp.atr)} ${esc(u)}.</div>
+  <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">POSITIONSSTORLEK</h2></div>
+  <div class="row2"><label class="fld"><span>Kapital (kr)</span><input id="pc" type="number" inputmode="decimal" value="${Math.round(cap)}"></label>
+   <label class="fld"><span>Risk per affär (%)</span><input id="pr" type="number" inputmode="decimal" step="any" value="1"></label></div>
+  <div id="psz" class="mu" style="margin:2px 0 8px"></div>
+  <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">CHECKLISTA</h2></div>
+  ${ck.rows.map(r=>`<div class="sr"><div class="m"><b>${esc(r.k)}</b><div class="mu">${esc(r.w)}</div></div><div class="p"><b class="${r.p>=8?"up":r.p<=2?"dn":""}">${r.p}</b></div></div>`).join("")}
+  <div class="mu" style="margin-top:10px;font-size:11.5px">Nivåerna är räknade ur ATR, närmaste stöd och dina regler. Räkneexempel, ingen rådgivning.</div>`,()=>{
+    const upd=()=>{const c=parseFloat($("#pc").value),rp=parseFloat($("#pr").value),ps=posSize(c,rp,tp.entry,tp.stop,s.ccy);
+      $("#psz").innerHTML=ps&&ps.q>0?`Köp <b style="color:var(--tx)">${ps.q} st</b> ≈ ${kr(ps.val)} kr (${f(ps.w,1)} % av kapitalet). Om stoppet nås förlorar du ≈ ${kr(ps.lossKr)} kr.${ps.w>20?' <b class="dn">Varning: över 20 % i en aktie.</b>':""}`:"Ange kapital och risk.";};
+    ["#pc","#pr"].forEach(x=>{$(x).oninput=upd});upd()})
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";

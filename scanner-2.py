@@ -187,6 +187,30 @@ PRESETS = {
     "CRYPTO": {"n": "Krypto", "flag": "🪙", "cur": "$", "ccy": "USD", "reg": None, "tickers": [
         "BTC-USD","ETH-USD","BNB-USD","XRP-USD","SOL-USD","DOGE-USD","ADA-USD","AVAX-USD","LINK-USD","DOT-USD","LTC-USD","BCH-USD",
         "XLM-USD","ATOM-USD","NEAR-USD","TRX-USD","SHIB-USD","HBAR-USD","ETC-USD","XMR-USD"]},
+    "NIKKEI": {"n": "Tokyo (Nikkei)", "flag": "🇯🇵", "cur": "¥", "ccy": "JPY", "reg": "ASIA", "tickers": [
+        "7203.T","6758.T","8306.T","9984.T","6861.T","8035.T","9983.T","6098.T","4063.T","6501.T","7974.T","8058.T",
+        "8001.T","6702.T","9433.T","4502.T","6367.T","7267.T","8316.T","4568.T","6954.T","6902.T","7741.T","6273.T",
+        "8766.T","4661.T","9432.T","8411.T","6981.T","7751.T","6301.T","4519.T","8031.T","9020.T","5108.T","6594.T"]},
+    "TWSE": {"n": "Taiwan", "flag": "🇹🇼", "cur": "NT$", "ccy": "TWD", "reg": "ASIA", "tickers": [
+        "2330.TW","2317.TW","2454.TW","2308.TW","2382.TW","2881.TW","2882.TW","3711.TW","2412.TW","2303.TW",
+        "1301.TW","2886.TW","2891.TW","3008.TW","2357.TW","2884.TW","5880.TW","2892.TW","1216.TW","2207.TW"]},
+    "HSI": {"n": "Hongkong", "flag": "🇭🇰", "cur": "HK$", "ccy": "HKD", "reg": "ASIA", "tickers": [
+        "0700.HK","9988.HK","0939.HK","1398.HK","3690.HK","0941.HK","1810.HK","0005.HK","2318.HK","0388.HK",
+        "1299.HK","3988.HK","0883.HK","0857.HK","1211.HK","2628.HK","0386.HK","9618.HK","9999.HK","2020.HK",
+        "0981.HK","1024.HK","2269.HK","6690.HK","1109.HK"]},
+    "NIFTY": {"n": "Indien (NSE)", "flag": "🇮🇳", "cur": "₹", "ccy": "INR", "reg": "ASIA", "tickers": [
+        "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS","HINDUNILVR.NS","BHARTIARTL.NS","SBIN.NS",
+        "ITC.NS","LT.NS","KOTAKBANK.NS","AXISBANK.NS","BAJFINANCE.NS","ASIANPAINT.NS","MARUTI.NS","SUNPHARMA.NS",
+        "TITAN.NS","ULTRACEMCO.NS","WIPRO.NS","HCLTECH.NS","TATAMOTORS.NS","ADANIENT.NS","NESTLEIND.NS","POWERGRID.NS"]},
+    "ASX": {"n": "Australien (ASX)", "flag": "🇦🇺", "cur": "A$", "ccy": "AUD", "reg": None, "tickers": [
+        "BHP.AX","CBA.AX","CSL.AX","NAB.AX","WBC.AX","ANZ.AX","WES.AX","MQG.AX","GMG.AX","WOW.AX",
+        "TLS.AX","RIO.AX","TCL.AX","FMG.AX","ALL.AX","WDS.AX","COL.AX","REA.AX","QBE.AX","STO.AX"]},
+    "KOSPI": {"n": "Sydkorea", "flag": "🇰🇷", "cur": "₩", "ccy": "KRW", "reg": "ASIA", "tickers": [
+        "005930.KS","000660.KS","373220.KS","207940.KS","005380.KS","005490.KS","051910.KS","035420.KS",
+        "006400.KS","000270.KS","068270.KS","035720.KS","105560.KS","055550.KS","012330.KS","028260.KS"]},
+    "TSX": {"n": "Kanada (TSX)", "flag": "🇨🇦", "cur": "C$", "ccy": "CAD", "reg": None, "tickers": [
+        "RY.TO","TD.TO","ENB.TO","CNR.TO","BN.TO","BMO.TO","CP.TO","BNS.TO","TRP.TO","CNQ.TO",
+        "SU.TO","ATD.TO","MFC.TO","SHOP.TO","CM.TO","WCN.TO","NTR.TO","IFC.TO","FTS.TO","AEM.TO"]},
     "SP400": {"n": "S&P MidCap 400", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp400},
     "SP600": {"n": "S&P SmallCap 600", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp600},
     "NASDAQ_ALL": {"n": "Nasdaq (alla)", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "light": True, "tickers": nasdaq_all},
@@ -234,6 +258,14 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("Google News – Europe markets", "https://news.google.com/rss/search?q=europe+stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – Fed rates economy", "https://news.google.com/rss/search?q=federal+reserve+OR+interest+rate+OR+trade+war+when:1d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – earnings reports", "https://news.google.com/rss/search?q=earnings+report+stock+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Japan", "https://news.google.com/rss/search?q=nikkei+OR+topix+OR+japan+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Kina/Hongkong", "https://news.google.com/rss/search?q=hang+seng+OR+shanghai+composite+OR+china+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Taiwan/Korea", "https://news.google.com/rss/search?q=taiwan+stocks+OR+kospi+OR+TSMC+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Indien", "https://news.google.com/rss/search?q=sensex+OR+nifty+OR+india+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Australien", "https://news.google.com/rss/search?q=ASX+OR+australia+shares+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Latinamerika", "https://news.google.com/rss/search?q=bovespa+OR+latin+america+stocks+OR+mexico+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Mellanöstern/Afrika", "https://news.google.com/rss/search?q=tadawul+OR+gulf+markets+OR+africa+stocks+when:2d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – råvaror/valuta", "https://news.google.com/rss/search?q=oil+price+OR+gold+price+OR+dollar+index+when:1d&hl=en-US&gl=US&ceid=US:en"),
 ]
 
 def read_extra():
@@ -562,7 +594,8 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
 
     # --- likviditet: snittomsättning per dag (20 dagar), omräknad till USD ---
     FXU = {"USD": 1.0, "SEK": 0.10, "NOK": 0.096, "DKK": 0.147, "EUR": 1.08, "GBp": 0.0127,
-           "GBP": 1.27, "CHF": 1.12, "JPY": 0.0066, "HKD": 0.128, "CAD": 0.73}
+           "GBX": 0.0127, "GBP": 1.27, "CHF": 1.12, "JPY": 0.0066, "HKD": 0.128, "CAD": 0.73,
+           "TWD": 0.031, "INR": 0.0119, "AUD": 0.65, "KRW": 0.00072, "NZD": 0.60, "BRL": 0.18}
     adv = None
     try:
         v20s = vols.iloc[-20:].astype(float)
