@@ -227,7 +227,9 @@ PRESETS = {
     "MIB": {"n": "Milano (FTSE MIB)", "flag": "🇮🇹", "cur": "€", "ccy": "EUR", "reg": "EU", "tickers": [
         "ENEL.MI","ISP.MI","UCG.MI","ENI.MI","STLAM.MI","RACE.MI","G.MI","MB.MI","PRY.MI","LDO.MI","TRN.MI","SRG.MI","BAMI.MI","BPE.MI","MONC.MI","CPR.MI","DIA.MI","REC.MI","TIT.MI","AMP.MI"]},
 }
-DEFAULT_PRESETS = ("OMXC", "OSE", "DAX", "CAC", "FTSE")      # standardbörser utöver OMXS/USA
+DEFAULT_PRESETS = ("OMXC", "OSE", "OMXH", "DAX", "CAC", "FTSE", "AEX", "SMI", "IBEX", "MIB")
+# Breddad 2026-10: backtestet visade att modellen fungerar bäst i Norden och Europa,
+# men poolen var starkt USA-tung. Fler europeiska börser jämnar ut urvalet.
 GROUP_NAMES = {"EU": ("Europa", "🇪🇺")}
 
 def _preset(k):
@@ -574,6 +576,30 @@ def piotroski(tk):
     if two(rev, ta): add(rev[0] / ta[0] > rev[1] / ta[1])     # 9 bättre kapitalomsättning
     return (pts[0], n[0]) if n[0] >= 5 else (None, n[0])
 
+def rel_liquidity(recs):
+    """Drar av poäng för aktier som är tunt handlade JÄMFÖRT MED SIN EGEN BÖRS.
+
+    En absolut dollargräns straffar nordiska och europeiska bolag systematiskt, eftersom
+    deras börser omsätter mindre än de amerikanska. Relativt mått gör urvalet rättvist.
+    """
+    import statistics as _st
+    by = {}
+    for t, r in recs.items():
+        if r.get("adv"): by.setdefault(r["m"][0], []).append(r["adv"])
+    med = {k: _st.median(v) for k, v in by.items() if len(v) >= 8}
+    n = 0
+    for t, r in recs.items():
+        m0, adv = r["m"][0], r.get("adv")
+        if not adv or m0 not in med: continue
+        ratio = adv / med[m0]
+        cut = 18 if ratio < 0.15 else 10 if ratio < 0.35 else 4 if ratio < 0.6 else 0
+        if cut:
+            r["sc"] = round(max(0.0, r["sc"] - cut), 1); r["liq"] = round(ratio, 2); n += 1
+        else:
+            r["liq"] = round(ratio, 2)
+    print(f"Likviditet: {n} aktier fick avdrag mot medianen på sin egen börs ({len(med)} börser)")
+    return recs
+
 def earn_date(info):
     """Nästa rapportdatum från Yahoo Finance (earningsDate)."""
     if not info or not isinstance(info, dict):
@@ -721,11 +747,9 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # Sentimentet sparas fortfarande i posten och visas i appen, men styr inte urvalet.
     score = tech * .62 + fund * .38
 
-    # Likviditetsavdrag: tunt handlade aktier går inte att komma ur till angiven kurs
-    if adv is not None:
-        if adv < 300_000: score -= 25
-        elif adv < 1_000_000: score -= 12
-        elif adv < 3_000_000: score -= 5
+    # Likviditeten bedöms relativt den egna börsen i efterpasset (rel_liquidity).
+    # Här dras bara av för aktier som är otradbara i absoluta tal, oavsett marknad.
+    if adv is not None and adv < 150_000: score -= 20
     score = round(max(0.0, min(100.0, score)), 1)
 
     hit = bool(chg >= 5 or (us and px - pc >= 3) or pre_vol >= 50_000)
@@ -1171,6 +1195,7 @@ def main():
         except Exception as e:
             dropped.append([t, "analysfel: " + str(e)[:60], uni[t]])
             print("Hoppar över", t, "–", e)
+    rel_liquidity(recs)
     print(f"Analys: {len(recs)} aktier klara, {len(dropped)} saknas (Yahoo saknar data eller för kort historik).")
 
     # Piotroski F-score hämtas bara för de bäst rankade – varje aktie kostar tre extra anrop
