@@ -836,7 +836,9 @@ def finalize(recs, markets):
     groups = {}
     for m in markets:
         if m.get("reg"): groups.setdefault(m["reg"], set()).add(m["k"])
-    def member(k, r): return (k == "ALL" and any(x != "CRYPTO" for x in r["m"])) or k in r["m"] or (k in groups and bool(groups[k] & set(r["m"])))
+    def member(k, r):
+        if r["m"] == ["OWNED"]: return False          # ägda aktier utan index deltar inte i rankningen
+        return (k == "ALL" and any(x != "CRYPTO" for x in r["m"])) or k in r["m"] or (k in groups and bool(groups[k] & set(r["m"])))
     for k in keys + list(groups) + ["ALL"]:
         members = [t for t, r in recs.items() if member(k, r)]
         magic_rank(members, recs, k)
@@ -1155,13 +1157,22 @@ def main():
                                  "reg": e.get("reg") or base.get("reg"), "mixed": bool(e.get("mixed")), "light": bool(base.get("light")), "source": []})
         for t in tickers:
             if k not in uni.setdefault(t, []): uni[t].append(k)
-    # Egna tickers togs bort 2026-10: en handplockad lista gav de aktierna bevakning som
-    # motsvarande bolag på andra börser inte fick, vilket gjorde urvalet ojämnt.
-    # Universumet definieras nu enbart av börslistorna.
-    extra = []
+    # Universumet definieras enbart av börslistorna. holdings.txt är ett undantag:
+    # aktier du ÄGER men som inte ingår i något index (t.ex. TSM och Samsungs GDS) hämtas
+    # så att portföljen kan värderas. De märks OWNED och utesluts ur all rankning och
+    # alla kandidatlistor, så de kan aldrig påverka vilka aktier som föreslås för köp.
+    owned = []
+    try:
+        owned = [l.split("#")[0].strip() for l in open("holdings.txt", encoding="utf-8")]
+        owned = [t for t in owned if t and t not in uni]
+    except OSError:
+        pass
+    if owned:
+        print(f"Innehav utan indextillhörighet (hämtas men rankas inte): {len(owned)} st")
+    extra = owned
     if extra:
         markets_used.append({"k": "EXTRA", "n": "Egna tickers", "flag": "⭐", "cur": "$", "ccy": "USD", "hidden": True, "mixed": True, "source": extra})
-        for t in extra: uni[t] = ["EXTRA"]
+        for t in extra: uni[t] = ["OWNED"]
     tickers = list(uni)
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
 

@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-13-d";
+const APPV="2026-10-13-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -602,8 +602,9 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
+    $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
     $("#rbs").onclick=()=>{closeSheet();setTimeout(()=>rebSheet(pid),260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
     $("#rls").onclick=()=>{closeSheet();setTimeout(()=>rulesSheet(pid),260)};
@@ -1950,6 +1951,21 @@ function planSheet(t,pid){
     const upd=()=>{const c=parseFloat($("#pc").value),rp=parseFloat($("#pr").value),ps=posSize(c,rp,tp.entry,tp.stop,s.ccy);
       $("#psz").innerHTML=ps&&ps.q>0?`Köp <b style="color:var(--tx)">${ps.q} st</b> ≈ ${kr(ps.val)} kr (${f(ps.w,1)} % av kapitalet). Om stoppet nås förlorar du ≈ ${kr(ps.lossKr)} kr.${ps.w>20?' <b class="dn">Varning: över 20 % i en aktie.</b>':""}`:"Ange kapital och risk.";};
     ["#pc","#pr"].forEach(x=>{$(x).oninput=upd});upd()})
+}
+function holdingsSheet(){
+  const all=[...new Set(P.ps.flatMap(p=>p.h.map(h=>h.t)))].sort();
+  const miss=all.filter(t=>!S[t]), ok=all.filter(t=>S[t]);
+  const txt="# Aktier du äger som inte ingår i något bevakat index.\n"
+    +"# De hämtas för att portföljen ska kunna värderas, men deltar INTE i rankning\n"
+    +"# eller i urvalet av köpkandidater. Lägg filen i repots rot som holdings.txt.\n"
+    +all.join("\n")+"\n";
+  sheet(`<h3>📄 Innehav till skannern</h3>
+  <p class="mu" style="margin-top:-4px">Aktier du äger men som inte ligger i något index får ingen kurs. Lägg listan nedan som <b>holdings.txt</b> i repots rot, så hämtas de. De påverkar varken rankning eller köpförslag.</p>
+  ${miss.length?`<div class="stat WAIT" style="margin:6px 0"><b>${miss.length} INNEHAV SAKNAR DATA</b>${miss.map(esc).join(", ")}</div>`:'<div class="stat OK" style="margin:6px 0"><b>ALLA INNEHAV HAR DATA</b>Du behöver inte göra något.</div>'}
+  <label class="fld"><span>Innehåll till holdings.txt (${all.length} aktier)</span><textarea id="hx" rows="8" style="font-family:monospace;font-size:12px">${esc(txt)}</textarea></label>
+  <button class="btn wide" id="hxc">Kopiera</button>`,()=>{
+    $("#hxc").onclick=()=>{const t=$("#hx");t.select();try{document.execCommand("copy")}catch(e){}
+      try{navigator.clipboard&&navigator.clipboard.writeText(t.value)}catch(e){}toast("Kopierat")}})
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";

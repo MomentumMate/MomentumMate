@@ -1,0 +1,10 @@
+# Aktier du äger som inte ingår i något bevakat index.
+# De hämtas så att portföljerna kan värderas och få signaler, men de deltar
+# INTE i rankningen och kan aldrig föreslås som köpkandidater.
+# Lägg filen i repots rot. Uppdatera den via Portfölj → ⋯ → 📄 Innehav till skannern.
+
+TSM          # Taiwan Semiconductor, ADR i New York – utländskt bolag, ingår inte i S&P 500
+SMSN.IL      # Samsung Electronics GDS, London – ingår inte i FTSE
+CRDO         # Credo Technology
+OKTA         # Okta
+ZS           # Zscaler
