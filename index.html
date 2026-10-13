@@ -209,11 +209,12 @@ nav a{min-width:0}nav a svg{width:21px;height:21px}
  <a data-go="#/search" data-n="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>Sök</a>
 </nav>
 <div id="mb"><span class="x" data-act="mclose" aria-label="Stäng">×</span><div id="mbt"></div><span class="more" id="mbm" data-act="mgo">Visa ›</span></div>
-<button id="mate" data-act="mopen" aria-label="Mate – din assistent"><svg width="44" height="44" viewBox="0 0 54 54"><defs><linearGradient id="mgr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a4d0e"/><stop offset=".55" stop-color="#e8b64a"/><stop offset="1" stop-color="#ffe7a8"/></linearGradient></defs>
+<button id="mate" data-act="mopen" aria-label="Mate – din assistent"><svg width="44" height="44" viewBox="0 0 54 54"><defs><radialGradient id="mgGold" cx=".38" cy=".32" r=".65" fx=".35" fy=".28"><stop offset="0%" stop-color="#e0be50"/><stop offset="20%" stop-color="#c89530"/><stop offset="45%" stop-color="#9a6a18"/><stop offset="70%" stop-color="#6a4810"/><stop offset="90%" stop-color="#3a2808"/><stop offset="100%" stop-color="#2a1a04"/></radialGradient></defs>
 <g><animateTransform id="mw" attributeName="transform" type="rotate" values="0 27 27;-16 27 27;16 27 27;-9 27 27;0 27 27" dur=".7s" begin="indefinite"/>
 <g><animateTransform attributeName="transform" type="translate" values="0 0;0 2.2;0 0" dur="2.2s" repeatCount="indefinite"/>
+<circle cx="27" cy="27" r="25" fill="url(#mgGold)"/>
 <g transform="rotate(18 27 27)"><path d="M12.9 21.9A15 15 0 0 1 41.1 21.9" fill="none" stroke="#e8b64a" stroke-opacity=".22" stroke-width="7" stroke-linecap="round"/>
-<path d="M41.1 32.1A15 15 0 0 1 12.9 32.1" fill="none" stroke="url(#mgr)" stroke-width="7" stroke-linecap="round"/>
+<path d="M41.1 32.1A15 15 0 0 1 12.9 32.1" fill="none" stroke="#e8b64a" stroke-width="7" stroke-linecap="round"/>
 <rect x="20.5" y="17" width="4" height="8.5" rx="2" fill="#ffd166"><animate attributeName="height" values="8.5;8.5;1;8.5" keyTimes="0;.86;.93;1" dur="3s" repeatCount="indefinite"/><animate attributeName="y" values="17;17;20.7;17" keyTimes="0;.86;.93;1" dur="3s" repeatCount="indefinite"/></rect>
 <rect x="29.5" y="17" width="4" height="8.5" rx="2" fill="#ffd166"><animate attributeName="height" values="8.5;8.5;1;8.5" keyTimes="0;.86;.93;1" dur="3s" repeatCount="indefinite"/><animate attributeName="y" values="17;17;20.7;17" keyTimes="0;.86;.93;1" dur="3s" repeatCount="indefinite"/></rect></g></g></g></svg></button>
 <div id="sh"><div class="bk"></div><div class="pn"><div class="gr"></div><div id="shb"></div></div></div>
@@ -247,7 +248,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-09-e";
+const APPV="2026-10-09-f";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
