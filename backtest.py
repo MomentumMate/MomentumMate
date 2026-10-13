@@ -31,10 +31,24 @@ def load_prices(tickers, years, cache=None):
     end = dt.date.today()
     start = end - dt.timedelta(days=int(years * 365.25) + 400)   # extra år för 12-1-fönstret
     print(f"Hämtar {len(tickers)} aktier {start} → {end} …")
-    raw = yf.download(tickers, start=start, end=end, interval="1d",
-                      auto_adjust=True, progress=False, threads=True, group_by="column")
-    close = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
-    vol = raw["Volume"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Volume"]]
+    cl, vl = [], []
+    CH = 250
+    for i in range(0, len(tickers), CH):
+        part = tickers[i:i + CH]
+        print(f"  {i + 1}–{min(i + CH, len(tickers))} av {len(tickers)} …", flush=True)
+        try:
+            raw = yf.download(part, start=start, end=end, interval="1d", auto_adjust=True,
+                              progress=False, threads=True, group_by="column")
+            if raw is None or raw.empty: continue
+            c = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Close"]]
+            v = raw["Volume"] if isinstance(raw.columns, pd.MultiIndex) else raw[["Volume"]]
+            cl.append(c); vl.append(v)
+        except Exception as ex:
+            print(f"    hoppades över: {str(ex)[:70]}")
+    if not cl: raise SystemExit("Ingen kursdata kunde hämtas.")
+    close = pd.concat(cl, axis=1); vol = pd.concat(vl, axis=1)
+    close = close.loc[:, ~close.columns.duplicated()]
+    vol = vol.loc[:, ~vol.columns.duplicated()]
     close = close.dropna(axis=1, how="all")
     vol = vol.reindex(columns=close.columns)
     if cache:
@@ -249,13 +263,16 @@ def main():
         sys.path.insert(0, ".")
         import scanner as SC
         tick = []
-        for k in ("SP500", "NASDAQ", "OMXS", "DAX", "CAC", "FTSE", "OMXC", "OSE"):
-            v = SC.PRESETS.get(k, {}).get("tickers")
+        # Samma marknader som skannern kör skarpt, så att backtestet validerar rätt universum
+        for m in SC.MARKETS:
+            k = m["k"]
+            v = m.get("source") or m.get("tickers")
             if callable(v):
                 try: v = v()
                 except Exception as ex:
                     print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
-            if isinstance(v, list) and v: tick += v
+            if isinstance(v, list) and v:
+                tick += v; print(f"  {k}: {len(v)} aktier")
             else: print(f"  VARNING: {k} gav 0 aktier")
         # Reservlistor om nätet mot Wikipedia fallerar – annars tappar vi hela USA
         if not any("." not in t for t in tick):
