@@ -19,6 +19,21 @@ import numpy as np
 import pandas as pd
 
 # ----------------------------------------------------------------------------- data
+def load_vix(index, start, end):
+    """Volatilitetsindex. ^VIX (S&P 500), ^VXN (Nasdaq-100), ^V2TX (VSTOXX, Europa)."""
+    import yfinance as yf
+    try:
+        d = yf.download(index, start=start, end=end, interval="1d", progress=False, auto_adjust=False)
+        if d is None or d.empty: return None
+        c = d["Close"]
+        if hasattr(c, "columns"): c = c.iloc[:, 0]
+        c = c.dropna()
+        print(f"  {index}: {len(c)} dagar, median {float(c.median()):.1f}")
+        return c
+    except Exception as ex:
+        print(f"  {index} kunde inte hämtas: {str(ex)[:70]}")
+        return None
+
 def load_prices(tickers, years, cache=None):
     if cache:
         try:
@@ -103,7 +118,23 @@ def exit_panels(close, cfg):
         out["atr"] = (close.pct_change().abs().rolling(14, min_periods=10).mean() * close) * 1.6
     return out
 
-def run(close, vol, cfg):
+def vix_exposure(vix, idx, cfg):
+    """Andel av kapitalet som får vara investerad, 0–1, utifrån volatilitetsnivån.
+
+    Daniel & Moskowitz (2016) visar att momentumkrascher nästan uteslutande inträffar när
+    marknaden fallit OCH volatiliteten är hög. Regeln skalar ned exponeringen i de lägena.
+    Nivån jämförs med ett rullande historiskt fönster, inte med ett fast tal, så den
+    anpassar sig till att volatilitetens normalläge skiftar över tid.
+    """
+    if vix is None or not cfg.get("vix_cut"):
+        return pd.Series(1.0, index=idx)
+    v = vix.reindex(idx).ffill()
+    hi = v.rolling(cfg.get("vix_win", 504), min_periods=250).quantile(cfg["vix_q"])
+    e = pd.Series(1.0, index=idx)
+    e[v > hi] = cfg["vix_cut"]                       # över tröskeln: minskad exponering
+    return e.shift(1).fillna(1.0)                    # gårdagens signal styr idag – ingen framåtblick
+
+def run(close, vol, cfg, vix=None):
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
     EX = exit_panels(close, cfg)
@@ -118,7 +149,10 @@ def run(close, vol, cfg):
     if start_i >= len(dates) - 5:
         raise SystemExit("För kort historik för att backtesta.")
 
-    cash, hold, hold_days = 1.0, {}, []          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
+    expo = vix_exposure(vix, close.index, cfg)
+    n_eff_now = lambda: n_eff
+    cash, hold, hold_days = 1.0, {}, []
+    cut_days = 0          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
     eq, eqdates, trades = [], [], []
     cost = cfg["cost_bps"] / 10000.0
 
@@ -166,6 +200,19 @@ def run(close, vol, cfg):
                 hold_days.append((i - h["i"]))
                 trades.append((why, t, d)); del hold[t]
 
+        # --- volatilitetsfilter: kontrolleras VARJE dag, inte bara vid ombalansering.
+        #     En krasch väntar inte på kvartalsskiftet.
+        ex = float(expo.iloc[i]); cut_days += (ex < 1)
+        n_eff = max(1, int(round(cfg["n"] * ex)))
+        if len(hold) > n_eff:
+            sc_row = sc.iloc[i]
+            for t in sorted(hold, key=lambda x: sc_row.get(x, -1e9))[:len(hold) - n_eff]:
+                px = p.get(t)
+                if px == px:
+                    cash += hold[t]["sh"] * px * (1 - cost); hold_days.append(i - hold[t]["i"])
+                    trades.append(("vix", t, d))
+                del hold[t]
+
         # --- ombalansering ---
         if d in rebs:
             row = sc.iloc[i].dropna()
@@ -194,14 +241,14 @@ def run(close, vol, cfg):
                             add = min(target - cur, cash)
                             h["sh"] += add * (1 - cost) / px; cash -= add; trades.append(("add", t, d))
                 # fyll på upp till n med de högst rankade
-                room = cfg["n"] - len(hold)
+                room = n_eff_now() - len(hold)
                 if room > 0:
                     picks = [t for t in rank.sort_values().index if t not in hold and t in top][:room]
                     tot = value(i)
                     for t in picks:
                         px = p.get(t)
                         if px != px or px <= 0: continue
-                        target = tot / cfg["n"]
+                        target = tot / max(1, n_eff)
                         if cash < target * 0.2: break
                         amt = min(target, cash)
                         sh = amt * (1 - cost) / px
@@ -210,6 +257,7 @@ def run(close, vol, cfg):
         eq.append(value(i)); eqdates.append(d)
 
     e = pd.Series(eq, index=pd.DatetimeIndex(eqdates)).dropna()
+    if cfg.get("vix_cut"): print(f"      nedskalad exponering {cut_days} av {len(expo)} dagar")
     return e, trades, hold_days
 
 # ----------------------------------------------------------------------------- mått
@@ -243,7 +291,8 @@ def benchmark(close, years, start_i=210):
 # ----------------------------------------------------------------------------- main
 DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=True,
            trendfilter=True, minturnover=3e6, cost_bps=15, reb="M", reweight=False, rw_band=0.25,
-           exit_sma50=False, exit_sma200=False, exit_atr=0, exit_score=0)
+           exit_sma50=False, exit_sma200=False, exit_atr=0, exit_score=0,
+           vix_cut=0, vix_q=0.80, vix_win=504)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -255,6 +304,8 @@ def main():
     ap.add_argument("--combo", action="store_true", help="testa kombinationer i stället för en ändring i taget")
     ap.add_argument("--robust", action="store_true", help="håller vinnaren på data den inte valts på?")
     ap.add_argument("--exits", action="store_true", help="jämför utgångsmekanismer för swinghandel")
+    ap.add_argument("--vix", action="store_true", help="testar om volatilitetsindex skyddar mot momentumkrascher")
+    ap.add_argument("--vixindex", default="^VIX", help="^VIX, ^VXN eller ^V2TX")
     a = ap.parse_args()
 
     if a.universe:
@@ -298,6 +349,51 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- VIX-test: skyddar volatilitetsfiltret mot momentumkrascher? ----------
+    if a.vix:
+        v = load_vix(a.vixindex, close.index[0], close.index[-1])
+        if v is None: raise SystemExit("Volatilitetsindex kunde inte hämtas.")
+        CORE = dict(voladj=False, band_out=30, n=20, reb="Q", reweight=True, stop=15)   # validerad kärna (F)
+        VAR = {
+            "0. Utan volatilitetsfilter (referens)": dict(CORE),
+            "1. Halvera över 80:e percentilen": dict(CORE, vix_cut=0.5, vix_q=0.80),
+            "2. Halvera över 90:e percentilen": dict(CORE, vix_cut=0.5, vix_q=0.90),
+            "3. Ned till 25 % över 80:e percentilen": dict(CORE, vix_cut=0.25, vix_q=0.80),
+            "4. Ned till 25 % över 90:e percentilen": dict(CORE, vix_cut=0.25, vix_q=0.90),
+            "5. Helt ur marknaden över 90:e percentilen": dict(CORE, vix_cut=0.01, vix_q=0.90),
+            "6. Ned till 75 % över 70:e percentilen": dict(CORE, vix_cut=0.75, vix_q=0.70),
+            "7. Halvera över 80:e, kort fönster (1 år)": dict(CORE, vix_cut=0.5, vix_q=0.80, vix_win=252),
+            "8. Halvera över 80:e, långt fönster (4 år)": dict(CORE, vix_cut=0.5, vix_q=0.80, vix_win=1008),
+        }
+        def grp3(t):
+            if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
+            return "Europa" if "." in t else "USA"
+        groups = {"Alla marknader": list(close.columns)}
+        for g in ("USA", "Norden", "Europa"):
+            cc = [t for t in close.columns if grp3(t) == g]
+            if len(cc) >= 40: groups[g] = cc
+        res = {}
+        for gn, cols in groups.items():
+            sub, subv = close[cols], vol[cols]
+            yrs = (sub.index[-1] - sub.index[210]).days / 365.25
+            be, bst = benchmark(sub, yrs)
+            print(f"\n########## {gn}  ({len(cols)} aktier, index {a.vixindex}) ##########")
+            print(f"   {'index (köp och behåll)':<44}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}  nedgång {bst['max_nedgång_%']} %")
+            res[gn] = {"_index": bst}
+            for nm, over in VAR.items():
+                cfg = dict(DEF); cfg.update(over)
+                try:
+                    e, tr, hd = run(sub, subv, cfg, vix=v); st = stats(e, tr, yrs, hd)
+                    res[gn][nm] = st
+                    print(f"   {nm:<44}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %  köp/år {st['köp_per_år']}")
+                except Exception as ex:
+                    print(f"   {nm:<44} FEL {str(ex)[:50]}"); res[gn][nm] = {"fel": str(ex)[:120]}
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "vix", "index": a.vixindex, "år": round(years, 1), "grupper": res,
+               "varning": "Survivorship bias och ingen fundamenta. Volatilitetssignalen är fördröjd en dag."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- utgångstest: vilken utgång låter vinnarna löpa längst? ----------
     if a.exits:
