@@ -24,6 +24,13 @@ on:
         description: "Utgångstest: vilken utgång låter vinnarna löpa längst"
         type: boolean
         default: false
+      vix:
+        description: "VIX-test: skyddar volatilitetsfiltret mot momentumkrascher"
+        type: boolean
+        default: false
+      vixindex:
+        description: "Volatilitetsindex: ^VIX (USA), ^VXN (Nasdaq) eller ^V2TX (Europa)"
+        default: "^VIX"
   schedule:
     - cron: "0 4 1 * *"
 
@@ -48,6 +55,7 @@ jobs:
             ${{ github.event.inputs.combo == 'true' && '--combo' || '' }} \
             ${{ github.event.inputs.robust == 'true' && '--robust' || '' }} \
             ${{ github.event.inputs.exits == 'true' && '--exits' || '' }} \
+            ${{ github.event.inputs.vix == 'true' && format('--vix --vixindex {0}', github.event.inputs.vixindex || '^VIX') || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
