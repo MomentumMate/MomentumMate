@@ -22,6 +22,13 @@ NEWS_KEEP = 6
 # ----------------------------------------------------------------------------------
 # TICKERLISTOR
 # ----------------------------------------------------------------------------------
+OMXS_MID = [  # OMX Stockholm Mid Cap och större Small Cap – nordisk motsvarighet till S&P 400/600.
+    "LAGR-B.ST","BUFAB.ST","NOLA-B.ST","THULE.ST","VITR.ST","BIOT.ST","AAK.ST","ADDT-B.ST","BEIJ-B.ST","CTT.ST",
+    "FAG.ST","GARO.ST","HEM.ST","INSTAL.ST","LIAB.ST","MEKO.ST","MYCR.ST","NCAB.ST","NETEL.ST","NIBE-B.ST",
+    "OEM-B.ST","PACT.ST","RVRC.ST","SECT-B.ST","SYSR.ST","TROAX.ST","VIMIAN.ST","XVIVO.ST","BICO.ST","CIBUS.ST",
+    "COOR.ST","DOM.ST","EOLU-B.ST","FNOX.ST","HOFI.ST","HTRO.ST","IVSO.ST","JOMA.ST","KAR.ST","LIME.ST",
+    "MCOV-B.ST","MIPS.ST","MMGR-B.ST","MTRS.ST","NEWA-B.ST","NOBI.ST","NP3.ST","PDX.ST","PENG-B.ST","PLAZ-B.ST",
+    "QLINEA.ST","RAY-B.ST","SAGA-B.ST","SDIP-B.ST","SEZI.ST","SOBI.ST","STOR-B.ST","SVOL-B.ST","TETY.ST","VNV.ST"]
 OMXS = ["VOLV-B.ST","ERIC-B.ST","HM-B.ST","ABB.ST","ATCO-A.ST","ATCO-B.ST","SEB-A.ST","SWED-A.ST","SHB-A.ST","INVE-B.ST",
         "SAND.ST","ASSA-B.ST","EVO.ST","SINCH.ST","NIBE-B.ST","HEXA-B.ST","ALFA.ST","ESSITY-B.ST","BOL.ST","SKA-B.ST",
         "TELIA.ST","SAAB-B.ST","GETI-B.ST","EPI-A.ST","KINV-B.ST","LIFCO-B.ST","ELUX-B.ST","SCA-B.ST","SSAB-A.ST","SKF-B.ST",
@@ -157,6 +164,11 @@ def nyse_all():
     except Exception as e:
         print("Varning: kunde inte hämta NYSE-listan:", e); return []
 
+def stoxx600():
+    """STOXX Europe 600 – europeisk motsvarighet till S&P 400/600 i bredd.
+    Wikipedia listar bolagen med Yahoo-kompatibla tickers i kolumnen Ticker."""
+    return _wiki("https://en.wikipedia.org/wiki/STOXX_Europe_600", ["ticker", "symbol"], [], 300, key="STOXX600")
+
 def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], [], 300, key="SP400")
 def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400, key="SP600")
 
@@ -187,6 +199,31 @@ PRESETS = {
     "CRYPTO": {"n": "Krypto", "flag": "🪙", "cur": "$", "ccy": "USD", "reg": None, "tickers": [
         "BTC-USD","ETH-USD","BNB-USD","XRP-USD","SOL-USD","DOGE-USD","ADA-USD","AVAX-USD","LINK-USD","DOT-USD","LTC-USD","BCH-USD",
         "XLM-USD","ATOM-USD","NEAR-USD","TRX-USD","SHIB-USD","HBAR-USD","ETC-USD","XMR-USD"]},
+    "NIKKEI": {"n": "Tokyo (Nikkei)", "flag": "🇯🇵", "cur": "¥", "ccy": "JPY", "reg": "ASIA", "tickers": [
+        "7203.T","6758.T","8306.T","9984.T","6861.T","8035.T","9983.T","6098.T","4063.T","6501.T","7974.T","8058.T",
+        "8001.T","6702.T","9433.T","4502.T","6367.T","7267.T","8316.T","4568.T","6954.T","6902.T","7741.T","6273.T",
+        "8766.T","4661.T","9432.T","8411.T","6981.T","7751.T","6301.T","4519.T","8031.T","9020.T","5108.T","6594.T"]},
+    "TWSE": {"n": "Taiwan", "flag": "🇹🇼", "cur": "NT$", "ccy": "TWD", "reg": "ASIA", "tickers": [
+        "2330.TW","2317.TW","2454.TW","2308.TW","2382.TW","2881.TW","2882.TW","3711.TW","2412.TW","2303.TW",
+        "1301.TW","2886.TW","2891.TW","3008.TW","2357.TW","2884.TW","5880.TW","2892.TW","1216.TW","2207.TW"]},
+    "HSI": {"n": "Hongkong", "flag": "🇭🇰", "cur": "HK$", "ccy": "HKD", "reg": "ASIA", "tickers": [
+        "0700.HK","9988.HK","0939.HK","1398.HK","3690.HK","0941.HK","1810.HK","0005.HK","2318.HK","0388.HK",
+        "1299.HK","3988.HK","0883.HK","0857.HK","1211.HK","2628.HK","0386.HK","9618.HK","9999.HK","2020.HK",
+        "0981.HK","1024.HK","2269.HK","6690.HK","1109.HK"]},
+    "NIFTY": {"n": "Indien (NSE)", "flag": "🇮🇳", "cur": "₹", "ccy": "INR", "reg": "ASIA", "tickers": [
+        "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS","HINDUNILVR.NS","BHARTIARTL.NS","SBIN.NS",
+        "ITC.NS","LT.NS","KOTAKBANK.NS","AXISBANK.NS","BAJFINANCE.NS","ASIANPAINT.NS","MARUTI.NS","SUNPHARMA.NS",
+        "TITAN.NS","ULTRACEMCO.NS","WIPRO.NS","HCLTECH.NS","TATAMOTORS.NS","ADANIENT.NS","NESTLEIND.NS","POWERGRID.NS"]},
+    "ASX": {"n": "Australien (ASX)", "flag": "🇦🇺", "cur": "A$", "ccy": "AUD", "reg": None, "tickers": [
+        "BHP.AX","CBA.AX","CSL.AX","NAB.AX","WBC.AX","ANZ.AX","WES.AX","MQG.AX","GMG.AX","WOW.AX",
+        "TLS.AX","RIO.AX","TCL.AX","FMG.AX","ALL.AX","WDS.AX","COL.AX","REA.AX","QBE.AX","STO.AX"]},
+    "KOSPI": {"n": "Sydkorea", "flag": "🇰🇷", "cur": "₩", "ccy": "KRW", "reg": "ASIA", "tickers": [
+        "005930.KS","000660.KS","373220.KS","207940.KS","005380.KS","005490.KS","051910.KS","035420.KS",
+        "006400.KS","000270.KS","068270.KS","035720.KS","105560.KS","055550.KS","012330.KS","028260.KS"]},
+    "TSX": {"n": "Kanada (TSX)", "flag": "🇨🇦", "cur": "C$", "ccy": "CAD", "reg": None, "tickers": [
+        "RY.TO","TD.TO","ENB.TO","CNR.TO","BN.TO","BMO.TO","CP.TO","BNS.TO","TRP.TO","CNQ.TO",
+        "SU.TO","ATD.TO","MFC.TO","SHOP.TO","CM.TO","WCN.TO","NTR.TO","IFC.TO","FTS.TO","AEM.TO"]},
+    "STOXX600": {"n": "STOXX Europe 600", "flag": "🇪🇺", "cur": "€", "ccy": "EUR", "reg": "EU", "mixed": True, "tickers": stoxx600},
     "SP400": {"n": "S&P MidCap 400", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp400},
     "SP600": {"n": "S&P SmallCap 600", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp600},
     "NASDAQ_ALL": {"n": "Nasdaq (alla)", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "light": True, "tickers": nasdaq_all},
@@ -203,7 +240,10 @@ PRESETS = {
     "MIB": {"n": "Milano (FTSE MIB)", "flag": "🇮🇹", "cur": "€", "ccy": "EUR", "reg": "EU", "tickers": [
         "ENEL.MI","ISP.MI","UCG.MI","ENI.MI","STLAM.MI","RACE.MI","G.MI","MB.MI","PRY.MI","LDO.MI","TRN.MI","SRG.MI","BAMI.MI","BPE.MI","MONC.MI","CPR.MI","DIA.MI","REC.MI","TIT.MI","AMP.MI"]},
 }
-DEFAULT_PRESETS = ("OMXC", "OSE", "DAX", "CAC", "FTSE")      # standardbörser utöver OMXS/USA
+DEFAULT_PRESETS = ("OMXC", "OSE", "OMXH", "DAX", "CAC", "FTSE", "AEX", "SMI", "IBEX", "MIB",
+                   "SP400", "SP600", "STOXX600")   # mellanstora och mindre bolag, symmetriskt USA/Europa
+# Breddad 2026-10: backtestet visade att modellen fungerar bäst i Norden och Europa,
+# men poolen var starkt USA-tung. Fler europeiska börser jämnar ut urvalet.
 GROUP_NAMES = {"EU": ("Europa", "🇪🇺")}
 
 def _preset(k):
@@ -212,7 +252,7 @@ def _preset(k):
 
 # ---- BÖRSER. Lägg till en rad för att utöka (k = unik nyckel, source = lista eller funktion) ----
 MARKETS = [
-    {"k": "OMXS",   "n": "OMX Stockholm", "flag": "🇸🇪", "cur": "kr", "ccy": "SEK", "reg": "EU", "source": OMXS},
+    {"k": "OMXS",   "n": "OMX Stockholm", "flag": "🇸🇪", "cur": "kr", "ccy": "SEK", "reg": "EU", "source": lambda: list(dict.fromkeys(OMXS + OMXS_MID))},
     {"k": "SP500",  "n": "S&P 500",       "flag": "🇺🇸", "cur": "$",  "ccy": "USD", "source": sp500},
     {"k": "NASDAQ", "n": "Nasdaq-100",    "flag": "🇺🇸", "cur": "$",  "ccy": "USD", "source": nasdaq100},
     {"k": "DOW",    "n": "Dow Jones",     "flag": "🇺🇸", "cur": "$",  "ccy": "USD", "source": dow30},
@@ -230,6 +270,18 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("Google News – senaste timmen", "https://news.google.com/rss/search?q=stocks+OR+nasdaq+OR+earnings+when:1h&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – börsen idag", "https://news.google.com/rss/search?q=b%C3%B6rsen+OR+aktier+OR+stockholmsb%C3%B6rsen+when:3h&hl=sv&gl=SE&ceid=SE:sv"),
     ("Google News – börsen", "https://news.google.com/rss/search?q=b%C3%B6rsen+aktier+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Google News – Asia markets", "https://news.google.com/rss/search?q=asia+stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Europe markets", "https://news.google.com/rss/search?q=europe+stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Fed rates economy", "https://news.google.com/rss/search?q=federal+reserve+OR+interest+rate+OR+trade+war+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – earnings reports", "https://news.google.com/rss/search?q=earnings+report+stock+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Japan", "https://news.google.com/rss/search?q=nikkei+OR+topix+OR+japan+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Kina/Hongkong", "https://news.google.com/rss/search?q=hang+seng+OR+shanghai+composite+OR+china+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Taiwan/Korea", "https://news.google.com/rss/search?q=taiwan+stocks+OR+kospi+OR+TSMC+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Indien", "https://news.google.com/rss/search?q=sensex+OR+nifty+OR+india+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Australien", "https://news.google.com/rss/search?q=ASX+OR+australia+shares+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Latinamerika", "https://news.google.com/rss/search?q=bovespa+OR+latin+america+stocks+OR+mexico+stocks+when:1d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – Mellanöstern/Afrika", "https://news.google.com/rss/search?q=tadawul+OR+gulf+markets+OR+africa+stocks+when:2d&hl=en-US&gl=US&ceid=US:en"),
+    ("Google News – råvaror/valuta", "https://news.google.com/rss/search?q=oil+price+OR+gold+price+OR+dollar+index+when:1d&hl=en-US&gl=US&ceid=US:en"),
 ]
 
 def read_extra():
@@ -485,6 +537,101 @@ def num(x, d=1):
         return round(float(x), d)
     except Exception: return None
 
+def _fin_row(df, *names):
+    """Hämtar en rad ur ett Yahoo-bokslut. Radnamnen skiljer sig mellan yfinance-versioner,
+    därför provas flera stavningar. Returnerar en lista med år, nyaste först."""
+    try:
+        if df is None or df.empty: return None
+        idx = {str(i).lower().replace(" ", ""): i for i in df.index}
+        for n in names:
+            k = n.lower().replace(" ", "")
+            if k in idx:
+                ser = df.loc[idx[k]].dropna()
+                if len(ser): return [float(x) for x in ser.tolist()]
+    except Exception:
+        pass
+    return None
+
+def piotroski(tk):
+    """Piotroski F-score (0–9). Delar som kräver jämförelse mot föregående år hoppas över
+    när Yahoo saknar historiken. Returnerar (poäng, antal bedömda delar)."""
+    try:
+        bs, cf, fin = tk.balance_sheet, tk.cashflow, tk.financials
+    except Exception:
+        return None, 0
+    ta  = _fin_row(bs, "Total Assets")
+    ni  = _fin_row(fin, "Net Income", "Net Income Common Stockholders", "Net Income From Continuing Operations")
+    ocf = _fin_row(cf, "Operating Cash Flow", "Total Cash From Operating Activities")
+    ltd = _fin_row(bs, "Long Term Debt", "Long Term Debt And Capital Lease Obligation")
+    ca  = _fin_row(bs, "Current Assets", "Total Current Assets")
+    cl  = _fin_row(bs, "Current Liabilities", "Total Current Liabilities")
+    sh  = _fin_row(bs, "Ordinary Shares Number", "Share Issued")
+    gp  = _fin_row(fin, "Gross Profit")
+    rev = _fin_row(fin, "Total Revenue", "Operating Revenue")
+    pts = [0]; n = [0]
+    def add(cond):
+        n[0] += 1
+        if cond: pts[0] += 1
+    two = lambda *xs: all(x and len(x) > 1 for x in xs)
+    roa = None
+    if ni and ta:
+        roa = [ni[i] / ta[i] for i in range(min(len(ni), len(ta))) if ta[i]]
+    # Lönsamhet
+    if roa: add(roa[0] > 0)                                   # 1 positiv ROA
+    if ocf: add(ocf[0] > 0)                                   # 2 positivt kassaflöde
+    if roa and len(roa) > 1: add(roa[0] > roa[1])             # 3 stigande ROA
+    if ocf and ni: add(ocf[0] > ni[0])                        # 4 kassaflöde över vinst (låga periodiseringar)
+    # Skuld och likviditet
+    if two(ltd, ta): add(ltd[0] / ta[0] <= ltd[1] / ta[1])    # 5 minskad långfristig skuld
+    if two(ca, cl): add(ca[0] / cl[0] > ca[1] / cl[1])        # 6 bättre kassalikviditet
+    if two(sh): add(sh[0] <= sh[1] * 1.01)                    # 7 inga nya aktier
+    # Effektivitet
+    if two(gp, rev): add(gp[0] / rev[0] > gp[1] / rev[1])     # 8 bättre bruttomarginal
+    if two(rev, ta): add(rev[0] / ta[0] > rev[1] / ta[1])     # 9 bättre kapitalomsättning
+    return (pts[0], n[0]) if n[0] >= 5 else (None, n[0])
+
+def rel_liquidity(recs):
+    """Drar av poäng för aktier som är tunt handlade JÄMFÖRT MED SIN EGEN BÖRS.
+
+    En absolut dollargräns straffar nordiska och europeiska bolag systematiskt, eftersom
+    deras börser omsätter mindre än de amerikanska. Relativt mått gör urvalet rättvist.
+    """
+    import statistics as _st
+    by = {}
+    for t, r in recs.items():
+        if r.get("adv"): by.setdefault(r["m"][0], []).append(r["adv"])
+    med = {k: _st.median(v) for k, v in by.items() if len(v) >= 8}
+    n = 0
+    for t, r in recs.items():
+        m0, adv = r["m"][0], r.get("adv")
+        if not adv or m0 not in med: continue
+        ratio = adv / med[m0]
+        cut = 18 if ratio < 0.15 else 10 if ratio < 0.35 else 4 if ratio < 0.6 else 0
+        if cut:
+            r["sc"] = round(max(0.0, r["sc"] - cut), 1); r["liq"] = round(ratio, 2); n += 1
+        else:
+            r["liq"] = round(ratio, 2)
+    print(f"Likviditet: {n} aktier fick avdrag mot medianen på sin egen börs ({len(med)} börser)")
+    return recs
+
+def earn_date(info):
+    """Nästa rapportdatum från Yahoo Finance (earningsDate)."""
+    if not info or not isinstance(info, dict):
+        return None
+    import datetime as _dt
+    for key in ("earningsDate", "earningsDates"):
+        v = info.get(key)
+        if not v: continue
+        if isinstance(v, list):
+            now = _dt.datetime.now(_dt.timezone.utc)
+            future = sorted([x for x in v if isinstance(x, (int, float)) and _dt.datetime.fromtimestamp(x, _dt.timezone.utc) >= now - _dt.timedelta(days=1)])
+            if future: return _dt.datetime.fromtimestamp(future[0], _dt.timezone.utc).strftime("%Y-%m-%d")
+            nums = [x for x in v if isinstance(x, (int, float))]
+            if nums: return _dt.datetime.fromtimestamp(max(nums), _dt.timezone.utc).strftime("%Y-%m-%d")
+        elif isinstance(v, (int, float)):
+            return _dt.datetime.fromtimestamp(v, _dt.timezone.utc).strftime("%Y-%m-%d")
+    return None
+
 def short_about(txt, n=240):
     """Kortar Yahoos företagsbeskrivning till ~2 meningar."""
     t = re.sub(r"\s+", " ", (txt or "")).strip()
@@ -519,6 +666,36 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     pc = float(prev["Close"]); chg = (px / pc - 1) * 100
     def ret(n): return (px / float(c.iloc[-n - 1]) - 1) * 100 if len(c) > n else 0.0
     r1, r3, r6 = ret(21), ret(63), ret(126)
+
+    # --- 12-1-momentum: 12 månaders avkastning EXKLUSIVE den senaste månaden.
+    # Senaste månaden utelämnas för att den statistiskt tenderar att vända (kortsiktig reversal).
+    m121, m_short = None, False
+    if len(c) > 253:
+        m121 = (float(c.iloc[-22]) / float(c.iloc[-253]) - 1) * 100
+    elif len(c) > 127:
+        m121 = (float(c.iloc[-22]) / float(c.iloc[-127]) - 1) * 100   # 6-1 som reserv
+        m_short = True
+
+    # --- volatilitet: årlig standardavvikelse på dagsavkastning (126 dagar) ---
+    vol = None
+    try:
+        rr = c.pct_change().dropna()
+        if len(rr) >= 60:
+            vol = float(rr.iloc[-126:].std() * (252 ** 0.5) * 100)
+    except Exception:
+        vol = None
+
+    # --- likviditet: snittomsättning per dag (20 dagar), omräknad till USD ---
+    FXU = {"USD": 1.0, "SEK": 0.10, "NOK": 0.096, "DKK": 0.147, "EUR": 1.08, "GBp": 0.0127,
+           "GBX": 0.0127, "GBP": 1.27, "CHF": 1.12, "JPY": 0.0066, "HKD": 0.128, "CAD": 0.73,
+           "TWD": 0.031, "INR": 0.0119, "AUD": 0.65, "KRW": 0.00072, "NZD": 0.60, "BRL": 0.18}
+    adv = None
+    try:
+        v20s = vols.iloc[-20:].astype(float)
+        p20s = c.iloc[-len(v20s) - 1:-1].astype(float)
+        adv = float((v20s.values * p20s.values).mean()) * FXU.get((mk0 or {}).get("ccy", "USD"), 1.0)
+    except Exception:
+        adv = None
     v20 = float(vols.iloc[-20:].mean()) if len(vols) else 0
     volx = float(vols.iloc[-1]) / v20 if v20 else 1.0
     rs = rsi(c)
@@ -552,10 +729,42 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     bo = bool(px > float(last20.max()) and volx >= 1.2 and px > sma50)      # breakout över 20-dagarshögsta på volym
     rng20 = rng                                                              # 20-dagarsintervall i % (variabeln rng skrivs över längre ned)
     stag = bool(rng < 8 and abs(r1) < 3)                                    # stagnation: smalt intervall, ingen rörelse
-    tech = (min(max(r1, 0), 30) / 30 * 25 + min(max(r3, 0), 60) / 60 * 25 + (px > sma50) * 15 + (px > sma200) * 15
-            + (ema12 > ema26) * 10 + min(volx, 3) / 3 * 10)
-    fund = min(max(eg, 0), 50) / 50 * 40 + min(max(rg, 0), 30) / 30 * 40 + min(max(pm, 0), 25) / 25 * 20
-    score = round(tech * .6 + fund * .25 + (sent + 1) / 2 * 15, 1)
+    # ===================== POÄNGMODELL v2 =====================
+    # Kärnan är 12-1-momentum: tolv månaders avkastning utan den senaste månaden.
+    # Volatilitetsjusteringen testades i backtestet och togs bort: den kostade 4,7
+    # procentenheter per år (10,6 % mot 15,3 %). Ren 12-1-avkastning fungerar bättre.
+    if m121 is not None:
+        mom = min(max(m121, 0), 80) / 80 * 100
+        if m_short: mom *= 0.85                            # 6-1 som reserv är mindre tillförlitlig
+    else:
+        mom = min(max(r3, 0), 60) / 60 * 100               # reserv när historiken är kort
+
+    # Trendkvalitet: rätt ordning på glidande medelvärden och stigande långtidstrend
+    trend = ((px > sma50) * 30 + (px > sma200) * 30 + (sma50 > sma200) * 20 + (sma200 > sma200_prev) * 20)
+
+    volconf = min(volx, 2.5) / 2.5 * 100                   # volymbekräftelse
+
+    # Överhettning: extrem uppgång senaste månaden och extremt RSI vänder oftare ned
+    heat = 0.0
+    if r1 > 25: heat += min((r1 - 25) / 25, 1) * 15
+    if rs > 80: heat += min((rs - 80) / 15, 1) * 10
+
+    tech = max(0.0, min(100.0, mom * .55 + trend * .30 + volconf * .15 - heat))
+
+    # Fundamenta: tillväxt + kvalitet (marginal och avkastning på eget kapital)
+    roe = info.get("returnOnEquity")
+    fund = (min(max(eg, 0), 50) / 50 * 35 + min(max(rg, 0), 30) / 30 * 35
+            + min(max(pm, 0), 25) / 25 * 15 + min(max((roe or 0) * 100, 0), 35) / 35 * 15)
+
+    # Nyhetssentimentet ingick tidigare med 5 %. Det byggde på att räkna positiva och negativa
+    # ord i rubriker, vilket inte fångar innebörden i en nyhet. Komponenten är borttagen ur poängen.
+    # Sentimentet sparas fortfarande i posten och visas i appen, men styr inte urvalet.
+    score = tech * .62 + fund * .38
+
+    # Likviditeten bedöms relativt den egna börsen i efterpasset (rel_liquidity).
+    # Här dras bara av för aktier som är otradbara i absoluta tal, oavsett marknad.
+    if adv is not None and adv < 150_000: score -= 20
+    score = round(max(0.0, min(100.0, score)), 1)
 
     hit = bool(chg >= 5 or (us and px - pc >= 3) or pre_vol >= 50_000)
     c1 = bool(px > float(prev["High"])); c2 = bool(pc > sma200_prev) if sma200_prev == sma200_prev else None
@@ -583,14 +792,14 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "adv": (round(adv) if adv else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "hi": round(float(max(closes[-252:])), 2), "lo": round(float(min(closes[-252:])), 2),
             "gr": gr, "grn": sum(grc), "grc": grc, "ey": num(ey), "roc": num(roc), "mfr": {}, "mf": False, "_ex": excl,
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
-            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
+            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"), "ed": (earn_date(info) if info else None),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
             "inf": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
@@ -946,10 +1155,22 @@ def main():
                                  "reg": e.get("reg") or base.get("reg"), "mixed": bool(e.get("mixed")), "light": bool(base.get("light")), "source": []})
         for t in tickers:
             if k not in uni.setdefault(t, []): uni[t].append(k)
-    extra = [t for t in read_extra() if t not in uni]
+    # Universumet definieras av börslistorna. holdings.txt lägger till enskilda aktier som
+    # inte fångas av något index (t.ex. TSM och Samsungs GDS, som är utländska bolag och
+    # därför saknas i S&P 500 respektive FTSE). De analyseras och rankas EXAKT som alla
+    # andra aktier – de får varken bonus eller avdrag för att de står i filen.
+    owned = []
+    try:
+        owned = [l.split("#")[0].strip() for l in open("holdings.txt", encoding="utf-8")]
+        owned = [t for t in owned if t and t not in uni]
+    except OSError:
+        pass
+    if owned:
+        print(f"Aktier från holdings.txt (rankas som alla andra): {len(owned)} st")
+    extra = owned
     if extra:
         markets_used.append({"k": "EXTRA", "n": "Egna tickers", "flag": "⭐", "cur": "$", "ccy": "USD", "hidden": True, "mixed": True, "source": extra})
-        for t in extra: uni[t] = ["EXTRA"]
+        for t in extra: uni[t] = ["OWNED"]   # bara en etikett för var de kom ifrån, ingen särbehandling
     tickers = list(uni)
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
 
@@ -1000,7 +1221,28 @@ def main():
         except Exception as e:
             dropped.append([t, "analysfel: " + str(e)[:60], uni[t]])
             print("Hoppar över", t, "–", e)
+    rel_liquidity(recs)
     print(f"Analys: {len(recs)} aktier klara, {len(dropped)} saknas (Yahoo saknar data eller för kort historik).")
+
+    # Piotroski F-score hämtas bara för de bäst rankade – varje aktie kostar tre extra anrop
+    try:
+        FS_TOP = 70
+        cand = sorted(recs.values(), key=lambda r: -r["sc"])[:FS_TOP]
+        print(f"Hämtar Piotroski F-score för {len(cand)} toppkandidater…", flush=True)
+        def _fs(r):
+            try:
+                p, n = piotroski(yf.Ticker(r["t"]))
+                return r["t"], p, n
+            except Exception:
+                return r["t"], None, 0
+        done = 0
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            for t, p, n in ex.map(_fs, cand):
+                if p is not None:
+                    recs[t]["fs"], recs[t]["fsn"] = p, n; done += 1
+        print(f"  F-score klart för {done} av {len(cand)} aktier", flush=True)
+    except Exception as e:
+        print("  F-score hoppades över:", str(e)[:80])
     if len(recs) < max(10, 0.3 * len(deep)):
         print(f"FEL: bara {len(recs)} av {len(deep)} aktier kunde analyseras. Behåller gamla data.json.")
         sys.exit(1)
@@ -1030,7 +1272,7 @@ def main():
            "stocks": recs, "rank": rank, "dtx": dtx,
            "news": {t: n for t, n in news.items() if n and t in recs},
            "feed": feed,
-           "stats": {"extra_list": read_extra(), "universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
+           "stats": {"extra_list": [], "universe": len(tickers), "ok": len(recs), "list_fallback": dict(LIST_WARN), "lists": LISTS_META,
                      "list_changes": {k: v["changes"][0] for k, v in _CACHE.items() if v.get("changes") and v["changes"][0]["ts"] >= (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=30)).strftime("%Y-%m-%d")}, "dropped": dropped[:600], "light": light_stats, "news_yahoo": n_yahoo, "news_benzinga": bz_ok, "news_fallback": fb_ok, "info_ok": sum(1 for t in recs if info.get(t)),
                      "news_tickers": sum(1 for t in recs if news.get(t)), "feed_items": len(feed), "feed_src": dict(FEED_STATS),
                      "news_err": NEWS_DIAG["err"], "news_last_err": NEWS_DIAG["last"]}}
@@ -1073,15 +1315,14 @@ def news_live():
     except Exception: D = {}
     stocks, rank = D.get("stocks", {}), D.get("rank", {})
     want = []
-    try: want += [l.split("#")[0].strip() for l in open("news_tickers.txt", encoding="utf-8")]      # t.ex. dina innehav
-    except OSError: pass
     want += rank.get("ALL", {}).get("mom", [])[:15]
     for k, r in rank.items():
         if k not in ("ALL", "DT"): want += r.get("mom", [])[:3]
     want += rank.get("DT", {}).get("cand", [])[:10]
-    ex = (D.get("stats") or {}).get("extra_list", [])
-    if ex:
-        i0 = (int(time.time() // 900) * 20) % len(ex); want += (ex + ex)[i0:i0 + 20]               # roterande del av din aktielista
+    # Nyheterna följer rankningen, inte någon personlig lista: de högst rankade aktierna
+    # på varje marknad får färska nyheter, oavsett vilken börs de tillhör.
+    for k, r in rank.items():
+        if k not in ("ALL", "DT"): want += r.get("mom", [])[3:8]
     want = [t for t in dict.fromkeys(w for w in want if w)][:100]
     feed = fetch_feeds()
     def one(t):
