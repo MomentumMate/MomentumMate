@@ -11,7 +11,15 @@ import json, os, io, re, sys, time, math, datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
+import logging
 import pandas as pd, requests, yfinance as yf
+
+# yfinance loggar varje 401/429 från Yahoo. De är ofarliga (biblioteket gör om anropet)
+# men dränker loggen i tusentals rader, vilket gjorde riktiga fel omöjliga att hitta.
+for _lg in ("yfinance", "yfinance.data", "yfinance.utils", "yfinance.scrapers",
+            "peewee", "urllib3", "requests"):
+    logging.getLogger(_lg).setLevel(logging.CRITICAL)
+logging.getLogger().setLevel(logging.WARNING)
 
 UA = {"User-Agent": "Mozilla/5.0"}
 BENZ = os.getenv("BENZINGA_KEY")
@@ -282,7 +290,6 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("Bloomberg", "https://feeds.bloomberg.com/markets/news.rss"),
     ("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
-    ("Yahoo Finance", "https://finance.yahoo.com/news/rssindex"),
     ("Dagens industri", "https://www.di.se/rss"),
     ("Google News – marknaden", "https://news.google.com/rss/search?q=stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – senaste timmen", "https://news.google.com/rss/search?q=stocks+OR+nasdaq+OR+earnings+when:1h&hl=en-US&gl=US&ceid=US:en"),
@@ -375,8 +382,15 @@ def _clean(s, n=170):
 NEWS_DIAG = {"err": 0, "last": ""}
 FEED_STATS = {}
 
+# Yahoos aktienyheter slutade fungera hösten 2026: 0 träffar av 1876 aktier och
+# hundratals strypta anrop per körning. Benzinga och Google News täcker behovet.
+# Sätt YF_NEWS=1 som miljövariabel för att prova Yahoo igen.
+YF_NEWS = os.environ.get("YF_NEWS") == "1"
+
 def get_news(t):
     items = []
+    if not YF_NEWS:
+        return items
     try:
         for n in (yf.Ticker(t).news or [])[:8]:
             c = n.get("content") or n
@@ -1292,7 +1306,7 @@ def main():
     bz_try, bz_ok = fill_benzinga(recs, news, rank)
     fb_try, fb_ok = fill_news(recs, news, rank)
     feed = fetch_feeds()
-    print(f"Nyheter: Yahoo gav nyheter för {n_yahoo}/{len(recs)} aktier (fel: {NEWS_DIAG['err']}, senast: {NEWS_DIAG['last'] or '–'}); "
+    print(f"Nyheter: Yahoo {'avstängt' if not YF_NEWS else f'{n_yahoo}/{len(recs)} aktier'} (fel: {NEWS_DIAG['err']}, senast: {NEWS_DIAG['last'] or '–'}); "
           f"Benzinga: {bz_ok}/{bz_try}; reserv Google News: {fb_ok}/{fb_try}; marknadsflöde: {len(feed)} artiklar {dict(FEED_STATS)}")
     dtx = {}
     dt_ids = dtx_targets(rank["DT"], recs)
