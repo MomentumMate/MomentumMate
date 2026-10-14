@@ -169,7 +169,25 @@ def stoxx600():
     Wikipedia listar bolagen med Yahoo-kompatibla tickers i kolumnen Ticker."""
     return _wiki("https://en.wikipedia.org/wiki/STOXX_Europe_600", ["ticker", "symbol"], [], 300, key="STOXX600")
 
-def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], [], 300, key="SP400")
+SP400_FALLBACK = [
+    "AAON","ACIW","ACM","AFG","AGCO","ALTR","AMED","AMG","AN","ANF","AR","ARW","ASB","ASGN","ATI","AVNT","AVT",
+    "AYI","BC","BCO","BDC","BHF","BJ","BLD","BRBR","BRX","BYD","CBT","CC","CELH","CGNX","CHDN","CHE","CHX","CIEN",
+    "CLF","CMC","CNO","COKE","COLM","CPRI","CR","CRI","CRS","CUZ","CW","CXT","DAR","DCI","DINO","DKS","DLB","DOCS",
+    "DT","DTM","DY","EEFT","EHC","ELF","ENS","EPR","EQH","ESAB","ESNT","EVR","EWBC","EXEL","EXLS","EXP","FAF","FBIN",
+    "FCN","FHI","FHN","FIVE","FLR","FLS","FNB","FND","FNF","FOUR","FR","FYBR","G","GAP","GATX","GBCI","GEF","GHC",
+    "GME","GNTX","GPK","GT","GTLS","GXO","H","HAE","HGV","HIW","HOG","HOMB","HQY","HRB","HWC","HXL","IBOC","IDA",
+    "INGR","IRT","ITT","JAZZ","JEF","JHG","JLL","KBH","KBR","KD","KEX","KNF","KNSL","KNX","KRC","LAD","LANC","LECO",
+    "LFUS","LITE","LIVN","LNTH","LOPE","LSTR","M","MAN","MAT","MDU","MIDD","MKSI","MMS","MSA","MSM","MTG","MTN",
+    "MTSI","MTZ","MUR","MUSA","NEU","NFG","NJR","NOV","NSA","NSP","NVST","NVT","NWE","NXST","NYT","OGE","OGS","OHI",
+    "OLED","OLN","ONB","ORA","ORI","OSK","OVV","OZK","PAG","PB","PBF","PCH","PEN","PII","PK","PLNT","PNFP","PNM",
+    "POR","POST","PR","PRGO","PSTG","PVH","QLYS","R","RBC","RGA","RGLD","RH","RIG","RLI","RNR","RPM","RRC","RRX",
+    "RYAN","RYN","SAIA","SAIC","SAM","SBRA","SCI","SEE","SF","SFM","SIGI","SITE","SLAB","SLGN","SLM","SMG","SNV",
+    "SNX","SON","SPB","SR","SSB","SSD","ST","STAG","STWD","SWX","SYNA","TCBI","TEX","TGNA","THG","THO","TKR","TMHC",
+    "TNET","TNL","TPH","TPX","TREX","TTC","TTEK","TXNM","TXRH","UBSI","UFPI","UGI","UMBF","UNM","USFD","UTHR","VAL",
+    "VC","VLY","VMI","VNO","VNT","VOYA","VVV","WBS","WCC","WEX","WH","WHR","WING","WLK","WMG","WSO","WTFC","WTRG",
+    "WTS","X","XRAY","YETI","ZI","ZION"]
+
+def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], SP400_FALLBACK, 300, key="SP400")
 def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400, key="SP600")
 
 LIGHT_TOP = 120            # antal aktier per hel börs som får full analys
@@ -1175,6 +1193,9 @@ def main():
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
 
     mk_by = {m["k"]: m for m in markets_used}
+    # holdings.txt-aktierna tillhör ingen börslista. De behöver ändå en marknadspost,
+    # annars kastas de när kursdata ska tolkas (valuta, flagga, tidszon).
+    mk_by["OWNED"] = {"k": "OWNED", "n": "Övriga innehav", "flag": "🏳", "cur": "$", "ccy": "USD", "reg": None}
     light_keys = {m["k"] for m in markets_used if m.get("light")}
     light_only = {t for t in tickers if uni[t] and all(k in light_keys for k in uni[t])}
     core = [t for t in tickers if t not in light_only]
@@ -1189,10 +1210,29 @@ def main():
     deep = [t for t in tickers if t in selected or t not in light_only]
     us = [t for t in deep if is_us(t) and t in daily]
     print("Hämtar pre-market/intradag…"); intra = dl(us, period="5d", interval="5m", prepost=True)
+    # Förurval på ren teknik: 12-1-momentum och trend. Nyckeltal hämtas bara för dessa,
+    # eftersom Yahoo börjar neka anrop långt före 1600 aktier (942 saknade info i förra körningen).
+    cand = [t for t in deep if t in daily]
+    INFO_CAP = 850
+    if len(cand) > INFO_CAP:
+        def pre(t):
+            try:
+                c = daily[t]["Close"].dropna()
+                if len(c) < 260: return -9e9
+                m = (float(c.iloc[-22]) / float(c.iloc[-253]) - 1) * 100
+                s50 = float(c.iloc[-50:].mean()); s200 = float(c.iloc[-200:].mean())
+                return m + (10 if float(c.iloc[-1]) > s200 else -10) + (5 if s50 > s200 else -5)
+            except Exception:
+                return -9e9
+        keep = set(sorted(cand, key=pre, reverse=True)[:INFO_CAP])
+        keep |= {t for t in cand if "OWNED" in uni.get(t, [])}      # egna innehav alltid med
+        skipped = len(cand) - len(keep)
+        cand = [t for t in cand if t in keep]
+        print(f"  nyckeltal hämtas för {len(cand)} aktier med bäst teknik ({skipped} svagare hoppas över)")
     print("Hämtar nyckeltal och nyheter…")
     info, news = {}, {}
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        for i, (t, inf, nw) in enumerate(ex.map(enrich, [t for t in deep if t in daily])):
+        for i, (t, inf, nw) in enumerate(ex.map(enrich, cand)):
             info[t], news[t] = inf, nw
             if (i + 1) % 100 == 0: print(f"  {i + 1} klara", flush=True)
 
