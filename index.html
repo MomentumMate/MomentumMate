@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-14-d";
+const APPV="2026-10-14-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1985,7 +1985,7 @@ function holdingsSheet(){
    Växlingsavgift 0,25 % vid BÅDE köp och försäljning av utländska värdepapper i depå.
    Den syns aldrig som egen rad på avräkningsnotan – den ligger i valutakursen.
    Transaktionsskatt vid KÖP: Storbritannien 0,50 %, Frankrike 0,40 %, Spanien 0,20 %, Italien 0,10 %. */
-const FEE_DEF={fx:0.30,plan:"sjalv"};   // uppmätt på egna avräkningsnotor 2026-10-12
+const FEE_DEF={fx:0.266,plan:"sjalv"};   // median uppmätt på 8 köp/säljpar inom 12 min, 2026-10-09 och 10-12
 const FEE_PLANS={
   sjalv:{n:"Egna order (internetbank/kapitalförsäkring)",cour:0.09,minSE:1,minFX:29},
   market:{n:"Market Access (Private Banking)",cour:0.25,minSE:125,minFX:250,mon:499,moms:true},
@@ -2030,7 +2030,7 @@ function feeSheet(){const F=feeCfg();
   <p class="mu" style="margin-top:-4px">Används i förslagen och i handelsplanen. Standardvärdena är Nordeas prislista från 2025-11-28.</p>
   <label class="fld"><span>Prisplan</span><select id="fp">${Object.entries(FEE_PLANS).map(([k,v])=>`<option value="${k}"${F.plan===k?" selected":""}>${esc(v.n)} – ${v.cour} %</option>`).join("")}</select></label>
   <label class="fld"><span>Växlingsavgift utländsk valuta (% per affär)</span><input id="ffx" type="number" step="any" value="${F.fx}"></label>
-  <div class="mu" style="font-size:11.5px;margin:-2px 0 8px">Prislistan anger 0,25 %. Mätt på dina egna notor från 2026-10-12 (sälj 9,99410 kl 16:50 mot köp 10,05563 och 10,06152 kl 17:25 och 17:38) blir spreaden 0,61–0,67 % tur och retur, alltså omkring 0,30 % per sida. Standardvärdet är satt till det uppmätta.</div>
+  <div class="mu" style="font-size:11.5px;margin:-2px 0 8px">Uppmätt på åtta köp- och säljpar inom tolv minuter från 2026-10-09 och 2026-10-12: <b>median 0,266 % per sida</b>, spann 0,238–0,300 %. Prislistans 0,25 % stämmer alltså i stort. Avgiften syns aldrig som egen rad – den ligger i valutakursen.</div>
   <div class="mu" style="font-size:11.5px;margin:-2px 0 10px">I kapitalförsäkring utlöser ett byte <b>ingen reavinstskatt</b> – du betalar schablonskatt på kapitalet oavsett hur ofta du handlar. Därför är courtage och växling hela kostnaden för ett byte.<br><br>Växlingsavgiften tas ut vid <b>både köp och försäljning</b> och syns aldrig som egen rad på avräkningsnotan – den ligger inbakad i valutakursen. På din Alphabet-affär var courtaget 287 kr men växlingen omkring 797 kr.<br><br>Transaktionsskatt vid köp läggs till automatiskt: Storbritannien 0,50 %, Frankrike 0,40 %, Spanien 0,20 %, Italien 0,10 %.</div>
   <div class="g"><div><small>500 000 kr, USA</small><b>${f(roundTrip(500000,"AAPL").pct,2)} % t/r</b></div>
    <div><small>500 000 kr, Sverige</small><b>${f(roundTrip(500000,"VOLV-B.ST").pct,2)} % t/r</b></div>
