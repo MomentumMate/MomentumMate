@@ -134,6 +134,31 @@ def period_ends(idx, freq="M"):
     else:             key = [idx.year]
     return list(s.groupby(key).last())
 
+def decay_panels(close, vol, cfg):
+    """Tre mått på att momentum håller på att ta slut, till skillnad från att ha tagit slut.
+
+    obv   – on balance volume: volymen adderas när kursen stiger och dras bort när den
+            faller. Faller OBV medan kursen står still köps aktien på tunn handel och
+            säljs på tjock, alltså att köpstyrkan mattas av.
+    ath   – avstånd till högsta notering, och hur det avståndet rört sig senaste månaden.
+    lower – antal veckor i rad med lägre toppar ("ner ner upp ner ner upp").
+    """
+    out = {}
+    if cfg.get("exit_obv") or cfg.get("buy_obv"):
+        sgn = np.sign(close.diff()).fillna(0)
+        obv = (sgn * vol.fillna(0)).cumsum()
+        out["obv_slope"] = obv.diff(20) / obv.rolling(60, min_periods=30).std().replace(0, np.nan)
+    if cfg.get("exit_ath") or cfg.get("buy_ath"):
+        ath = close.cummax()
+        gap = (ath - close) / ath.replace(0, np.nan) * 100      # procent under högsta notering
+        out["ath_gap"] = gap
+        out["ath_worse"] = gap - gap.shift(21)                   # hur mycket sämre på en månad
+    if cfg.get("exit_lower") or cfg.get("buy_lower"):
+        hi5 = close.rolling(5, min_periods=3).max()
+        low = (hi5 < hi5.shift(5)).astype(float)
+        out["lower_tops"] = low.rolling(30, min_periods=10).sum() / 6.0   # veckor med lägre topp
+    return out
+
 def exit_panels(close, cfg):
     """Nivåer för de utgångar som inte är ett fast procentstopp."""
     out = {}
@@ -187,6 +212,7 @@ def run(close, vol, cfg, vix=None):
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
     EX = exit_panels(close, cfg)
+    DK = decay_panels(close, vol, cfg)
     # Rekylkrav: en kandidat får köpas först när kursen fallit en viss andel från sin
     # högsta nivå de senaste N dagarna. 23,6 / 38,2 / 50 / 61,8 % av rekylen motsvarar
     # Fibonaccinivåerna; de testas som vilka trösklar som helst.
@@ -259,6 +285,16 @@ def run(close, vol, cfg, vix=None):
             if why is None and "atr" in EX:
                 a = EX["atr"].iat[i, close.columns.get_loc(t)]
                 if a == a and px <= h["peak"] - cfg["exit_atr"] * a: why = "atr"
+            ci = close.columns.get_loc(t)
+            if why is None and cfg.get("exit_obv"):
+                v = DK["obv_slope"].iat[i, ci]
+                if v == v and v < cfg["exit_obv"]: why = "obv"
+            if why is None and cfg.get("exit_ath"):
+                g = DK["ath_gap"].iat[i, ci]; w = DK["ath_worse"].iat[i, ci]
+                if g == g and w == w and g > cfg["exit_ath"] and w > cfg.get("ath_worse_min", 5): why = "ath"
+            if why is None and cfg.get("exit_lower"):
+                v = DK["lower_tops"].iat[i, ci]
+                if v == v and v >= cfg["exit_lower"]: why = "lägre toppar"
             if why is None and cfg.get("exit_score", 0) > 0:
                 s_ = sc.iat[i, close.columns.get_loc(t)]
                 if s_ == s_ and s_ < cfg["exit_score"]: why = "svag poäng"
@@ -376,6 +412,20 @@ def run(close, vol, cfg, vix=None):
                         lo_t, hi_t = cfg["pullback"], cfg.get("pb_max", 1.0)
                         cand_all = [t for t in cand_all
                                     if (row_pb.get(t) == row_pb.get(t)) and lo_t <= row_pb.get(t) <= hi_t]
+                    if cfg.get("buy_obv") or cfg.get("buy_ath") or cfg.get("buy_lower"):
+                        def fresh(t):
+                            ci2 = close.columns.get_loc(t)
+                            if cfg.get("buy_obv"):
+                                v = DK["obv_slope"].iat[i, ci2]
+                                if v == v and v < cfg["buy_obv"]: return False
+                            if cfg.get("buy_ath"):
+                                g = DK["ath_gap"].iat[i, ci2]
+                                if g == g and g > cfg["buy_ath"]: return False
+                            if cfg.get("buy_lower"):
+                                v = DK["lower_tops"].iat[i, ci2]
+                                if v == v and v >= cfg["buy_lower"]: return False
+                            return True
+                        cand_all = [t for t in cand_all if fresh(t)]
                     picks = cand_all[:room]
                     tot = value(i)
                     for t in picks:
@@ -437,6 +487,8 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            vix_cut=0, vix_q=0.80, vix_win=504,
            port_sek=10_000_000.0, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
            pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0,
+           exit_obv=0, exit_ath=0, ath_worse_min=5, exit_lower=0,
+           buy_obv=0, buy_ath=0, buy_lower=0,
            mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5)
 
 def main():
@@ -455,6 +507,7 @@ def main():
     ap.add_argument("--mix", action="store_true", help="bästa kombination av antal, marknad och hålltid per portföljstorlek")
     ap.add_argument("--freq", action="store_true", help="hur ofta lönar det sig att handla?")
     ap.add_argument("--conc", action="store_true", help="få innehav, inget stopp, låt vinnare löpa")
+    ap.add_argument("--decay", action="store_true", help="fångar volymbalans, ATH-avstånd och lägre toppar försämring i tid?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -499,6 +552,58 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Försämringstest: upptäcker måtten att momentum mattas av, i tid? ----------
+    if a.decay:
+        B = dict(voladj=False, n=20, band_out=30, stop=15, reweight=True, reb="Q",
+                 refill_days=21, port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "0. Referens: dagens modell":                      dict(B),
+            "--- som UTGÅNG (sälj när måttet försämras) ---":  None,
+            "A. Volymbalans faller (OBV under -1)":             dict(B, exit_obv=-1.0),
+            "B. Volymbalans faller kraftigt (OBV under -2)":    dict(B, exit_obv=-2.0),
+            "C. 25 % under ATH och försämrats 10 p på en mån":  dict(B, exit_ath=25, ath_worse_min=10),
+            "D. 35 % under ATH och försämrats 10 p":            dict(B, exit_ath=35, ath_worse_min=10),
+            "E. 3 veckor i rad med lägre toppar":               dict(B, exit_lower=3),
+            "F. 4 veckor i rad med lägre toppar":               dict(B, exit_lower=4),
+            "G. OBV under -1 OCH 3 veckor lägre toppar":        dict(B, exit_obv=-1.0, exit_lower=3),
+            "--- som KÖPFILTER (köp inte när måttet är dåligt) ---": None,
+            "H. Köp inte när volymbalansen faller":             dict(B, buy_obv=-1.0),
+            "I. Köp inte mer än 25 % under ATH":                dict(B, buy_ath=25),
+            "J. Köp inte mer än 15 % under ATH":                dict(B, buy_ath=15),
+            "K. Köp inte vid 3 veckor lägre toppar":            dict(B, buy_lower=3),
+            "L. Alla tre köpfiltren":                           dict(B, buy_obv=-1.0, buy_ath=25, buy_lower=3),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Försämringsmått, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   {'likaviktat snitt av universumet':<52}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None:
+                print(f"\n   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                ut = st.get("utgångar", {})
+                extra = " ".join(f"{k}:{v}" for k, v in ut.items() if k in ("obv", "ath", "lägre toppar"))
+                print(f"   {nm:<52}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d  {extra}")
+            except Exception as ex:
+                print(f"   {nm:<52} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        ref = ok.get("0. Referens: dagens modell", {}).get("CAGR_%", 0)
+        bet = [k for k in ok if ok[k]["CAGR_%"] > ref + 1]
+        print(f"\n   Referensen gav {ref} %.")
+        print(f"   Varianter som slog den med mer än 1 procentenhet: {', '.join(bet) if bet else 'INGEN'}")
+        print(f"   (slumpvariationen mellan körningar är 2–3 procentenheter – var skeptisk)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "försämring", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "referens": ref, "bättre_än_referens": bet, "varianter": res,
+               "varning": "Survivorship bias. Slumpvariationen mellan körningar är 2–3 procentenheter."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Koncentrationstest: få innehav som får löpa tills momentum tar slut ----------
     if a.conc:
