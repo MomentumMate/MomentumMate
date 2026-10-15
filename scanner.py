@@ -249,6 +249,24 @@ PRESETS = {
     "TSX": {"n": "Kanada (TSX)", "flag": "🇨🇦", "cur": "C$", "ccy": "CAD", "reg": None, "tickers": [
         "RY.TO","TD.TO","ENB.TO","CNR.TO","BN.TO","BMO.TO","CP.TO","BNS.TO","TRP.TO","CNQ.TO",
         "SU.TO","ATD.TO","MFC.TO","SHOP.TO","CM.TO","WCN.TO","NTR.TO","IFC.TO","FTS.TO","AEM.TO"]},
+    # Depåbevis (ADR/GDR) noterade i New York och London. Ger exponering mot Asien och
+    # tillväxtmarknader i papper som GÅR ATT HANDLA i Nordea, till skillnad från Tokyo,
+    # Taipei och Seoul som banken inte når. Handlas i USD/GBP med vanligt utlandscourtage.
+    "ADR": {"n": "Depåbevis (Asien m.fl.)", "flag": "🌏", "cur": "$", "ccy": "USD", "reg": None, "tickers": [
+        # --- Noterade på NYSE eller Nasdaq: full likviditet, normal handel ---
+        "TSM","SONY","TM","HMC","MUFG","SMFG","MFG","NMR","CAJ","IX",              # Taiwan, Japan
+        "BABA","PDD","JD","NTES","BIDU","TCOM","BEKE","YUMC","ZTO","LI","NIO","XPEV","BILI","TME","VIPS",  # Kina
+        "INFY","WIT","HDB","IBN","RDY","MMYT","AZRE",                               # Indien
+        "KB","SHG","WF","PKX","KEP",                                                # Sydkorea
+        "SE","GRAB","CPNG",                                                         # Sydostasien
+        "BHP","RIO","WDS",                                                          # Australien
+        "VALE","ITUB","BBD","PBR","ABEV","GGB","BSBR","ERJ",                        # Latinamerika
+        "SHEL","BP","AZN","GSK","UL","DEO","NGG","BTI","RELX","LYG","NWG","HSBC",   # Storbritannien
+        "SAP","SNY","TTE","BUD","STLA","PHG","ING","ASML","ARM","SPOT","NVO",       # Europa
+        # --- Noterade över disk (OTC): ofta tunn handel, likviditetsfiltret sållar ---
+        "TOELY","ATEYY","TCEHY","NTDOY","HTHIY","SSNLF","BYDDY","HYMTF","MARUY","FUJIY","DNZOY","KYOCY"]},
+    "SMSN": {"n": "Depåbevis London", "flag": "🇬🇧", "cur": "$", "ccy": "USD", "reg": "EU", "tickers": [
+        "SMSN.IL","TATA.IL","HDFC.IL","INFY.IL","RIGD.IL"]},
     "STOXX600": {"n": "STOXX Europe 600", "flag": "🇪🇺", "cur": "€", "ccy": "EUR", "reg": "EU", "mixed": True, "tickers": stoxx600},
     "SP400": {"n": "S&P MidCap 400", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp400},
     "SP600": {"n": "S&P SmallCap 600", "flag": "🇺🇸", "cur": "$", "ccy": "USD", "reg": None, "tickers": sp600},
@@ -267,7 +285,7 @@ PRESETS = {
         "ENEL.MI","ISP.MI","UCG.MI","ENI.MI","STLAM.MI","RACE.MI","G.MI","MB.MI","PRY.MI","LDO.MI","TRN.MI","SRG.MI","BAMI.MI","BPE.MI","MONC.MI","CPR.MI","DIA.MI","REC.MI","TIT.MI","AMP.MI"]},
 }
 DEFAULT_PRESETS = ("OMXC", "OSE", "OMXH", "DAX", "CAC", "FTSE", "AEX", "SMI", "IBEX", "MIB",
-                   "SP400", "SP600", "STOXX600")   # mellanstora och mindre bolag, symmetriskt USA/Europa
+                   "SP400", "SP600", "STOXX600", "ADR", "SMSN")   # mellanstora och mindre bolag, symmetriskt USA/Europa
 # Breddad 2026-10: backtestet visade att modellen fungerar bäst i Norden och Europa,
 # men poolen var starkt USA-tung. Fler europeiska börser jämnar ut urvalet.
 GROUP_NAMES = {"EU": ("Europa", "🇪🇺")}

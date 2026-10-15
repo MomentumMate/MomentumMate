@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-13-f";
+const APPV="2026-10-14-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -602,9 +602,10 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
+    $("#fes").onclick=()=>{closeSheet();setTimeout(feeSheet,260)};
     $("#rbs").onclick=()=>{closeSheet();setTimeout(()=>rebSheet(pid),260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
     $("#rls").onclick=()=>{closeSheet();setTimeout(()=>rulesSheet(pid),260)};
@@ -656,6 +657,7 @@ function act(a,d){
     case"newpf":newPfSheet();break;
     case"plansheet":planSheet(d.t,d.pid||P.cur);break;
     case"rebset":rebSheet(d.pid);break;
+    case"feesheet":feeSheet();break;
     case"rebdone":{const p=getP(d.pid);if(p&&p.reb){p.reb.last=todayISO();save();route(true);toast("Ombalansering noterad")}break}
     case"proprefresh":refreshSheet(d.pid);break;
     case"rulesedit":rulesSheet(d.pid);break;
@@ -1445,8 +1447,8 @@ async function addWatch(i){
     closeSheet();toast(it.rec?"⭐ Tillagd i Min bevakning – skanning startad":"⭐ Tillagd – analysen kommer efter nästa skanning");route(true);setTimeout(()=>{location.hash="#/desk/WATCH"},350)}
 }
 /* ======================= v8: KORTA MARKNADSKNAPPAR, FLAGGOR, ORDNING, GRAF ======================= */
-const SHORT={SP400:"SP400",SP600:"SP600",NASDAQ_ALL:"Nasdaq+",NYSE_ALL:"NYSE+",ALL:"Alla",EU:"EUR",OMXS:"OMXS",SP500:"SP500",NASDAQ:"Nasdaq",DOW:"DowJ",OMXC:"DK",OSE:"NO",DAX:"DE",CAC:"FR",FTSE:"GB",AEX:"NL",OMXH:"FI",SMI:"CH",IBEX:"ES",MIB:"IT",CRYPTO:"Krypto",WATCH:"Bevakn.",NIKKEI:"JP",TWSE:"TW",HSI:"HK",NIFTY:"IN",ASX:"AU",KOSPI:"KR",TSX:"CA",ASIA:"Asien"};
-const DEF_ORDER=["ALL","EU","ASIA","OMXS","SP500","NASDAQ","DOW","OMXC","OSE","DAX","CAC","FTSE","NIKKEI","TWSE","HSI","NIFTY","KOSPI","ASX","TSX","SP400","SP600","NASDAQ_ALL","NYSE_ALL","AEX","OMXH","SMI","IBEX","MIB","CRYPTO","WATCH"];
+const SHORT={SP400:"SP400",SP600:"SP600",NASDAQ_ALL:"Nasdaq+",NYSE_ALL:"NYSE+",ALL:"Alla",EU:"EUR",OMXS:"OMXS",SP500:"SP500",NASDAQ:"Nasdaq",DOW:"DowJ",OMXC:"DK",OSE:"NO",DAX:"DE",CAC:"FR",FTSE:"GB",AEX:"NL",OMXH:"FI",SMI:"CH",IBEX:"ES",MIB:"IT",CRYPTO:"Krypto",WATCH:"Bevakn.",ADR:"Depåbevis",SMSN:"GDR London",NIKKEI:"JP",TWSE:"TW",HSI:"HK",NIFTY:"IN",ASX:"AU",KOSPI:"KR",TSX:"CA",ASIA:"Asien"};
+const DEF_ORDER=["ALL","EU","ASIA","ADR","OMXS","SP500","NASDAQ","DOW","OMXC","OSE","DAX","CAC","FTSE","NIKKEI","TWSE","HSI","NIFTY","KOSPI","ASX","TSX","SP400","SP600","NASDAQ_ALL","NYSE_ALL","AEX","OMXH","SMI","IBEX","MIB","CRYPTO","WATCH"];
 const MKO="mm_mkorder";
 function orderedMkts(){
   const base=D.markets.filter(m=>!m.hidden);let o=[];try{o=JSON.parse(localStorage.getItem(MKO))||[]}catch(e){}
@@ -1659,10 +1661,17 @@ function propHTML(p,c,sigs,rot,ideas){
     pushG(g,`<div class="sr"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(r.h.t)}${tlink(r.h.t,r.s?r.s.d:r.h.t)}<span class="sig ${k}" style="margin-left:8px">${SIGL[k]}</span> <span class="mu" style="font-size:11px">appens signal · vikt ${f(r.w,1)}%</span></div><div class="mu" style="white-space:normal">${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div></div><div class="p">${btn}</div></div>`,g==="buy"&&r.s?buyPri(r.s,bctx(r)):0)});
   rot.forEach(x=>{if(planHas[x.b.h.t]&&items.some(it=>it.t===x.b.h.t&&it.a==="KÖP"))return;
     G.buy.push({pri:buyPri(x.b.s,bctx(x.b))-1,html:`<div class="sr" data-act="rot" data-pid="${p.id}" data-a="${esc(x.a.h.t)}" data-b="${esc(x.b.h.t)}"><div class="m"><div>@@RANK@@${flag(x.b.h.t)}${tlink(x.b.h.t,x.b.s.d)}<span class="sig BUY" style="margin-left:8px">KÖP MER</span> <span class="mu" style="font-size:11px">omfördelning · appens signal</span></div><div class="mu" style="white-space:normal">Byt ut ${esc(x.a.s.d)} (≈ ${kr(x.a.val)} kr): ${esc(x.a.s.d)} – ${esc(x.wa.join(", "))}. ${esc(x.b.s.d)} – ${esc(x.wb.join(", "))}.</div><div class="mu" style="font-size:11.5px">Tryck för att förifylla omfördelningen.</div></div><span style="color:var(--mu);font-size:22px">›</span></div>`})});
+  const costSum=()=>{const its=pl?pl.items.filter(i=>i.a==="KÖP"||i.a==="SÄLJ"):[];
+    if(!its.length)return"";let tot=0;
+    its.forEach(i=>{const amt=i.q*i.px*fx(i.ccy);tot+=tradeCost(amt,i.t,i.a==="KÖP"?"buy":"sell").tot});
+    const sum=its.reduce((a,i)=>a+i.q*i.px*fx(i.ccy),0);
+    const sma=its.filter(i=>{const a=i.q*i.px*fx(i.ccy);const m=minTrade(i.t);return m&&a<m});
+    return(tot>0?` Beräknad kostnad för hela omgången: ${kr(tot)} kr (${f(tot/Math.max(1,sum)*100,2)} % av omsatt belopp).`:"")
+      +(sma.length?` <b class="dn">${sma.length} av ${its.length} poster är så små att minimicourtaget dominerar – överväg färre och större affärer.</b>`:"")};
   const mixTxt=()=>{const m={};(pl?pl.items.filter(i=>i.a==="KÖP"):[]).forEach(i=>{const s0=S[i.t];const k=s0?MK(s0.m[0]).n:"?";m[k]=(m[k]||0)+1});
     const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);
     return e.length?` Marknader: ${e.map(x=>esc(x[0])+" "+x[1]).join(" · ")}.`:""};
-  const sec=(g,lab)=>{if(!G[g].length)return"";const rows=g==="buy"?G.buy.slice().sort((a,b)=>b.pri-a.pri).map((x,i)=>x.html.replace("@@RANK@@",`<span class="rk">#${i+1}</span>`)):G[g];return`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab} (${G[g].length})</h2></div>${g==="buy"?`<div class="mu" style="font-size:11.5px;margin:0 0 4px">Prioritetsordning: #1 först (momentumpoäng, värdesignaler, RSI, vikt och spridning).${mixTxt()}</div>`:""}${rows.join("")}`};
+  const sec=(g,lab)=>{if(!G[g].length)return"";const rows=g==="buy"?G.buy.slice().sort((a,b)=>b.pri-a.pri).map((x,i)=>x.html.replace("@@RANK@@",`<span class="rk">#${i+1}</span>`)):G[g];return`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab} (${G[g].length})</h2></div>${g==="buy"?`<div class="mu" style="font-size:11.5px;margin:0 0 4px">Prioritetsordning: #1 först (momentumpoäng, värdesignaler, RSI, vikt och spridning).${mixTxt()}${costSum()}</div>`:""}${rows.join("")}`};
   const col=Ui.pcol[p.id]===true;
   const act=items.filter(i=>i.a!=="BEHÅLL"),tot0=(pl&&pl.total)||act.length,done=Math.max(0,tot0-act.length),sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
   return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${tot0} genomförda</span>`:""}<span class="ii" data-act="proprefresh" data-pid="${p.id}" title="Uppdatera förslag och signaler">🔄</span><span class="ii" data-act="propinfo">ⓘ</span><span class="pchev">${col?"▾":"▴"}</span></div>
@@ -1941,6 +1950,8 @@ function planSheet(t,pid){
    <div><small>Mål 2 (3R)</small><b class="up">${f(tp.t2)}</b></div>
    <div><small>Risk/avkastning</small><b>${f(tp.rr,1)}:1</b></div></div>
   <div class="mu" style="white-space:normal;margin:6px 0 2px">${esc(tp.why)} Stoppet ligger under närmaste stöd och som mest ${R.stop} % från köpkursen. ATR (dagssvängning) ${f(tp.atr)} ${esc(u)}.</div>
+  <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">KOSTNAD FÖR AFFÄREN</h2></div>
+  <div id="cst" class="mu" style="margin:2px 0 8px"></div>
   <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">POSITIONSSTORLEK</h2></div>
   <div class="row2"><label class="fld"><span>Kapital (kr)</span><input id="pc" type="number" inputmode="decimal" value="${Math.round(cap)}"></label>
    <label class="fld"><span>Risk per affär (%)</span><input id="pr" type="number" inputmode="decimal" step="any" value="1"></label></div>
@@ -1949,7 +1960,9 @@ function planSheet(t,pid){
   ${ck.rows.map(r=>`<div class="sr"><div class="m"><b>${esc(r.k)}</b><div class="mu">${esc(r.w)}</div></div><div class="p"><b class="${r.p>=8?"up":r.p<=2?"dn":""}">${r.p}</b></div></div>`).join("")}
   <div class="mu" style="margin-top:10px;font-size:11.5px">Nivåerna är räknade ur ATR, närmaste stöd och dina regler. Räkneexempel, ingen rådgivning.</div>`,()=>{
     const upd=()=>{const c=parseFloat($("#pc").value),rp=parseFloat($("#pr").value),ps=posSize(c,rp,tp.entry,tp.stop,s.ccy);
-      $("#psz").innerHTML=ps&&ps.q>0?`Köp <b style="color:var(--tx)">${ps.q} st</b> ≈ ${kr(ps.val)} kr (${f(ps.w,1)} % av kapitalet). Om stoppet nås förlorar du ≈ ${kr(ps.lossKr)} kr.${ps.w>20?' <b class="dn">Varning: över 20 % i en aktie.</b>':""}`:"Ange kapital och risk.";};
+      $("#psz").innerHTML=ps&&ps.q>0?`Köp <b style="color:var(--tx)">${ps.q} st</b> ≈ ${kr(ps.val)} kr (${f(ps.w,1)} % av kapitalet). Om stoppet nås förlorar du ≈ ${kr(ps.lossKr)} kr.${ps.w>20?' <b class="dn">Varning: över 20 % i en aktie.</b>':""}`:"Ange kapital och risk.";
+      const amt=ps&&ps.q>0?ps.val:(c||0)/10,rt=roundTrip(amt,s.t),mål=(tp.t1-tp.entry)/tp.entry*100;
+      $("#cst").innerHTML=`På ${kr(amt)} kr: köp ${kr(rt.buy.tot)} kr (courtage ${kr(rt.buy.cour)}${rt.buy.fx>0?`, växling ${kr(rt.buy.fx)}`:""}${rt.buy.stamp>0?`, transaktionsskatt ${kr(rt.buy.stamp)}`:""}), försäljning ${kr(rt.sell.tot)} kr. <b style="color:var(--tx)">Totalt ${kr(rt.tot)} kr = ${f(rt.pct,2)} %.</b><br>Aktien måste stiga <b style="color:var(--tx)">${f(rt.pct,2)} %</b> för att bytet ska gå jämnt ut. Mål 1 ligger ${f(mål,1)} % bort, alltså ${f(mål/Math.max(0.01,rt.pct),0)} gånger kostnaden.${rt.pct>1?' <b class="dn">Dyr marknad – väg bytet noga.</b>':""}<br>${smallWarn(amt,s.t)}`;};
     ["#pc","#pr"].forEach(x=>{$(x).oninput=upd});upd()})
 }
 function holdingsSheet(){
@@ -1966,6 +1979,70 @@ function holdingsSheet(){
   <button class="btn wide" id="hxc">Kopiera</button>`,()=>{
     $("#hxc").onclick=()=>{const t=$("#hx");t.select();try{document.execCommand("copy")}catch(e){}
       try{navigator.clipboard&&navigator.clipboard.writeText(t.value)}catch(e){}toast("Kopierat")}})
+}
+/* ============ v15: KOSTNADSMODELL (Nordeas prislista 2025-11-28) ============
+   Courtage 0,09 % (min 1 kr nordiskt, 29 kr utländskt) i Nätbanken/Nordea Investor.
+   Växlingsavgift 0,25 % vid BÅDE köp och försäljning av utländska värdepapper i depå.
+   Den syns aldrig som egen rad på avräkningsnotan – den ligger i valutakursen.
+   Transaktionsskatt vid KÖP: Storbritannien 0,50 %, Frankrike 0,40 %, Spanien 0,20 %, Italien 0,10 %. */
+const FEE_DEF={fx:0.30,plan:"sjalv"};   // uppmätt på egna avräkningsnotor 2026-10-12
+const FEE_PLANS={
+  sjalv:{n:"Egna order (internetbank/kapitalförsäkring)",cour:0.09,minSE:1,minFX:29},
+  market:{n:"Market Access (Private Banking)",cour:0.25,minSE:125,minFX:250,mon:499,moms:true},
+  pb:{n:"Börsmäklartjänsten (Private Banking)",cour:0.45,minSE:200,minFX:250,
+      tierSE:{over:500000,cour:0.30}},
+  premium2:{n:"Värdepappersdesken ordinarie",cour:0.50,minSE:250,minFX:500},
+  premium:{n:"Värdepappersdesken Premium",cour:0.25,minSE:125,minFX:250},
+  pbvia:{n:"Via mäklare i Private Banking",cour:0.45,minSE:200,minFX:250}};
+const STAMP={".L":0.50,".IL":0.50,".PA":0.40,".MC":0.20,".MI":0.10};   // skatt vid köp
+const SEK_MKT=new Set(["OMXS"]);                                       // handlas i kronor
+function feeCfg(){try{return Object.assign({},FEE_DEF,JSON.parse(localStorage.getItem("mm_fee"))||{})}catch(e){return Object.assign({},FEE_DEF)}}
+function tradeCost(amtSEK,t,side){
+  const F=feeCfg(),P=FEE_PLANS[F.plan]||FEE_PLANS.natbank,s=S[t]||{};
+  const sek=(s.ccy==="SEK")||SEK_MKT.has((s.m||[])[0])||(!/\./.test(t||"")&&s.ccy==="SEK");
+  let base=amtSEK*P.cour/100;
+  // Börsmäklartjänsten har lägre pris på den del av ett nordiskt belopp som överstiger 500 000 kr
+  if(sek&&P.tierSE&&amtSEK>P.tierSE.over)
+    base=P.tierSE.over*P.cour/100+(amtSEK-P.tierSE.over)*P.tierSE.cour/100;
+  const cour=Math.max(base,sek?P.minSE:P.minFX);
+  const fx=sek?0:amtSEK*F.fx/100;
+  let stamp=0;
+  if(side==="buy")for(const k in STAMP)if((t||"").endsWith(k)){stamp=amtSEK*STAMP[k]/100;break}
+  const tot=cour+fx+stamp;
+  return{cour,fx,stamp,tot,pct:amtSEK>0?tot/amtSEK*100:0,sek,mon:P.mon?P.mon*(P.moms?1.25:1):0};
+}
+function roundTrip(amtSEK,t){
+  const b=tradeCost(amtSEK,t,"buy"),s=tradeCost(amtSEK,t,"sell");
+  return{buy:b,sell:s,tot:b.tot+s.tot,pct:amtSEK>0?(b.tot+s.tot)/amtSEK*100:0};
+}
+function minTrade(t){const F=feeCfg(),P=FEE_PLANS[F.plan]||{},s=S[t]||{};
+  const sek=(s.ccy==="SEK")||SEK_MKT.has((s.m||[])[0]);
+  const min=sek?(P.minSE||0):(P.minFX||0);
+  return P.cour>0?min/(P.cour/100):0;        // beloppet där minimiavgiften slutar dominera
+}
+function smallWarn(amt,t){const m=minTrade(t);if(!m||amt>=m)return"";
+  const c=tradeCost(amt,t,"buy");
+  return`<span class="dn">För liten post: ${kr(amt)} kr ger courtage ${kr(c.cour)} kr = ${f(c.cour/amt*100,2)} % i stället för ${(FEE_PLANS[feeCfg().plan]||{}).cour} %. Handla för minst ${kr(m)} kr.</span>`}
+const costTxt=(amt,t)=>{const r=roundTrip(amt,t);
+  return`Kostnad tur och retur ca ${kr(r.tot)} kr (${f(r.pct,2)} %). Aktien måste stiga ${f(r.pct,2)} % bara för att bytet ska gå jämnt ut.`};
+function feeSheet(){const F=feeCfg();
+  sheet(`<h3>💰 Courtage och avgifter</h3>
+  <p class="mu" style="margin-top:-4px">Används i förslagen och i handelsplanen. Standardvärdena är Nordeas prislista från 2025-11-28.</p>
+  <label class="fld"><span>Prisplan</span><select id="fp">${Object.entries(FEE_PLANS).map(([k,v])=>`<option value="${k}"${F.plan===k?" selected":""}>${esc(v.n)} – ${v.cour} %</option>`).join("")}</select></label>
+  <label class="fld"><span>Växlingsavgift utländsk valuta (% per affär)</span><input id="ffx" type="number" step="any" value="${F.fx}"></label>
+  <div class="mu" style="font-size:11.5px;margin:-2px 0 8px">Prislistan anger 0,25 %. Mätt på dina egna notor från 2026-10-12 (sälj 9,99410 kl 16:50 mot köp 10,05563 och 10,06152 kl 17:25 och 17:38) blir spreaden 0,61–0,67 % tur och retur, alltså omkring 0,30 % per sida. Standardvärdet är satt till det uppmätta.</div>
+  <div class="mu" style="font-size:11.5px;margin:-2px 0 10px">I kapitalförsäkring utlöser ett byte <b>ingen reavinstskatt</b> – du betalar schablonskatt på kapitalet oavsett hur ofta du handlar. Därför är courtage och växling hela kostnaden för ett byte.<br><br>Växlingsavgiften tas ut vid <b>både köp och försäljning</b> och syns aldrig som egen rad på avräkningsnotan – den ligger inbakad i valutakursen. På din Alphabet-affär var courtaget 287 kr men växlingen omkring 797 kr.<br><br>Transaktionsskatt vid köp läggs till automatiskt: Storbritannien 0,50 %, Frankrike 0,40 %, Spanien 0,20 %, Italien 0,10 %.</div>
+  <div class="g"><div><small>500 000 kr, USA</small><b>${f(roundTrip(500000,"AAPL").pct,2)} % t/r</b></div>
+   <div><small>500 000 kr, Sverige</small><b>${f(roundTrip(500000,"VOLV-B.ST").pct,2)} % t/r</b></div>
+   <div><small>500 000 kr, London</small><b>${f(roundTrip(500000,"AZN.L").pct,2)} % t/r</b></div></div>
+  <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">JÄMFÖRELSE</h2></div>
+  <div class="mu" style="font-size:11.5px;margin-bottom:8px">Tur och retur i en USA-aktie om 500 000 kr, och vad 50 sådana byten kostar på ett år.</div>
+  ${Object.entries(FEE_PLANS).map(([k,v])=>{const sv=localStorage.getItem("mm_fee");
+    const per=Math.max(500000*v.cour/100,v.minFX)+500000*(F.fx/100),mon=(v.mon||0)*(v.moms?1.25:1)*12;
+    return`<div class="sr"><div class="m"><b>${esc(v.n)}</b><div class="mu">${v.cour} %${v.mon?` + ${v.mon} kr/mån`:""}</div></div><div class="p"><b>${f(per*2/500000*100,2)} %</b><div class="mu">${kr(per*2*50+mon)} kr/år</div></div></div>`}).join("")}
+  <button class="btn wide" id="fgo">Spara</button>`,()=>{
+    $("#fgo").onclick=()=>{const F2={plan:$("#fp").value,fx:Math.max(0,parseFloat($("#ffx").value)||0)};
+      localStorage.setItem("mm_fee",JSON.stringify(F2));closeSheet();route(true);toast("Avgifter sparade")}})
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
