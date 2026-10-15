@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-14-e";
+const APPV="2026-10-15-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -602,9 +602,10 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
+    $("#sgs").onclick=()=>{closeSheet();setTimeout(sigSheet,260)};
     $("#fes").onclick=()=>{closeSheet();setTimeout(feeSheet,260)};
     $("#rbs").onclick=()=>{closeSheet();setTimeout(()=>rebSheet(pid),260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
@@ -658,6 +659,7 @@ function act(a,d){
     case"plansheet":planSheet(d.t,d.pid||P.cur);break;
     case"rebset":rebSheet(d.pid);break;
     case"feesheet":feeSheet();break;
+    case"sigsheet":sigSheet();break;
     case"rebdone":{const p=getP(d.pid);if(p&&p.reb){p.reb.last=todayISO();save();route(true);toast("Ombalansering noterad")}break}
     case"proprefresh":refreshSheet(d.pid);break;
     case"rulesedit":rulesSheet(d.pid);break;
@@ -1637,6 +1639,7 @@ function planHTML(p){
 }
 const a_el=pid=>{const h=document.querySelector(`.pmh[data-pid="${pid}"]`);return h&&h.closest(".mod")};
 function propHTML(p,c,sigs,rot,ideas){
+  try{sigRecord(p,c)}catch(e){}
   const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan:null,items=pl?pl.items:[];
   if(!p.h.length)return"";
   const rowBy={};c.rows.forEach(r=>{rowBy[r.h.t]=r});const planHas={};items.forEach((it,i)=>{(planHas[it.t]=planHas[it.t]||[]).push(i)});
@@ -1677,7 +1680,7 @@ function propHTML(p,c,sigs,rot,ideas){
   return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico">📝</div><h2>FÖRSLAG &amp; SIGNALER</h2>${pl?`<span class="mu">${done}/${tot0} genomförda</span>`:""}<span class="ii" data-act="proprefresh" data-pid="${p.id}" title="Uppdatera förslag och signaler">🔄</span><span class="ii" data-act="propinfo">ⓘ</span><span class="pchev">${col?"▾":"▴"}</span></div>
    <div class="psum mu" style="margin-top:4px;font-size:12px"${col?"":" hidden"}>Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr((pl.cash||0)+sS-sB)} kr`:""}${pl?` · ${done}/${tot0} genomförda`:""}</div>
    <div class="pbody"${col?" hidden":""}>
-   ${rulesLine(p)}
+   ${rulesLine(p,c)}
    ${pl?`<div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
    ${(()=>{const d=Math.floor((Date.now()-Date.parse(pl.date||""))/864e5);if(!(d>=0))return"";const old=d>=3;return`<div class="${old?"stat WAIT":"mu"}" style="${old?"":"margin:0 0 6px;font-size:12px"}">${old?`<b>FÖRSLAGET ÄR ${d} DAGAR GAMMALT</b>`:""}${old?"Kurser och signaler har ändrats sedan dess. Antal och urval uppdateras inte av sig själva – ta fram ett nytt förslag via ⋯ → 📋 Analys för chatt om du vill uppdatera det.":(d===0?"Förslaget gjordes i dag.":"Förslaget är "+d+" dag"+(d>1?"ar":"")+" gammalt. Belopp och appens signaler uppdateras löpande.")}</div>`})()}
    <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr((pl.cash||0)+sS-sB)} kr</b></div></div>`:`<div class="mu" style="margin-bottom:4px">Appens signaler för dina innehav. Fler detaljer och förslag med antal får du genom att importera ett förslag.</div>`}
@@ -1758,7 +1761,7 @@ Modellen är backtestad på 792 aktier över 10 år (2016–2026): 518 amerikans
 <br><br><b>Att hålla länge lönade sig.</b> Att sälja vid brott mot SMA50 var sämst av allt: 5 % per år och 20 dagars innehavstid. Band plus absolut momentum gav 92–182 dagars innehav och klart bättre resultat.
 <br><br><b>Förbehåll:</b> tickerlistorna är dagens indexmedlemmar, så bolag som gått under saknas och resultaten är för optimistiska. Fundamenta (tillväxt, Graham, Piotroski) ingår inte i testet och är ovaliderade. Verklig handel har dessutom spread och slippage som testet inte räknar med. Historik är ingen garanti.
 </div></details>`;
-function rulesLine(p){return twinWarn(p)+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
+function rulesLine(p,c){return twinWarn(p)+(c?sizeWarn(p,c)+corrLine(p,c):"")+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px">Appen ger signal när en regel slår till och föreslår vad du kan köpa i stället. Toppkursen är den högsta kurs appen sett sedan köpet.</p>
@@ -2043,6 +2046,104 @@ function feeSheet(){const F=feeCfg();
   <button class="btn wide" id="fgo">Spara</button>`,()=>{
     $("#fgo").onclick=()=>{const F2={plan:$("#fp").value,fx:Math.max(0,parseFloat($("#ffx").value)||0)};
       localStorage.setItem("mm_fee",JSON.stringify(F2));closeSheet();route(true);toast("Avgifter sparade")}})
+}
+/* ====== v16: POSTSTORLEK, KORRELATION OCH SIGNALUPPFÖLJNING ====== */
+/* Poststorlek: backtestet visade att avgifterna åt 1,5 procentenheter per år vid 7 Mkr,
+   0,3 vid 600 kkr och SEX procentenheter vid 50 kkr. Gränsen går vid minimicourtaget. */
+function sizeWarn(p,c){
+  const n=(p.h||[]).length;if(!n||!c||!(c.tot>0))return"";
+  const post=c.tot/n;
+  // Svenska aktier har 1 kr i minimiavgift, utländska 29 kr. Bedöm varje innehav mot sin egen gräns.
+  const bad=(p.h||[]).filter(h=>{const m=minTrade(h.t);return m&&post<m});
+  if(!bad.length)return"";
+  const worst=bad.reduce((a,h)=>Math.max(a,minTrade(h.t)),0);
+  const rt=roundTrip(post,bad[0].t),ok=Math.max(1,Math.floor(c.tot/worst));
+  const del=bad.length===n?"Alla":`${bad.length} av ${n}`;
+  return`<div class="stat BAD" style="margin:0 0 8px"><b>⚠ FÖR SMÅ POSTER</b>
+    ${n} innehav på ${kr(c.tot)} kr ger ${kr(post)} kr per post. ${del} innehav är utländska, där minimicourtaget
+    är 29 kr – varje byte kostar då <b>${f(rt.pct,2)} %</b> tur och retur i stället för 0,71 %.
+    I backtestet åt det <b>sex procentenheter per år</b> i en portfölj av den här storleken.<br>
+    Handla högst <b>${ok} innehav</b> här, eller slå ihop portföljen med en större. Svenska aktier berörs inte – där är minimiavgiften 1 kr.</div>`}
+
+/* Korrelation räknas på de 45 senaste stängningskurserna som skannern sparar. */
+function corr(a,b){
+  if(!a||!b||a.length<20||b.length<20)return null;
+  const n=Math.min(a.length,b.length),x=[],y=[];
+  for(let i=1;i<n;i++){x.push(a[a.length-n+i]/a[a.length-n+i-1]-1);y.push(b[b.length-n+i]/b[b.length-n+i-1]-1)}
+  const m=v=>v.reduce((s,q)=>s+q,0)/v.length,mx=m(x),my=m(y);
+  let sxy=0,sx=0,sy=0;
+  for(let i=0;i<x.length;i++){const dx=x[i]-mx,dy=y[i]-my;sxy+=dx*dy;sx+=dx*dx;sy+=dy*dy}
+  return(sx>0&&sy>0)?sxy/Math.sqrt(sx*sy):null}
+function clusters(p,c,TH){
+  TH=TH||0.75;const rows=(c.rows||[]).filter(r=>r.s&&r.s.sp&&r.val>0);
+  if(rows.length<2)return null;
+  const seen=new Set(),out=[];
+  rows.forEach(a=>{
+    if(seen.has(a.h.t))return;
+    const grp=[a];
+    rows.forEach(b=>{if(b.h.t===a.h.t||seen.has(b.h.t))return;
+      const q=corr(a.s.sp,b.s.sp);if(q!==null&&q>=TH){grp.push(b);seen.add(b.h.t)}});
+    if(grp.length>1){seen.add(a.h.t);
+      const w=grp.reduce((x,r)=>x+r.val,0)/c.tot*100;
+      out.push({t:grp.map(r=>r.h.t),w,sec:[...new Set(grp.map(r=>(r.s.sec?SECSV[r.s.sec]||r.s.sec:"–")))]})}});
+  // genomsnittlig parvis korrelation i hela portföljen
+  let sum=0,cnt=0;
+  for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++){
+    const q=corr(rows[i].s.sp,rows[j].s.sp);if(q!==null){sum+=q;cnt++}}
+  return{groups:out.sort((a,b)=>b.w-a.w),avg:cnt?sum/cnt:null,n:rows.length}}
+function corrLine(p,c){
+  const k=clusters(p,c);if(!k||!k.n)return"";
+  const big=k.groups.filter(g=>g.w>=25);
+  const avgTxt=k.avg===null?"":`Genomsnittlig samvariation mellan innehaven: <b style="color:var(--tx)">${f(k.avg,2)}</b>${k.avg>0.7?" – mycket hög":k.avg>0.5?" – hög":""}.`;
+  if(!big.length)return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">🔗 ${avgTxt} Inga klumpar över 25 % av portföljen.</div>`;
+  return`<div class="stat WAIT" style="margin:0 0 8px"><b>🔗 INNEHAVEN RÖR SIG IHOP</b>${avgTxt}<br>
+    ${big.map(g=>`<b>${f(g.w,0)} % av portföljen</b> ligger i ${g.t.length} aktier som rör sig nästan identiskt: ${g.t.map(esc).join(", ")}${g.sec.length>1?` (olika sektorer: ${g.sec.map(esc).join(", ")})`:""}.`).join("<br>")}
+    <div class="mu" style="margin-top:4px">Sektorspridning skyddar inte mot detta. Fem AI-aktier i tre sektorer är i praktiken en position.</div></div>`}
+
+/* Signaluppföljning: logga varje signal och mät utfallet i efterhand. */
+const SIGK="mm_sig";
+function sigLog(){try{return JSON.parse(localStorage.getItem(SIGK))||[]}catch(e){return[]}}
+function sigSave(v){try{localStorage.setItem(SIGK,JSON.stringify(v.slice(-800)))}catch(e){}}
+function sigRecord(p,c){
+  if(!D.updated)return;const log=sigLog(),today=todayISO();
+  const have=new Set(log.filter(x=>x.d===today&&x.p===p.id).map(x=>x.t+"|"+x.k));
+  let add=0;
+  (c.rows||[]).forEach(r=>{const k=(r.rule&&r.rule.k)||r.sig.k;
+    if(!k||k==="HOLD"||!r.s||!(r.s.px>0))return;
+    if(have.has(r.h.t+"|"+k))return;
+    log.push({d:today,p:p.id,t:r.h.t,k,px:r.s.px,ccy:r.s.ccy});add++});
+  if(add)sigSave(log)}
+function sigOutcome(){
+  const log=sigLog();let n=0;
+  log.forEach(x=>{const s=S[x.t];if(!s||!(s.px>0))return;
+    const dd=Math.round((Date.now()-Date.parse(x.d))/864e5);
+    [20,60,120].forEach(w=>{const key="r"+w;
+      if(x[key]===undefined&&dd>=w){x[key]=+((s.px/x.px-1)*100).toFixed(1);n++}})});
+  if(n)sigSave(log);return log}
+function sigStats(){
+  const log=sigOutcome(),by={};
+  log.forEach(x=>{[20,60,120].forEach(w=>{const v=x["r"+w];if(v===undefined)return;
+    const key=x.k+"|"+w;(by[key]=by[key]||[]).push(v)})});
+  return by}
+function sigSheet(){
+  const by=sigStats(),log=sigLog(),ks=[...new Set(Object.keys(by).map(k=>k.split("|")[0]))];
+  const lbl={SELL:"SÄLJ",BUY:"KÖP MER",TRIM:"TRIMMA",ROT:"OMFÖRDELA",STOPP:"STOPP",BAND:"UR BANDET",
+    ABSM:"MOMENTUM SLUT",VINST:"TA HEM VINST",TAK:"ÖVER TAK",TREND:"TRENDBROTT",WATCH:"BEVAKA"};
+  const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:null};
+  sheet(`<h3>🔬 Hur bra är signalerna?</h3>
+  <p class="mu" style="margin-top:-4px">Varje signal loggas när den visas och mäts sedan mot kursen 20, 60 och 120 dagar senare – även de du inte följde. Det är återkoppling på din egen handel, inte på en simulering.</p>
+  ${!log.length?'<div class="stat WAIT"><b>INGEN DATA ÄN</b>Loggen fylls på automatiskt varje gång du öppnar en portfölj. Första utfallen kan mätas om 20 dagar.</div>':`
+  <div class="g"><div><small>Loggade signaler</small><b>${log.length}</b></div>
+   <div><small>Med utfall</small><b>${log.filter(x=>x.r20!==undefined).length}</b></div>
+   <div><small>Äldsta</small><b>${esc(log[0].d)}</b></div></div>
+  ${ks.length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">MEDIANUTFALL</h2></div>
+  <div class="mu" style="font-size:11.5px;margin-bottom:6px">För SÄLJ-signaler är ett <b>negativt</b> tal bra – aktien föll efter att du sålt.</div>
+  ${ks.map(k=>{const r=[20,60,120].map(w=>{const a=by[k+"|"+w];return a?{w,m:med(a),n:a.length}:null}).filter(Boolean);
+    if(!r.length)return"";
+    return`<div class="sr"><div class="m"><b>${esc(lbl[k]||k)}</b><div class="mu">${r[0].n} signaler</div></div>
+      <div class="p">${r.map(x=>`<span class="mu" style="margin-left:8px">${x.w} d <b class="${(k==="SELL"||k==="STOPP"||k==="BAND"||k==="ABSM")?(x.m<0?"up":"dn"):(x.m>0?"up":"dn")}">${sg(x.m,1)}</b></span>`).join("")}</div></div>`}).join("")}`:""}
+  <button class="btn sm ghost wide" id="sgx" style="margin-top:12px">Rensa loggen</button>`}`,()=>{
+    if($("#sgx"))$("#sgx").onclick=()=>{if(confirm("Rensa hela signalloggen?")){localStorage.removeItem(SIGK);closeSheet();toast("Loggen rensad")}}})
 }
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
