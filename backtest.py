@@ -280,9 +280,38 @@ def run(close, vol, cfg, vix=None):
                     trades.append(("vix", t, d))
                 del hold[t]
 
+        # --- påfyllning: sker löpande, inte bara vid ombalansering ---
+        #     (stopp och bandutgångar sker dagligen, så kapitalet ska inte ligga i kassa
+        #      till nästa kvartalsskifte – appen föreslår ersättare direkt)
+        if cfg.get("refill") and d not in rebs and len(hold) < n_eff:
+            row_r = sc.iloc[i].dropna()
+            mk_r = cfg.get("mkt", "all")
+            if mk_r == "nordic":
+                row_r = row_r[[t for t in row_r.index if any(t.endswith(x) for x in NORDIC)]]
+            elif mk_r == "us":
+                row_r = row_r[[t for t in row_r.index if "." not in t]]
+            if len(row_r) >= cfg["n"]:
+                rk = row_r.rank(ascending=False, method="first")
+                free = [t for t in rk[rk <= cfg["n"]].sort_values().index if t not in hold]
+                tot_r = value(i)
+                for t in free[:n_eff - len(hold)]:
+                    px = p.get(t)
+                    if px != px or px <= 0: continue
+                    target = tot_r / max(1, n_eff)
+                    if cash < target * 0.2: break
+                    amt = min(target, cash)
+                    sh = (amt - fee(amt, t, "buy")) / px
+                    cash -= amt
+                    hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
+
         # --- ombalansering ---
         if d in rebs:
             row = sc.iloc[i].dropna()
+            mk_sel = cfg.get("mkt", "all")
+            if mk_sel == "nordic":
+                row = row[[t for t in row.index if any(t.endswith(x) for x in NORDIC)]]
+            elif mk_sel == "us":
+                row = row[[t for t in row.index if "." not in t]]
             if len(row) >= cfg["n"]:
                 rank = row.rank(ascending=False, method="first")
                 top = set(rank[rank <= cfg["n"]].index)
@@ -311,11 +340,6 @@ def run(close, vol, cfg, vix=None):
                 room = n_eff_now() - len(hold)
                 if room > 0:
                     cand_all = [t for t in rank.sort_values().index if t not in hold and t in top]
-                    mk = cfg.get("mkt", "all")
-                    if mk == "nordic":
-                        cand_all = [t for t in cand_all if any(t.endswith(x) for x in NORDIC)]
-                    elif mk == "us":
-                        cand_all = [t for t in cand_all if "." not in t]
                     if cfg.get("cost_adj"):
                         # Väg poäng mot kostnad i stället för att sortera bort dyra aktier.
                         # slope = procents avkastning per poäng, mätt på historiken.
@@ -392,7 +416,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            vix_cut=0, vix_q=0.80, vix_win=504,
            port_sek=10_000_000.0, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
            pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0,
-           mkt='all', cost_filter=False, cost_adj=False, slope=0.0)
+           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True)
 
 def main():
     ap = argparse.ArgumentParser()
