@@ -39,6 +39,10 @@ on:
         description: "Mix-test: bästa kombination av antal, marknad och hålltid för portföljstorleken"
         type: boolean
         default: false
+      freq:
+        description: "Frekvenstest: hur ofta lönar det sig att handla?"
+        type: boolean
+        default: false
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"
         default: "10000000"
@@ -69,6 +73,7 @@ jobs:
             ${{ github.event.inputs.vix == 'true' && format('--vix --vixindex {0}', github.event.inputs.vixindex || '^VIX') || '' }} \
             ${{ github.event.inputs.entry == 'true' && format('--entry --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.mix == 'true' && format('--mix --port {0}', github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.freq == 'true' && format('--freq --port {0}', github.event.inputs.port || '10000000') || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
