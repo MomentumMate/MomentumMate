@@ -101,9 +101,12 @@ def score_panel(close, vol, cfg):
     return sc, m121
 
 def period_ends(idx, freq="M"):
-    """Sista handelsdagen i varje månad (M) eller kvartal (Q)."""
+    """Sista handelsdagen i varje månad (M), kvartal (Q), halvår (H) eller år (Y)."""
     s = pd.Series(idx, index=idx)
-    key = [idx.year, idx.month] if freq == "M" else [idx.year, idx.quarter]
+    if freq == "M":   key = [idx.year, idx.month]
+    elif freq == "Q": key = [idx.year, idx.quarter]
+    elif freq == "H": key = [idx.year, (idx.month - 1) // 6]
+    else:             key = [idx.year]
     return list(s.groupby(key).last())
 
 def exit_panels(close, cfg):
@@ -283,6 +286,17 @@ def run(close, vol, cfg, vix=None):
                 room = n_eff_now() - len(hold)
                 if room > 0:
                     cand_all = [t for t in rank.sort_values().index if t not in hold and t in top]
+                    mk = cfg.get("mkt", "all")
+                    if mk == "nordic":
+                        cand_all = [t for t in cand_all if any(t.endswith(x) for x in NORDIC)]
+                    elif mk == "us":
+                        cand_all = [t for t in cand_all if "." not in t]
+                    if cfg.get("cost_filter"):
+                        # Posten måste bära sin marknads minimicourtage: 1 kr nordiskt, 29 kr utländskt.
+                        # Under den gränsen betalar man i praktiken en fast avgift per affär.
+                        post = value(i) / max(1, n_eff_now()) * PORT
+                        cand_all = [t for t in cand_all
+                                    if post >= (1.0 if t.endswith(".ST") else 29.0) / cfg.get("cour_pct", 0.0009)]
                     if PB is not None:
                         row_pb = PB.iloc[i]
                         lo_t, hi_t = cfg["pullback"], cfg.get("pb_max", 1.0)
@@ -339,7 +353,8 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            exit_sma50=False, exit_sma200=False, exit_atr=0, exit_score=0,
            vix_cut=0, vix_q=0.80, vix_win=504,
            port_sek=10_000_000.0, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
-           pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0)
+           pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0,
+           mkt='all', cost_filter=False)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -354,6 +369,7 @@ def main():
     ap.add_argument("--vix", action="store_true", help="testar om volatilitetsindex skyddar mot momentumkrascher")
     ap.add_argument("--vixindex", default="^VIX", help="^VIX, ^VXN eller ^V2TX")
     ap.add_argument("--entry", action="store_true", help="kostnader + poststorlek + rekyltajming")
+    ap.add_argument("--mix", action="store_true", help="bästa kombination av antal, marknad och hålltid per portföljstorlek")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -398,6 +414,49 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Mix-test: vilken kombination ger högst avkastning för just denna portföljstorlek? ----------
+    if a.mix:
+        BASE = dict(voladj=False, stop=15, reweight=True, port_sek=a.port,
+                    cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "A. Alla marknader, 20 innehav, kvartal (referens)": dict(BASE, n=20, band_out=30, reb="Q"),
+            "B. Alla + kostnadsfilter, 20 innehav, kvartal":     dict(BASE, n=20, band_out=30, reb="Q", cost_filter=True),
+            "C. Alla + kostnadsfilter, 10 innehav, kvartal":     dict(BASE, n=10, band_out=20, reb="Q", cost_filter=True),
+            "D. Endast Norden, 10 innehav, kvartal":             dict(BASE, n=10, band_out=20, reb="Q", mkt="nordic"),
+            "E. Endast Norden, 20 innehav, kvartal":             dict(BASE, n=20, band_out=30, reb="Q", mkt="nordic"),
+            "F. Endast Norden, 30 innehav, kvartal":             dict(BASE, n=30, band_out=45, reb="Q", mkt="nordic"),
+            "G. Endast USA, 10 innehav, kvartal":                dict(BASE, n=10, band_out=20, reb="Q", mkt="us"),
+            "H. Endast USA, 20 innehav, kvartal":                dict(BASE, n=20, band_out=30, reb="Q", mkt="us"),
+            "I. Alla, 20 innehav, HALVÅR":                       dict(BASE, n=20, band_out=30, reb="H"),
+            "J. Alla, 20 innehav, HELÅR":                        dict(BASE, n=20, band_out=30, reb="Y"),
+            "K. Endast Norden, 20 innehav, halvår":              dict(BASE, n=20, band_out=30, reb="H", mkt="nordic"),
+            "L. Kostnadsfilter, 20 innehav, halvår":             dict(BASE, n=20, band_out=30, reb="H", cost_filter=True),
+            "M. Alla, 20 innehav, kvartal, brett band 50":       dict(BASE, n=20, band_out=50, reb="Q"),
+            "N. Alla, 10 innehav, helår (minsta omsättning)":    dict(BASE, n=10, band_out=25, reb="Y"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   {'index (köp och behåll)':<52}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}  nedgång {bst['max_nedgång_%']} %")
+        res = {"_index": bst}
+        for nm, over in VAR.items():
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                print(f"   {nm:<52}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<52} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        best = max((k for k in res if k != "_index" and "CAGR_%" in res[k]),
+                   key=lambda k: res[k]["CAGR_%"], default=None)
+        if best: print(f"\n   BÄST FÖR {a.port:,.0f} kr: {best}  ({res[best]['CAGR_%']} %)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "mix", "portfölj_sek": a.port, "år": round(yrs, 1), "bäst": best, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Kostnader enligt Nordeas pris verifierat mot avräkningsnotor."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Entry-test: verkliga kostnader, poststorlek och rekyltajming ----------
     if a.entry:
