@@ -47,6 +47,10 @@ on:
         description: "Koncentration: få innehav som får löpa tills momentum tar slut"
         type: boolean
         default: false
+      decay:
+        description: "Försämring: volymbalans, ATH-avstånd och lägre toppar"
+        type: boolean
+        default: false
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"
         default: "10000000"
@@ -79,6 +83,7 @@ jobs:
             ${{ github.event.inputs.mix == 'true' && format('--mix --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.freq == 'true' && format('--freq --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.conc == 'true' && format('--conc --port {0}', github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.decay == 'true' && format('--decay --port {0}', github.event.inputs.port || '10000000') || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
