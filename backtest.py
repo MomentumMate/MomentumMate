@@ -284,7 +284,13 @@ def run(close, vol, cfg, vix=None):
         #     (stopp och bandutgångar sker dagligen, så kapitalet ska inte ligga i kassa
         #      till nästa kvartalsskifte – appen föreslår ersättare direkt)
         _rf = cfg.get("refill_days", 1)   # 1 = varje dag, 5 = veckovis, 21 = månadsvis
-        if cfg.get("refill") and d not in rebs and len(hold) < n_eff and (_rf <= 1 or i % _rf == 0):
+        # Fast rutnät (i % n) kan sammanfalla systematiskt med ombalanseringsrytmen och
+        # skapa falska toppar. Med jitter sprids tillfällena slumpmässigt kring intervallet.
+        if cfg.get("refill_jitter") and _rf > 1:
+            _due = (i % _rf) == (hash((i // _rf, cfg.get("seed", 0))) % _rf)
+        else:
+            _due = _rf <= 1 or i % _rf == 0
+        if cfg.get("refill") and d not in rebs and len(hold) < n_eff and _due:
             row_r = sc.iloc[i].dropna()
             mk_r = cfg.get("mkt", "all")
             if mk_r == "nordic":
@@ -340,11 +346,16 @@ def run(close, vol, cfg, vix=None):
                 # fyll på upp till n med de högst rankade
                 room = n_eff_now() - len(hold)
                 if room > 0:
-                    cand_all = [t for t in rank.sort_values().index if t not in hold and t in top]
+                    wide = cfg.get("cand_width", 1.0)
+                    lim = cfg["n"] if not cfg.get("cost_adj") else min(cfg["band_out"], int(cfg["n"] * wide))
+                    top_sel = set(rank[rank <= lim].index)
+                    cand_all = [t for t in rank.sort_values().index if t not in hold and t in top_sel]
                     if cfg.get("cost_adj"):
                         # Väg poäng mot kostnad i stället för att sortera bort dyra aktier.
                         # slope = procents avkastning per poäng, mätt på historiken.
-                        post_sek = value(i) / max(1, n_eff_now()) * PORT
+                        # Kostnaden ska räknas på den FAKTISKA poststorleken i just denna
+                        # portfölj. Vid 2 500 kr kostar en USA-affär 2,85 % – inte 0,71 %.
+                        post_sek = max(1.0, value(i) / max(1, n_eff_now()) * PORT)
                         sl = cfg.get("slope") or 0.0
                         row_sc = sc.iloc[i]
                         def net(t):
@@ -417,7 +428,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            vix_cut=0, vix_q=0.80, vix_win=504,
            port_sek=10_000_000.0, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
            pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0,
-           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1)
+           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -490,8 +501,9 @@ def main():
         print(f"\n   1 poäng ≈ {slope:.4f} % per kvartal ({nobs} mätpunkter)")
         FR = [("Varje dag", 1), ("Varannan dag", 2), ("Var tredje dag", 3),
               ("En gång i veckan", 5), ("Varannan vecka", 10), ("En gång i månaden", 21),
-              ("Var sjätte vecka", 30), ("En gång i kvartalet", 63),
-              ("Aldrig mellan ombalanseringarna", 99999)]
+              ("25 dagar", 25), ("28 dagar", 28), ("30 dagar (misstänkt topp)", 30),
+              ("32 dagar", 32), ("35 dagar", 35), ("40 dagar", 40), ("45 dagar", 45),
+              ("En gång i kvartalet", 63), ("Aldrig mellan ombalanseringarna", 99999)]
         yrs = (close.index[-1] - close.index[210]).days / 365.25
         be, bst = benchmark(close, yrs)
         print(f"\n########## Handelstakt, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
@@ -508,6 +520,22 @@ def main():
                       f"  köp/år {st['köp_per_år']:>6}  innehav {st['innehavstid_dagar']} d")
             except Exception as ex:
                 print(f"   {nm:<36} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        # Kontroll: samma intervall men utan fast rutnät. Består toppen vid 30 dagar är
+        # effekten verklig; försvinner den var den en artefakt av räknerytmen.
+        print(f"\n   --- Samma intervall med SLUMPMÄSSIG fördröjning (kontroll) ---")
+        res["_jitter"] = {}
+        for nm, rf in [x for x in FR if 20 <= x[1] <= 45]:
+            vals = []
+            for sd in (1, 2, 3):
+                cfg = dict(DEF); cfg.update(BASE); cfg["slope"] = slope
+                cfg["refill_days"] = rf; cfg["refill_jitter"] = True; cfg["seed"] = sd
+                try:
+                    e, tr, hd = run(close, vol, cfg); vals.append(stats(e, tr, yrs, hd)["CAGR_%"])
+                except Exception: pass
+            if vals:
+                m = sum(vals) / len(vals)
+                res["_jitter"][nm] = {"snitt": round(m, 2), "körningar": vals}
+                print(f"   {nm:<36}{m:>7.2f} %  (tre slumpstarter: {', '.join(f'{v:.1f}' for v in vals)})")
         ok = {k: v for k, v in res.items() if k != "_index" and "CAGR_%" in v}
         b1 = max(ok, key=lambda k: ok[k]["CAGR_%"], default=None)
         b2 = max(ok, key=lambda k: (ok[k]["Sharpe"] or 0), default=None)
