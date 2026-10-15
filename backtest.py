@@ -394,6 +394,15 @@ def run(close, vol, cfg, vix=None):
     return e, trades, hold_days
 
 # ----------------------------------------------------------------------------- mått
+def yearly(e):
+    """Avkastning år för år. Visar hur ojämn en koncentrerad strategi faktiskt är."""
+    if len(e) < 30: return {}
+    out = {}
+    for y, grp in e.groupby(e.index.year):
+        if len(grp) > 20:
+            out[int(y)] = round(float(grp.iloc[-1] / grp.iloc[0] - 1) * 100, 1)
+    return out
+
 def stats(e, trades, years, hold_days=None):
     if len(e) < 30: return {}
     r = e.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
@@ -445,6 +454,7 @@ def main():
     ap.add_argument("--entry", action="store_true", help="kostnader + poststorlek + rekyltajming")
     ap.add_argument("--mix", action="store_true", help="bästa kombination av antal, marknad och hålltid per portföljstorlek")
     ap.add_argument("--freq", action="store_true", help="hur ofta lönar det sig att handla?")
+    ap.add_argument("--conc", action="store_true", help="få innehav, inget stopp, låt vinnare löpa")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -487,8 +497,68 @@ def main():
     comp2 = Counter(_grp(t) for t in close.columns)
     print("Nedladdat: " + ", ".join(f"{k} {v}" for k, v in sorted(comp2.items())))
     bench_e, bench = benchmark(close, years)
-    print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
+    print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Koncentrationstest: få innehav som får löpa tills momentum tar slut ----------
+    if a.conc:
+        B = dict(voladj=False, reweight=True, reb="Q", refill_days=21,
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "1 innehav, inget stopp, bara band":        dict(B, n=1,  band_out=10, stop=0),
+            "2 innehav, inget stopp":                   dict(B, n=2,  band_out=12, stop=0),
+            "3 innehav, inget stopp":                   dict(B, n=3,  band_out=15, stop=0),
+            "5 innehav, inget stopp":                   dict(B, n=5,  band_out=20, stop=0),
+            "3 innehav, stopp 25 %":                    dict(B, n=3,  band_out=15, stop=25),
+            "5 innehav, stopp 25 %":                    dict(B, n=5,  band_out=20, stop=25),
+            "5 innehav, stopp 15 %":                    dict(B, n=5,  band_out=20, stop=15),
+            "5 innehav, inget stopp, SMALT band 10":    dict(B, n=5,  band_out=10, stop=0),
+            "5 innehav, inget stopp, BRETT band 50":    dict(B, n=5,  band_out=50, stop=0),
+            "10 innehav, inget stopp":                  dict(B, n=10, band_out=25, stop=0),
+            "10 innehav, stopp 15 %":                   dict(B, n=10, band_out=25, stop=15),
+            "20 innehav, stopp 15 % (dagens modell)":   dict(B, n=20, band_out=30, stop=15),
+            "20 innehav, inget stopp":                  dict(B, n=20, band_out=30, stop=0),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Koncentration, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   OBS: jämförelsemåttet nedan är ett LIKAVIKTAT GENOMSNITT av universumet,")
+        print(f"   inte ett riktigt index. Survivorship bias gör det (och modellen) för optimistiskt.\n")
+        print(f"   {'likaviktat snitt av universumet':<44}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}  nedgång {bst['max_nedgång_%']} %")
+        res = {"_snitt": bst}
+        yr_all = {}
+        for nm, over in VAR.items():
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                st["år"] = yearly(e); res[nm] = st; yr_all[nm] = st["år"]
+                print(f"   {nm:<44}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<44} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        # år för år: det är här ojämnheten syns
+        yrs_list = sorted({y for v in yr_all.values() for y in v})
+        if yrs_list:
+            print(f"\n   --- AVKASTNING ÅR FÖR ÅR (%) ---")
+            print("   " + "variant".ljust(44) + "".join(f"{y:>8}" for y in yrs_list))
+            for nm in VAR:
+                if nm not in yr_all: continue
+                print("   " + nm.ljust(44) + "".join(f"{yr_all[nm].get(y,0):>8.0f}" for y in yrs_list))
+            print(f"\n   --- SÄMSTA ÅR OCH ANTAL FÖRLUSTÅR ---")
+            for nm in VAR:
+                if nm not in yr_all: continue
+                v = list(yr_all[nm].values())
+                print(f"   {nm:<44} sämsta år {min(v):>7.0f} %   förlustår {sum(1 for x in v if x<0)} av {len(v)}")
+        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        b1 = max(ok, key=lambda k: ok[k]["CAGR_%"], default=None)
+        if b1: print(f"\n   HÖGST AVKASTNING: {b1}  ({ok[b1]['CAGR_%']} %, nedgång {ok[b1]['max_nedgång_%']} %)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "koncentration", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "bäst_avkastning": b1, "varianter": res,
+               "varning": "Jämförelsemåttet är ett likaviktat snitt av universumet, inte ett riktigt index. "
+                          "Survivorship bias gör alla siffror för optimistiska."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Frekvenstest: hur ofta ska man sätta sig och handla? ----------
     if a.freq:
