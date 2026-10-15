@@ -283,7 +283,8 @@ def run(close, vol, cfg, vix=None):
         # --- påfyllning: sker löpande, inte bara vid ombalansering ---
         #     (stopp och bandutgångar sker dagligen, så kapitalet ska inte ligga i kassa
         #      till nästa kvartalsskifte – appen föreslår ersättare direkt)
-        if cfg.get("refill") and d not in rebs and len(hold) < n_eff:
+        _rf = cfg.get("refill_days", 1)   # 1 = varje dag, 5 = veckovis, 21 = månadsvis
+        if cfg.get("refill") and d not in rebs and len(hold) < n_eff and (_rf <= 1 or i % _rf == 0):
             row_r = sc.iloc[i].dropna()
             mk_r = cfg.get("mkt", "all")
             if mk_r == "nordic":
@@ -416,7 +417,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            vix_cut=0, vix_q=0.80, vix_win=504,
            port_sek=10_000_000.0, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
            pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0,
-           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True)
+           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -432,6 +433,7 @@ def main():
     ap.add_argument("--vixindex", default="^VIX", help="^VIX, ^VXN eller ^V2TX")
     ap.add_argument("--entry", action="store_true", help="kostnader + poststorlek + rekyltajming")
     ap.add_argument("--mix", action="store_true", help="bästa kombination av antal, marknad och hålltid per portföljstorlek")
+    ap.add_argument("--freq", action="store_true", help="hur ofta lönar det sig att handla?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -476,6 +478,47 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Frekvenstest: hur ofta ska man sätta sig och handla? ----------
+    if a.freq:
+        BASE = dict(voladj=False, stop=15, reweight=True, n=20, band_out=30, reb="Q",
+                    port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
+                    cost_adj=True)
+        sc_panel, _ = score_panel(close, vol, dict(DEF, voladj=False))
+        slope, nobs = score_to_return(close, sc_panel, 63)
+        if slope is None: slope = 0.0
+        print(f"\n   1 poäng ≈ {slope:.4f} % per kvartal ({nobs} mätpunkter)")
+        FR = [("Varje dag", 1), ("Varannan dag", 2), ("Var tredje dag", 3),
+              ("En gång i veckan", 5), ("Varannan vecka", 10), ("En gång i månaden", 21),
+              ("Var sjätte vecka", 30), ("En gång i kvartalet", 63),
+              ("Aldrig mellan ombalanseringarna", 99999)]
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Handelstakt, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   {'index (köp och behåll)':<36}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}  nedgång {bst['max_nedgång_%']} %")
+        res = {"_index": bst}
+        for nm, rf in FR:
+            cfg = dict(DEF); cfg.update(BASE); cfg["slope"] = slope
+            cfg["refill_days"] = rf
+            if rf > 1000: cfg["refill"] = False
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                print(f"   {nm:<36}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>6}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<36} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if k != "_index" and "CAGR_%" in v}
+        b1 = max(ok, key=lambda k: ok[k]["CAGR_%"], default=None)
+        b2 = max(ok, key=lambda k: (ok[k]["Sharpe"] or 0), default=None)
+        if b1: print(f"\n   HÖGST AVKASTNING: {b1}  ({ok[b1]['CAGR_%']} %, {ok[b1]['köp_per_år']} köp/år)")
+        if b2: print(f"   BÄST RISKJUSTERAT: {b2}  (Sharpe {ok[b2]['Sharpe']}, {ok[b2]['CAGR_%']} %)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "frekvens", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "bäst_avkastning": b1, "bäst_sharpe": b2, "poäng_per_procent": round(slope, 5),
+               "varianter": res, "varning": "Survivorship bias och ingen fundamenta."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Mix-test: vilken kombination ger högst avkastning för just denna portföljstorlek? ----------
     if a.mix:
