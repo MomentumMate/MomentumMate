@@ -134,10 +134,45 @@ def vix_exposure(vix, idx, cfg):
     e[v > hi] = cfg["vix_cut"]                       # över tröskeln: minskad exponering
     return e.shift(1).fillna(1.0)                    # gårdagens signal styr idag – ingen framåtblick
 
+# Nordeas faktiska priser, verifierade mot 13 avräkningsnotor 2026-10-08 till 10-13.
+# Courtage 0,09 % med 29 kr som lägsta avgift utländskt, 1 kr nordiskt.
+# Växling 0,266 % per affär (uppmätt median på åtta köp/säljpar inom 12 minuter).
+# Transaktionsskatt vid KÖP: Storbritannien 0,50 %, Frankrike 0,40 %, Spanien 0,20 %, Italien 0,10 %.
+NORDIC = (".ST", ".CO", ".OL", ".HE")
+STAMP_BT = {".L": 0.0050, ".PA": 0.0040, ".MC": 0.0020, ".MI": 0.0010}
+
+def real_cost(amount_sek, ticker, side, cfg):
+    """Kostnad i kronor för en affär. amount_sek är affärens belopp."""
+    if cfg.get("cost_bps") is not None and cfg.get("simple_cost"):
+        return amount_sek * cfg["cost_bps"] / 10000.0
+    nordic = any(ticker.endswith(x) for x in NORDIC)
+    sek = nordic and ticker.endswith(".ST")
+    cour = max(amount_sek * cfg.get("cour_pct", 0.0009), 1.0 if sek else 29.0)
+    fx = 0.0 if sek else amount_sek * cfg.get("fx_pct", 0.00266)
+    stamp = 0.0
+    if side == "buy":
+        for k, v in STAMP_BT.items():
+            if ticker.endswith(k): stamp = amount_sek * v; break
+    return cour + fx + stamp
+
 def run(close, vol, cfg, vix=None):
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
     EX = exit_panels(close, cfg)
+    # Rekylkrav: en kandidat får köpas först när kursen fallit en viss andel från sin
+    # högsta nivå de senaste N dagarna. 23,6 / 38,2 / 50 / 61,8 % av rekylen motsvarar
+    # Fibonaccinivåerna; de testas som vilka trösklar som helst.
+    PB = None
+    if cfg.get("pullback"):
+        win = cfg.get("pb_win", 60)
+        hi = close.rolling(win, min_periods=max(20, win // 3)).max()
+        lo = close.rolling(win, min_periods=max(20, win // 3)).min()
+        if cfg.get("pb_mode") == "fib":
+            # andel av hela spannet högsta–lägsta, alltså klassisk Fibonacciretracement
+            PB = (hi - close) / (hi - lo).replace(0, np.nan)
+        else:
+            # enkel andel under toppen
+            PB = (hi - close) / hi.replace(0, np.nan)
     # Olika börser har olika helgdagar, så panelen har hål. Utan detta försvinner innehav
     # ur värderingen de dagarna och kapitalkurvan ser ut att kollapsa.
     alive = close.notna()
@@ -154,7 +189,11 @@ def run(close, vol, cfg, vix=None):
     cash, hold, hold_days = 1.0, {}, []
     cut_days = 0          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
     eq, eqdates, trades = [], [], []
-    cost = cfg["cost_bps"] / 10000.0
+    PORT = cfg.get("port_sek", 10_000_000.0)      # portföljens storlek i kronor, styr poststorleken
+    def fee(val_units, t, side):
+        """val_units är positionens andel av kapitalet (1.0 = hela). Returnerar samma enhet."""
+        amt = max(0.0, val_units) * PORT
+        return real_cost(amt, t, side, cfg) / PORT if amt > 0 else 0.0
 
     def value(i):
         p = pxf.iloc[i]
@@ -171,7 +210,7 @@ def run(close, vol, cfg, vix=None):
             ld = last_day.get(t)
             if ld is not None and d > ld:
                 q = p.get(t)
-                cash += hold[t]["sh"] * (q if q == q else hold[t]["px"]) * (1 - cost)
+                cash += hold[t]["sh"] * (q if q == q else hold[t]["px"]) - fee(hold[t]["sh"] * (q if q == q else hold[t]["px"]), t, "sell")
                 trades.append(("delisted", t, d)); del hold[t]
         # --- dagliga stopp (gäller mellan ombalanseringarna) ---
         for t in list(hold):
@@ -196,7 +235,7 @@ def run(close, vol, cfg, vix=None):
                 s_ = sc.iat[i, close.columns.get_loc(t)]
                 if s_ == s_ and s_ < cfg["exit_score"]: why = "svag poäng"
             if why:
-                cash += h["sh"] * px * (1 - cost)
+                cash += h["sh"] * px - fee(h["sh"] * px, t, "sell")
                 hold_days.append((i - h["i"]))
                 trades.append((why, t, d)); del hold[t]
 
@@ -209,7 +248,7 @@ def run(close, vol, cfg, vix=None):
             for t in sorted(hold, key=lambda x: sc_row.get(x, -1e9))[:len(hold) - n_eff]:
                 px = p.get(t)
                 if px == px:
-                    cash += hold[t]["sh"] * px * (1 - cost); hold_days.append(i - hold[t]["i"])
+                    cash += hold[t]["sh"] * px - fee(hold[t]["sh"] * px, t, "sell"); hold_days.append(i - hold[t]["i"])
                     trades.append(("vix", t, d))
                 del hold[t]
 
@@ -225,7 +264,7 @@ def run(close, vol, cfg, vix=None):
                     if t not in keep:
                         px = p.get(t)
                         if px == px:
-                            cash += hold[t]["sh"] * px * (1 - cost); hold_days.append(i - hold[t]["i"]); trades.append(("band", t, d))
+                            cash += hold[t]["sh"] * px - fee(hold[t]["sh"] * px, t, "sell"); hold_days.append(i - hold[t]["i"]); trades.append(("band", t, d))
                         del hold[t]
                 # återställ vikterna till lika stora (trimma vinnare, fyll på eftersläntrare)
                 if cfg.get("reweight") and hold:
@@ -236,14 +275,20 @@ def run(close, vol, cfg, vix=None):
                         cur = h["sh"] * px
                         if cur > target * (1 + cfg.get("rw_band", 0.25)):
                             sell = (cur - target) / px
-                            h["sh"] -= sell; cash += sell * px * (1 - cost); trades.append(("trim", t, d))
+                            h["sh"] -= sell; cash += sell * px - fee(sell * px, t, "sell"); trades.append(("trim", t, d))
                         elif cur < target * (1 - cfg.get("rw_band", 0.25)) and cash > 0:
                             add = min(target - cur, cash)
-                            h["sh"] += add * (1 - cost) / px; cash -= add; trades.append(("add", t, d))
+                            h["sh"] += (add - fee(add, t, "buy")) / px; cash -= add; trades.append(("add", t, d))
                 # fyll på upp till n med de högst rankade
                 room = n_eff_now() - len(hold)
                 if room > 0:
-                    picks = [t for t in rank.sort_values().index if t not in hold and t in top][:room]
+                    cand_all = [t for t in rank.sort_values().index if t not in hold and t in top]
+                    if PB is not None:
+                        row_pb = PB.iloc[i]
+                        lo_t, hi_t = cfg["pullback"], cfg.get("pb_max", 1.0)
+                        cand_all = [t for t in cand_all
+                                    if (row_pb.get(t) == row_pb.get(t)) and lo_t <= row_pb.get(t) <= hi_t]
+                    picks = cand_all[:room]
                     tot = value(i)
                     for t in picks:
                         px = p.get(t)
@@ -251,7 +296,7 @@ def run(close, vol, cfg, vix=None):
                         target = tot / max(1, n_eff)
                         if cash < target * 0.2: break
                         amt = min(target, cash)
-                        sh = amt * (1 - cost) / px
+                        sh = (amt - fee(amt, t, "buy")) / px
                         cash -= amt
                         hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
         eq.append(value(i)); eqdates.append(d)
@@ -292,7 +337,9 @@ def benchmark(close, years, start_i=210):
 DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=True,
            trendfilter=True, minturnover=3e6, cost_bps=15, reb="M", reweight=False, rw_band=0.25,
            exit_sma50=False, exit_sma200=False, exit_atr=0, exit_score=0,
-           vix_cut=0, vix_q=0.80, vix_win=504)
+           vix_cut=0, vix_q=0.80, vix_win=504,
+           port_sek=10_000_000.0, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False,
+           pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -306,6 +353,8 @@ def main():
     ap.add_argument("--exits", action="store_true", help="jämför utgångsmekanismer för swinghandel")
     ap.add_argument("--vix", action="store_true", help="testar om volatilitetsindex skyddar mot momentumkrascher")
     ap.add_argument("--vixindex", default="^VIX", help="^VIX, ^VXN eller ^V2TX")
+    ap.add_argument("--entry", action="store_true", help="kostnader + poststorlek + rekyltajming")
+    ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
     if a.universe:
@@ -349,6 +398,55 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat index av universumet ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Entry-test: verkliga kostnader, poststorlek och rekyltajming ----------
+    if a.entry:
+        CORE = dict(voladj=False, band_out=30, n=20, reb="Q", reweight=True, stop=15,
+                    port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "A. Referens: 20 innehav, verkliga kostnader": dict(CORE),
+            "B. Samma men gammal schablon 15 bp": dict(CORE, simple_cost=True, cost_bps=15),
+            "C. 10 innehav (större poster)": dict(CORE, n=10, band_out=20),
+            "D. 15 innehav": dict(CORE, n=15, band_out=25),
+            "E. 30 innehav (mindre poster)": dict(CORE, n=30, band_out=45),
+            "F. 20 innehav, halvårsvis ombalansering": dict(CORE, reb="Q", band_out=40),
+            "G. Rekyl: köp först 5 % under 60-dagarstoppen": dict(CORE, pullback=0.05),
+            "H. Rekyl: köp först 10 % under toppen": dict(CORE, pullback=0.10),
+            "I. Rekyl: köp först 15 % under toppen": dict(CORE, pullback=0.15),
+            "J. Fibonacci 23,6 % av spannet": dict(CORE, pullback=0.236, pb_mode="fib", pb_max=0.45),
+            "K. Fibonacci 38,2 % av spannet": dict(CORE, pullback=0.382, pb_mode="fib", pb_max=0.60),
+            "L. Fibonacci 50–61,8 % av spannet": dict(CORE, pullback=0.50, pb_mode="fib", pb_max=0.70),
+            "M. Omvänt: köp bara nära toppen (max 3 % under)": dict(CORE, pullback=0.0, pb_max=0.03),
+        }
+        def grp4(t):
+            if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
+            return "Europa" if "." in t else "USA"
+        groups = {"Alla marknader": list(close.columns)}
+        for g in ("USA", "Norden", "Europa"):
+            cc = [t for t in close.columns if grp4(t) == g]
+            if len(cc) >= 40: groups[g] = cc
+        res = {}
+        for gn, cols in groups.items():
+            sub, subv = close[cols], vol[cols]
+            yrs = (sub.index[-1] - sub.index[210]).days / 365.25
+            be, bst = benchmark(sub, yrs)
+            print(f"\n########## {gn}  ({len(cols)} aktier, portfölj {a.port:,.0f} kr) ##########")
+            print(f"   {'index (köp och behåll)':<46}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}  nedgång {bst['max_nedgång_%']} %")
+            res[gn] = {"_index": bst}
+            for nm, over in VAR.items():
+                cfg = dict(DEF); cfg.update(over)
+                try:
+                    e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, yrs, hd)
+                    res[gn][nm] = st
+                    print(f"   {nm:<46}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                          f"  köp/år {st['köp_per_år']}  innehav {st['innehavstid_dagar']} d")
+                except Exception as ex:
+                    print(f"   {nm:<46} FEL {str(ex)[:50]}"); res[gn][nm] = {"fel": str(ex)[:120]}
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "entry", "portfölj_sek": a.port, "år": round(years, 1), "grupper": res,
+               "varning": "Survivorship bias och ingen fundamenta. Kostnader enligt Nordeas pris verifierat mot avräkningsnotor."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- VIX-test: skyddar volatilitetsfiltret mot momentumkrascher? ----------
     if a.vix:
