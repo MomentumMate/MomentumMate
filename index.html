@@ -248,7 +248,7 @@ const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5,NOK:.95,DKK:1.54,GBP:13.3
    användaren kan fortfarande innehålla deras larm och fält. Allt sådant rensas här, vid
    inläsningen, så att ingen del av appen kan visa eller räkna på det. */
 const DEAD_ALERTS=new Set(["graham","magic"]);
-const DEAD_FIELDS=["gr","grn","grc","mf","mfr","ey","roc","vs","_ex"];
+const DEAD_FIELDS=["gr","grn","grc","mf","mfr","ey","roc","vs","_ex","fsc","fmiss","tsc"];
 function scrubLegacy(s){
   if(!s)return s;
   if(Array.isArray(s.al)) s.al=s.al.filter(a=>a&&!DEAD_ALERTS.has(a.k));
@@ -266,7 +266,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-17-b";
+const APPV="2026-10-17-c";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -379,7 +379,7 @@ function card(s,i,o={}){
 function detail(s,mk,extra=""){
   const crit=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
   const n=s.dt.filter(x=>x===true).length,na=s.dt.some(x=>x==null);
-  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${typeof s.fsc==="number"?`<div><small>Fundamentapoäng</small><b class="${s.fmiss>=3?"dn":""}">${f(s.fsc,0)}${s.fmiss?` <span class="mu" style="font-size:10px">(${s.fmiss}/4 saknas)</span>`:""}</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
+  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
   <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
   <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>${s.sh?`<div class="mu">⚠ Kort kurshistorik (${s.nb} handelsdagar) – SMA200 saknas.</div>`:""}
   <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
@@ -625,10 +625,9 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button><button class="btn sm ghost" id="fus">🔬 Fundamentas effekt…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm ghost" id="cxl">📋 Toppkandidater, alla börser</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
-    $("#fus").onclick=()=>{closeSheet();setTimeout(fundSheet,260)};
     $("#sgs").onclick=()=>{closeSheet();setTimeout(sigSheet,260)};
     $("#fes").onclick=()=>{closeSheet();setTimeout(feeSheet,260)};
     $("#rbs").onclick=()=>{closeSheet();setTimeout(()=>rebSheet(pid),260)};
@@ -688,7 +687,6 @@ function act(a,d){
       toast(`Inställt: ${pr.n} innehav, ${pr.stop} % stopp`);break}
     case"feesheet":feeSheet();break;
     case"sigsheet":sigSheet();break;
-    case"fundsheet":fundSheet();break;
     case"cash":cashSheet(d.pid);break;
     case"rebdone":{const p=getP(d.pid);if(p&&p.reb){p.reb.last=todayISO();save();route(true);toast("Ombalansering noterad")}break}
     case"proprefresh":refreshSheet(d.pid);break;
@@ -2386,93 +2384,6 @@ function cashLine(p,c){
     ${hög?"<b>💰 KASSA LIGGER STILL</b>":"💰 "}Kassa ${kr(cc.tot)} kr (${f(andel,1)} % av portföljen).
     ${hög?"Med fast kapital är resterna det enda nya kapital som finns – pengar som ligger still är avkastning du inte får.":""}
     <span class="lnk" data-act="cash" data-pid="${p.id}">Ändra</span></div>`}
-/* Mäter hur mycket fundamentadelen (38 % av poängen) faktiskt ändrar rankningen.
-   Kostar ingenting och körs på den senaste skanningen. */
-function fundImpact(mk){
-  mk=mk||"ALL";
-  const pool=Object.values(S).filter(x=>x&&x.px>0&&typeof x.tsc==="number"&&typeof x.fsc==="number"
-    &&(mk==="ALL"||(x.m||[]).includes(mk)));
-  if(pool.length<40)return null;
-  const byFull=pool.slice().sort((a,b)=>b.sc-a.sc);
-  const byTech=pool.slice().sort((a,b)=>b.tsc-a.tsc);
-  const ov=(n)=>{const A=new Set(byFull.slice(0,n).map(x=>x.t));
-    return byTech.slice(0,n).filter(x=>A.has(x.t)).length};
-  // korrelation mellan teknik- och fundamentapoäng: är de oberoende eller mäter de samma sak?
-  const m=a=>a.reduce((s,q)=>s+q,0)/a.length;
-  const T=pool.map(x=>x.tsc),F=pool.map(x=>x.fsc),mt=m(T),mf=m(F);
-  let sxy=0,sx=0,sy=0;
-  for(let i=0;i<T.length;i++){const dx=T[i]-mt,dy=F[i]-mf;sxy+=dx*dy;sx+=dx*dx;sy+=dy*dy}
-  const corr=(sx>0&&sy>0)?sxy/Math.sqrt(sx*sy):null;
-  // hur många platser flyttas en aktie i snitt?
-  const posFull={},posTech={};
-  byFull.forEach((x,i)=>posFull[x.t]=i); byTech.forEach((x,i)=>posTech[x.t]=i);
-  const top=byFull.slice(0,50);
-  const flytt=m(top.map(x=>Math.abs(posTech[x.t]-posFull[x.t])));
-  const saknas=byFull.slice(0,20).filter(x=>posTech[x.t]>=20);
-  const nya=byTech.slice(0,20).filter(x=>posFull[x.t]>=20);
-  return{n:pool.length,ov10:ov(10),ov20:ov(20),ov50:ov(50),corr,flytt,
-    saknas:saknas.map(x=>({t:x.t,d:x.d,sc:x.sc,tsc:x.tsc,fsc:x.fsc,plats:posTech[x.t]+1})),
-    nya:nya.map(x=>({t:x.t,d:x.d,sc:x.sc,tsc:x.tsc,fsc:x.fsc,plats:posFull[x.t]+1}))}
-}
-/* Skiljer två effekter åt: ändrar fundamenta rankningen för att bolagen SKILJER SIG,
-   eller för att en del aktier saknar data och klumpas på neutralt 50? */
-function fundSplit(){
-  const pool=Object.values(S).filter(x=>x&&x.px>0&&typeof x.tsc==="number"&&typeof x.fsc==="number");
-  if(pool.length<40)return null;
-  const hel=pool.filter(x=>!x.fmiss);                 // alla fyra nyckeltalen finns
-  const ov=(arr,n)=>{const A=new Set(arr.slice().sort((a,b)=>b.sc-a.sc).slice(0,n).map(x=>x.t));
-    return arr.slice().sort((a,b)=>b.tsc-a.tsc).slice(0,n).filter(x=>A.has(x.t)).length};
-  return{alla:pool.length,hel:hel.length,
-    ovAlla:ov(pool,20),
-    ovHel:hel.length>=40?ov(hel,20):null,
-    andelUtan:pool.filter(x=>x.fmiss>=4).length/pool.length*100}
-}
-function fundSheet(){
-  const r=fundImpact("ALL");
-  if(!r){sheet(`<h3>🔬 Vad gör fundamentadelen?</h3><p class="mu">Behöver en ny skanning först – delpoängen sparas från och med version 2026-10-16-b.</p>`);return}
-  const row=(x,extra)=>`<div class="sr"><div class="m"><b>${esc(x.d||x.t)}</b><div class="mu">teknik ${f(x.tsc,0)} · fundamenta ${f(x.fsc,0)} · total ${f(x.sc,0)}</div></div><div class="p"><span class="mu">${esc(extra)} ${x.plats}</span></div></div>`;
-  sheet(`<h3>🔬 Vad gör fundamentadelen?</h3>
-  ${(()=>{const pool=Object.values(S).filter(x=>x&&x.px>0&&typeof x.fmiss==="number");
-    if(!pool.length)return"";
-    const ingen=pool.filter(x=>x.fmiss>=4).length,tunt=pool.filter(x=>x.fmiss>=2&&x.fmiss<4).length;
-    return`<div class="stat ${ingen/pool.length>0.3?"BAD":"WAIT"}" style="margin:0 0 8px"><b>📊 DATATÄCKNING</b>
-      ${ingen} av ${pool.length} aktier saknar alla fyra nyckeltalen, ${tunt} saknar två eller tre.
-      Yahoo stryper anropen, så nyckeltal hämtas bara för en del av universumet.<br>
-      <b>Rättat 2026-10-16:</b> saknad data sätts nu till neutralt 50, inte till 0. Tidigare straffades
-      aktier för att data inte gick att hämta – AMD med teknikpoäng 93 hamnade på plats 89.</div>`})()}
-  <p class="mu" style="margin-top:-4px">Fundamenta väger 38 % av poängen men har aldrig kunnat valideras – Yahoo ger bara dagens nyckeltal. Här mäts i stället hur mycket den faktiskt ändrar rankningen på ${r.n} aktier.</p>
-  <div class="g"><div><small>Samma i topp 10</small><b>${r.ov10}/10</b></div>
-   <div><small>Samma i topp 20</small><b>${r.ov20}/20</b></div>
-   <div><small>Samma i topp 50</small><b>${r.ov50}/50</b></div>
-   <div><small>Snittflytt topp 50</small><b>${f(r.flytt,0)} platser</b></div>
-   ${r.corr!==null?`<div><small>Samvariation teknik/fundamenta</small><b class="${Math.abs(r.corr)>0.5?"dn":""}">${f(r.corr,2)}</b></div>`:""}</div>
-  <div class="mu" style="font-size:11.5px;margin:8px 0">
-   ${r.ov20>=18?"<b>Fundamenta ändrar nästan ingenting.</b> Nästan samma aktier väljs med eller utan. Delen kan tas bort utan att förslagen påverkas – och behöver då inte valideras med köpt data.":
-     r.ov20>=14?"<b>Fundamenta ändrar en del.</b> Några aktier byts ut i topp 20. Om den hjälper eller skadar går inte att veta utan historiska nyckeltal.":
-     "<b>Fundamenta ändrar rankningen kraftigt.</b> En stor del av topp 20 byts ut. Delen är avgörande för vilka aktier du får föreslagna – och helt ovaliderad. Här skulle köpt data faktiskt svara på en viktig fråga."}
-   ${r.corr!==null&&r.corr>0.4?"<br><br><b>Hög samvariation:</b> teknik- och fundamentapoängen rör sig åt samma håll. Det tyder på att fundamentadelen till stor del mäter samma sak som momentum en gång till, snarare än något eget. 70 % av den är tillväxtmått, som är bakåtblickande.":""}
-   ${r.corr!==null&&Math.abs(r.corr)<0.2?"<br><br><b>Låg samvariation:</b> delarna mäter olika saker. Fundamenta tillför alltså något eget – men om det är rätt eller fel vet vi inte.":""}
-  </div>
-  ${(()=>{const sp=fundSplit();if(!sp)return"";
-    if(sp.ovHel===null)return`<div class="mu" style="font-size:11.5px;margin:8px 0">Bara ${sp.hel} aktier har alla fyra nyckeltalen – för få för att skilja effekterna åt.</div>`;
-    const dAlla=20-sp.ovAlla,dHel=20-sp.ovHel;
-    const andel=dAlla>0?Math.max(0,Math.min(100,(dAlla-dHel)/dAlla*100)):0;
-    return`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">BEROR DET PÅ BOLAGEN ELLER PÅ SAKNAD DATA?</h2></div>
-    <div class="g"><div><small>Byten i topp 20, alla aktier</small><b>${dAlla}/20</b></div>
-     <div><small>Byten bland de ${sp.hel} med komplett data</small><b>${dHel}/20</b></div>
-     <div><small>Saknar all data</small><b>${f(sp.andelUtan,0)} %</b></div></div>
-    <div class="mu" style="font-size:11.5px;margin:6px 0">
-     ${dHel<=2?`<b>Nästan hela effekten kommer från saknad data.</b> Bland aktier med komplett data ändrar fundamenta knappt rankningen alls (${dHel} byten). Komponenten sorterar alltså mest efter om Yahoo svarade – inte efter hur bolagen mår. Då bör den tas bort.`
-      :dHel>=dAlla*0.7?`<b>Effekten är verklig.</b> Även bland aktier med komplett data byts ${dHel} av 20 ut. Fundamenta skiljer alltså på bolagen, inte bara på datatillgång. Om det är rätt eller fel vet vi fortfarande inte utan historiska nyckeltal.`
-      :`<b>Blandad orsak.</b> Ungefär ${f(andel,0)} % av effekten kommer från saknad data och resten från verkliga skillnader mellan bolagen.`}
-     <br><br>Att sätta saknad data till 50 tar bort straffet, men de aktierna klumpas ändå ihop på mitten medan de med data sprids över hela skalan. Att ge <b>alla</b> samma värde vore matematiskt identiskt med att ta bort fundamenta helt.</div>`})()}
-  ${r.saknas.length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">FUNDAMENTA LYFTER IN DESSA I TOPP 20</h2></div>
-   <div class="mu" style="font-size:11.5px;margin-bottom:6px">Ligger utanför topp 20 på enbart teknik.</div>
-   ${r.saknas.slice(0,8).map(x=>row(x,"teknikplats")).join("")}`:""}
-  ${r.nya.length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">FUNDAMENTA PUTTAR UT DESSA</h2></div>
-   <div class="mu" style="font-size:11.5px;margin-bottom:6px">Skulle ligga i topp 20 på enbart teknik.</div>
-   ${r.nya.slice(0,8).map(x=>row(x,"totalplats")).join("")}`:""}`)
-}
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
   return`<details class="nwd" style="margin-top:12px"><summary>📁 Arkiv – genomförda förslag (${A.length})</summary>${A.map(a=>`<div class="sr"><div class="m"><div><b>${esc(a.done)}</b> · <span class="fg">${flagOf(a.t)}</span>${S[a.t]?`<b class="tlk" data-act="gostock" data-t="${esc(a.t)}">${esc(S[a.t].d)}</b>`:`<b>${esc(a.t)}</b>`}<span class="pla ${a.a==="SÄLJ"?"S":"B"}">${a.a} ${f(a.q,a.q%1?2:0)} st</span></div><div class="mu">${esc(a.n)} · kurs ${f(a.px)} ${esc(a.ccy||"")} · ≈ ${kr(a.amt)} kr</div><div class="mu" style="white-space:normal">Förslag givet ${esc(a.given||"–")}${a.title?" – "+esc(a.title):""} · utfört ${esc(a.done)}</div>${a.why?`<div class="mu" style="white-space:normal;font-size:11.5px">${esc(a.why)}</div>`:""}</div></div>`).join("")}<div class="acts"><span class="lnk" data-act="archclear" data-pid="${p.id}">Rensa arkivet</span></div></details>`
