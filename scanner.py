@@ -493,7 +493,7 @@ def fill_benzinga(recs, news, rank):
     if not BENZ: return 0, 0
     ids = []
     for k, r in rank.items():
-        ids += (r["cand"][:30] + r["near"][:30]) if k == "DT" else (r["mom"] + r["val"])
+        ids += (r["cand"][:30] + r["near"][:30]) if k == "DT" else r["mom"]
     ids = [t for t in dict.fromkeys(ids) if t in recs and is_us(t)][:200]
     ok = 0
     with ThreadPoolExecutor(max_workers=3) as ex:
@@ -528,7 +528,7 @@ def fill_news(recs, news, rank):
     """Reservkälla: hämtar Google News för rankade aktier som saknar nyheter från Yahoo."""
     ids = []
     for k, r in rank.items():
-        ids += (r["cand"][:30] + r["near"][:30]) if k == "DT" else (r["mom"] + r["val"])
+        ids += (r["cand"][:30] + r["near"][:30]) if k == "DT" else r["mom"]
     ids = [t for t in dict.fromkeys(ids) if t in recs and not news.get(t)][:250]
     def one(t):
         name = re.sub(r"\b(Inc|Corp|Corporation|Ltd|plc|AB|ASA|SE|NV|AG|SA|Holdings?|Company)\b\.?", "", recs[t]["n"]).strip(" ,.")

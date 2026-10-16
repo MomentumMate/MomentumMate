@@ -244,14 +244,29 @@ let D=null,S={},SL=[],DEMO=false,OLD=false,H={};
 const Ui={tab:{},dt:false,shown:{},news:"all"},open=new Set();
 const MK=k=>(D.markets.find(m=>m.k===k))||{n:k,flag:"",cur:""};
 const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5,NOK:.95,DKK:1.54,GBP:13.3,GBX:.133,CHF:11.8,JPY:.069,TWD:.33,HKD:1.35,INR:.125,AUD:6.9,KRW:.0073,CAD:7.6}[c]||1);
-function indexData(){S=D.stocks;SL=Object.values(S);SL.forEach(s=>{s._k=norm(s.d+" "+s.n+" "+s.t)})}
+/* Graham och Magic Formula togs bort 2026-10-16. Skanningsdata som redan ligger hos
+   användaren kan fortfarande innehålla deras larm och fält. Allt sådant rensas här, vid
+   inläsningen, så att ingen del av appen kan visa eller räkna på det. */
+const DEAD_ALERTS=new Set(["graham","magic"]);
+const DEAD_FIELDS=["gr","grn","grc","mf","mfr","ey","roc","vs","_ex"];
+function scrubLegacy(s){
+  if(!s)return s;
+  if(Array.isArray(s.al)) s.al=s.al.filter(a=>a&&!DEAD_ALERTS.has(a.k));
+  DEAD_FIELDS.forEach(f=>{if(f in s)delete s[f]});
+  return s}
+function indexData(){
+  S=D.stocks;SL=Object.values(S);
+  SL.forEach(s=>{scrubLegacy(s);s._k=norm(s.d+" "+s.n+" "+s.t)});
+  // rankningslistor från gammal data
+  if(D.rank)Object.values(D.rank).forEach(r=>{if(r){delete r.val;delete r.grm;delete r.mgf}});
+}
 async function loadData(){
   try{const r=await fetch(DATA_URL+"?t="+Date.now());if(!r.ok)throw 0;const j=await r.json();if(!j.stocks)throw "old";return{d:j,demo:false,old:false}}
   catch(e){return{d:demo(),demo:true,old:e==="old"}}
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-16-f";
+const APPV="2026-10-17-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1185,6 +1200,7 @@ function liveBox(){
   liveAge()
 }
 function liveAttach(t){
+  try{if(S[t])scrubLegacy(S[t])}catch(e){}
   const x=D.dtx&&D.dtx[t];if(!x)return;
   if(LV.t===t&&LV.mode!=="off"){LV.x=x;liveDraw();return}
   if(LV.t&&LV.t!==t)liveStop();
@@ -1634,6 +1650,20 @@ async function listExport(){
 const planPx=it=>{const s=S[it.t];return s&&s.px>0?s.px:(+it.px||0)};
 const planCc=it=>{const s=S[it.t];return s?s.ccy:(it.ccy||"SEK")};
 const planAmt=it=>it.q*planPx(it)*fx(planCc(it));
+function planStale(p){
+  const pl=p.plan;if(!pl||!pl.items)return null;
+  let n=0,worst=0,ex=null;
+  pl.items.forEach(it=>{const s=S[it.t];
+    if(!s||!(s.px>0)||!(it.px>0))return;
+    const d=(s.px/it.px-1)*100;
+    if(Math.abs(d)>=1){n++;if(Math.abs(d)>Math.abs(worst)){worst=d;ex={t:it.t,then:it.px,now:s.px,d}}}});
+  return n?{n,tot:pl.items.length,worst,ex}:null}
+function planStaleHTML(p){
+  const st=planStale(p);if(!st)return"";
+  return`<div class="stat WAIT" style="margin:0 0 8px"><b>⏱ KURSERNA HAR RÖRT SIG</b>
+   Förslaget räknades på kurserna när det skapades. ${st.n} av ${st.tot} rader har rört sig minst 1 % sedan dess.
+   ${st.ex?`${esc(st.ex.t)}: ${f(st.ex.then,2)} → ${f(st.ex.now,2)} (${sg(st.ex.d,1)} %).`:""}
+   <br>Tryck <b>🔄 Uppdatera förslag & signaler</b> innan du handlar, så räknas allt om på dagens kurser.</div>`}
 function planHTML(p){
   const pl=p.plan;if(!pl||!pl.items||!pl.items.length)return"";
   const act=pl.items.filter(i=>i.a!=="BEHÅLL"),done=act.filter(i=>i.done).length,sum=a=>pl.items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
@@ -1784,7 +1814,7 @@ Modellen är backtestad på 792 aktier över 10 år (2016–2026): 518 amerikans
 <br><br><b>Att hålla länge lönade sig.</b> Att sälja vid brott mot SMA50 var sämst av allt: 5 % per år och 20 dagars innehavstid. Band plus absolut momentum gav 92–182 dagars innehav och klart bättre resultat.
 <br><br><b>Förbehåll:</b> tickerlistorna är dagens indexmedlemmar, så bolag som gått under saknas och resultaten är för optimistiska. Fundamenta ingår inte längre i poängen – den togs bort 2026-10-16 efter mätning. Verklig handel har dessutom spread och slippage som testet inte räknar med. Historik är ingen garanti.
 </div></details>`;
-function rulesLine(p,c){return twinWarn(p)+(c?fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+corrLine(p,c):"")+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
+function rulesLine(p,c){return twinWarn(p)+planStaleHTML(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+corrLine(p,c):"")+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px">Appen ger signal när en regel slår till och föreslår vad du kan köpa i stället. Toppkursen är den högsta kurs appen sett sedan köpet.</p>
@@ -2199,6 +2229,19 @@ function fewWarn(p,c){
    ${n} innehav är farligt koncentrerat. I backtestet gav <b>ett innehav −6,4 % per år</b> över elva år,
    med sju förlustår och 74,6 % nedgång – trots att enskilda år gav +87 %.
    Två innehav gav 8,3 % och fem förlustår. Tre är minimum, fem rekommenderas.</div>`}
+function massSell(p,c){
+  const rows=(c.rows||[]).filter(r=>r.val>0);if(rows.length<4)return"";
+  const sel=rows.filter(r=>{const k=(r.rule&&r.rule.k)||r.sig.k;return ["SELL","STOPP","BAND","ABSM","TREND"].includes(k)});
+  const w=sel.reduce((a,r)=>a+r.val,0)/Math.max(1,c.tot)*100;
+  if(sel.length<Math.ceil(rows.length/3)||w<25)return"";
+  const typ={};sel.forEach(r=>{const k=(r.rule&&r.rule.k)||r.sig.k;typ[k]=(typ[k]||0)+1});
+  const lbl={STOPP:"stopp",BAND:"ur bandet",ABSM:"momentum slut",SELL:"trendbrott",TREND:"trendbrott"};
+  const band=typ.BAND||0;
+  return`<div class="stat BAD" style="margin:0 0 8px"><b>⚠ ${sel.length} AV ${rows.length} INNEHAV FÅR SÄLJSIGNAL</b>
+   Det motsvarar ${f(w,0)} % av portföljen. Fördelning: ${Object.entries(typ).map(([k,n])=>`${n} ${lbl[k]||k}`).join(", ")}.
+   <br>Så många signaler samtidigt beror nästan alltid på en marknadsrörelse eller på att modellen ändrats – inte på att varje enskild aktie försämrats.
+   ${band>=3?`<br><b>${band} av dem är bandsignaler</b>, som beror på placeringen i rankningen. Ändras poängmodellen ritas rankningen om och många faller ur samtidigt utan att något hänt med aktien.`:""}
+   <br><br><b>Agera stegvis.</b> Stopp och momentum slut är exakta och oberoende av rankningen – dem kan du följa. Bandsignaler tål att vänta några dagar. Att sälja allt på en dag kostar både courtage och timing: ${sel.length} affärer kostar ungefär ${kr(sel.reduce((a,r)=>a+tradeCost(r.val,r.h.t,"sell").tot,0))} kr.</div>`}
 function corrLine(p,c){
   const k=clusters(p,c);if(!k||!k.n)return"";
   const big=k.groups.filter(g=>g.w>=25);
@@ -2303,7 +2346,10 @@ function cashCalc(p){
     else{buy+=amt;fee+=tradeCost(amt,t.t,"buy").tot}});
   const mv=ins.reduce((a,x)=>a+(x.amt||0),0);
   const adj=(p.cashadj||0);
-  return{start:p.cash0||0,sell,buy,fee,mv,adj,tot:(p.cash0||0)+sell-buy-fee+mv+adj};
+  const raw=(p.cash0||0)+sell-buy-fee+mv+adj;
+  // Affärshistoriken säger inget om vad som fanns i kassan innan den började föras.
+  // Ett negativt tal betyder att historiken är ofullständig, inte att kassan är skuld.
+  return{start:p.cash0||0,sell,buy,fee,mv,adj,raw,tot:Math.max(0,raw),ofull:raw<-1};
 }
 function cashSheet(pid){
   const p=getP(pid);if(!p)return;const cc=cashCalc(p);
@@ -2313,7 +2359,8 @@ function cashSheet(pid){
    Ingående ${kr(cc.start)} + försäljningar ${kr(cc.sell)} − köp ${kr(cc.buy)} − avgifter ${kr(cc.fee)}
    ${cc.mv?` ${cc.mv>0?"+":"−"} in/uttag ${kr(Math.abs(cc.mv))}`:""}
    ${cc.adj?` ${cc.adj>0?"+":"−"} justering ${kr(Math.abs(cc.adj))}`:""}
-   = <b style="color:var(--tx)">${kr(cc.tot)} kr</b><br>
+   = <b style="color:var(--tx)">${kr(cc.raw)} kr</b><br>
+   ${cc.ofull?`<b class="dn">Uträkningen ger ett negativt tal, vilket betyder att affärshistoriken börjar efter att portföljen startade. Skriv in den faktiska kassan nedan så räknar appen vidare därifrån.</b><br>`:""}
    <span style="opacity:.75">Växlingsavgiften ligger dold i valutakursen, så det faktiska beloppet kan avvika några hundralappar.</span></div>
   <label class="fld"><span>Kassa just nu (kr)</span><input id="ck" type="number" step="any" value="${Math.round(cc.tot)}"></label>
   <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">INSÄTTNING ELLER UTTAG</h2></div>
@@ -2330,6 +2377,9 @@ function cashSheet(pid){
 function cashLine(p,c){
   const cc=cashCalc(p),tot=(c&&c.tot)||0;
   if(!tot)return"";
+  if(cc.ofull)return`<div class="stat WAIT" style="margin:0 0 8px"><b>💰 KASSAN ÄR INTE SATT</b>
+    Appen kan inte räkna fram kassan ur affärshistoriken – den börjar efter att portföljen startade.
+    <span class="lnk" data-act="cash" data-pid="${p.id}">Ange kassan</span></div>`;
   const andel=cc.tot/tot*100;
   const hög=andel>=5&&cc.tot>1000;
   return`<div class="${hög?"stat WAIT":"mu"}" style="margin:0 0 8px${hög?"":";font-size:11.5px"}">
@@ -2520,7 +2570,7 @@ function introReplay(){const el=$("#intro");closeSheet();el.style.display="block
 $("#intro").addEventListener("click",introHide);
 /* ---------- START ---------- */
 function liveUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return null;const repo=location.pathname.split("/")[1];return repo?"https://raw.githubusercontent.com/"+h.split(".")[0]+"/"+repo+"/live/daytrade.json":null}
-async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t])Object.assign(S[t],j.stocks[t])});if(j.dt)D.rank.DT=j.dt;D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
+async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t]){Object.assign(S[t],j.stocks[t]);scrubLegacy(S[t])}});if(j.dt)D.rank.DT=j.dt;D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
 function newsUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return null;const repo=location.pathname.split("/")[1];return repo?"https://raw.githubusercontent.com/"+h.split(".")[0]+"/"+repo+"/news/news.json":null}
 async function loadNews(){
   const u=newsUrl();if(!u||DEMO)return false;
