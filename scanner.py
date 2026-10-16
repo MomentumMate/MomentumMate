@@ -833,12 +833,6 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     de, cr = info.get("debtToEquity"), info.get("currentRatio")
     dy = (info.get("trailingAnnualDividendYield") or 0) * 100
     ev, ebitda, roa = info.get("enterpriseValue"), info.get("ebitda"), info.get("returnOnAssets")
-    grc = [bool(pe and 0 < pe < 15), bool(pb and 0 < pb < 1.5), bool(pe and pb and 0 < pe * pb < 22.5),
-           bool(de is not None and de < 100), bool(cr is not None and cr >= 1.5), bool(eg > 0)]
-    gr = bool(pe and pb and pe > 0 and pb > 0 and sum(grc) >= 5)
-    ey = (ebitda / ev * 100) if (ev and ev > 0 and ebitda and ebitda > 0) else None
-    roc = roa * 100 if roa is not None else None
-    excl = info.get("sector") in ("Financial Services", "Utilities")   # Greenblatt utesluter finans/kraft
 
     sent = sentiment(news) if sent is None else sent
     nf = (any(n["ts"] > time.time() - 86400 for n in news) if nf is None else nf)
@@ -901,7 +895,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # ord i rubriker, vilket inte fångar innebörden i en nyhet. Komponenten är borttagen ur poängen.
     # Sentimentet sparas fortfarande i posten och visas i appen, men styr inte urvalet.
     # Fundamenta ingår inte längre i poängen. Nyckeltalen sparas och visas i appen, och
-    # Graham- och Magic Formula-listorna bygger vidare på dem som egna bevakningslistor.
+    # Nyckeltalen sparas och visas på aktiesidan men styr ingenting.
     score = tech
 
     # Likviditeten bedöms relativt den egna börsen i efterpasset (rel_liquidity).
@@ -941,7 +935,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
             "tsc": round(tech, 1), "fsc": round(fund, 1), "fmiss": fund_missing,
             "hi": round(float(max(closes[-252:])), 2), "lo": round(float(min(closes[-252:])), 2),
-            "gr": gr, "grn": sum(grc), "grc": grc, "ey": num(ey), "roc": num(roc), "mfr": {}, "mf": False, "_ex": excl,
+
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"), "ed": (earn_date(info) if info else None),
@@ -961,20 +955,9 @@ def horizon(s):
         return "3-6", "Etablerad uppåttrend över SMA50 och SMA200 med positiv 3–6 mån-avkastning."
     if s["a200"] and eg > 10 and rg > 5:
         return "6-12", "Trenden håller och vinst/omsättning växer – case som byggs över 6–12 mån."
-    if s["mf"] or (s["gr"] and s["a200"]):
-        return "12-24", "Värdecase (Magic Formula/Graham) med trend som håller – 1–2 års sikt."
-    if s["gr"]:
-        return "24+", "Graham-värdecase utan trendbekräftelse – kräver tålamod, 2+ år."
-    return "none", "Ingen tydlig kombination av trend, tillväxt eller värde just nu – avvakta."
-
-def magic_rank(members, recs, mk):
-    elig = [t for t in members if recs[t]["ey"] and recs[t]["roc"] is not None and recs[t]["ey"] > 0 and recs[t]["roc"] > 0 and not recs[t]["_ex"]]
-    if not elig: return
-    r_ey = {t: i for i, t in enumerate(sorted(elig, key=lambda t: -recs[t]["ey"]))}
-    r_roc = {t: i for i, t in enumerate(sorted(elig, key=lambda t: -recs[t]["roc"]))}
-    order = sorted(elig, key=lambda t: r_ey[t] + r_roc[t])
-    for i, t in enumerate(order):
-        recs[t]["mfr"][mk] = round(i / len(order), 3)
+    if s["a200"] and r6 > 0:
+        return "12-24", "Långsiktig trend intakt över SMA200 med positiv halvårsavkastning."
+    return "none", "Ingen tydlig trend just nu – avvakta."
 
 def finalize(recs, markets):
     keys = [m["k"] for m in markets]
@@ -982,16 +965,9 @@ def finalize(recs, markets):
     for m in markets:
         if m.get("reg"): groups.setdefault(m["reg"], set()).add(m["k"])
     def member(k, r): return (k == "ALL" and any(x != "CRYPTO" for x in r["m"])) or k in r["m"] or (k in groups and bool(groups[k] & set(r["m"])))
-    for k in keys + list(groups) + ["ALL"]:
-        members = [t for t, r in recs.items() if member(k, r)]
-        magic_rank(members, recs, k)
     for t, r in recs.items():
-        r["mf"] = r["mfr"].get(r["m"][0], 1) <= 0.2
-        if r["gr"]: r["al"].append({"k": "graham", "t": "Graham Screener-kandidat"})
-        if r["mf"]: r["al"].append({"k": "magic", "t": "Magic Formula-kandidat"})
         r["h"], r["hr"] = horizon(r)
         if r.get("sh"): r["hr"] += f" Kort kurshistorik ({r['nb']} handelsdagar) – SMA200 saknas."
-        r.pop("_ex", None)
     rank = {}
     for k in keys + list(groups) + ["ALL"]:
         members = [t for t, r in recs.items() if member(k, r)]
@@ -1000,26 +976,7 @@ def finalize(recs, markets):
         hits = [t for t in by_sc if recs[t]["hit"]]
         top = hits[:25] if len(hits) >= 25 else hits + [t for t in by_sc if t not in hits][:25 - len(hits)]
         mom = sorted(top, key=lambda t: -recs[t]["sc"])
-        val = []
-        for t in members:
-            r = recs[t]; mfp = r["mfr"].get(k)
-            mf_ok = mfp is not None and mfp <= 0.2
-            if r["gr"] or mf_ok:
-                v = 0.5 * (r["grn"] / 6 * 100) + 0.5 * ((1 - mfp) * 100 if mfp is not None else 0)
-                r.setdefault("vs", {})[k] = round(v, 1)
-                val.append(t)
-        val = sorted(val, key=lambda t: -recs[t]["vs"][k])[:25]
-
-        # Graham: rankad efter antal uppfyllda kriterier, därefter lägst P/B.
-        grm = [t for t in members if recs[t].get("grn", 0) >= 4 and not recs[t].get("_ex")]
-        grm = sorted(grm, key=lambda t: (-recs[t].get("grn", 0), recs[t].get("pb") or 99))[:30]
-
-        # Magic Formula: Greenblatts kombinerade rankning av avkastning på kapital
-        # och vinstmultipel. Lägst mfr är bäst.
-        mgf = [t for t in members if recs[t].get("mfr", {}).get(k) is not None and not recs[t].get("_ex")]
-        mgf = sorted(mgf, key=lambda t: recs[t]["mfr"][k])[:30]
-
-        rank[k] = {"mom": mom, "val": val, "all": by_sc, "grm": grm, "mgf": mgf}
+        rank[k] = {"mom": mom, "all": by_sc}
     rank["DT"] = rank_dt(recs)
     return rank
 
@@ -1205,7 +1162,6 @@ def analyze_one(sym):
         rec = build(sym, d, intr, info, news, {"k": "WATCH", "cur": CUR_SYM.get(cc, cc), "ccy": cc})
         if not rec: return None, news
         rec["m"] = ["WATCH"]
-        if rec["gr"]: rec["al"].append({"k": "graham", "t": "Graham Screener-kandidat"})
         rec["h"], rec["hr"] = horizon(rec); rec.pop("_ex", None); rec["prov"] = True
         return rec, news
     except Exception as e:
