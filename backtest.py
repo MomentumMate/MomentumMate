@@ -92,7 +92,27 @@ def score_panel(close, vol, cfg):
     s200 = close.rolling(200, min_periods=160).mean()
     trend = ((close > s50).astype(float) * 30 + (close > s200).astype(float) * 30
              + (s50 > s200).astype(float) * 20 + (s200 > s200.shift(1)).astype(float) * 20)
-    sc = mom * 0.65 + trend * 0.35
+    # Appens formel: mom 55 % + trend 30 % + volymbekräftelse 15 %, minus överhettning.
+    # Backtestets ursprungliga: mom 65 % + trend 35 %. Vikterna styrs av cfg.
+    wm, wt, wv = cfg.get("w_mom", 0.65), cfg.get("w_trend", 0.35), cfg.get("w_vol", 0.0)
+    if wv > 0 and vol is not None:
+        v20 = vol.rolling(20, min_periods=12).mean()
+        volx = (vol / v20.replace(0, np.nan))
+        volconf = (volx.clip(upper=2.5) / 2.5 * 100).fillna(50)
+    else:
+        volconf = 0
+    sc = mom * wm + trend * wt + volconf * wv
+    if cfg.get("heat"):
+        # Överhettningsavdrag: straffa aktier som rusat senaste månaden eller har hög RSI.
+        r1m = (close / close.shift(21) - 1) * 100
+        heat = (r1m - 25).clip(lower=0) / 25 * 15
+        up = r.clip(lower=0).rolling(14, min_periods=10).mean()
+        dn = (-r.clip(upper=0)).rolling(14, min_periods=10).mean()
+        rsi = 100 - 100 / (1 + up / dn.replace(0, np.nan))
+        heat = heat + (rsi - 80).clip(lower=0) / 20 * 10
+        sc = sc - heat.clip(upper=25).fillna(0)
+    if cfg.get("sector_cap"):
+        pass   # sektortaket hanteras vid urvalet, inte i poängen
     if cfg["trendfilter"]:
         sc = sc.where(close > s200)                      # bara aktier över sitt långa medelvärde
     if cfg["minturnover"] > 0 and vol is not None:
@@ -213,6 +233,12 @@ def run(close, vol, cfg, vix=None):
     sc, _ = score_panel(close, vol, cfg)
     EX = exit_panels(close, cfg)
     DK = decay_panels(close, vol, cfg)
+    RSI = None
+    if cfg.get("buy_rsi", 0) > 0:
+        rr_ = close.pct_change()
+        up_ = rr_.clip(lower=0).rolling(14, min_periods=10).mean()
+        dn_ = (-rr_.clip(upper=0)).rolling(14, min_periods=10).mean()
+        RSI = 100 - 100 / (1 + up_ / dn_.replace(0, np.nan))
     # Rekylkrav: en kandidat får köpas först när kursen fallit en viss andel från sin
     # högsta nivå de senaste N dagarna. 23,6 / 38,2 / 50 / 61,8 % av rekylen motsvarar
     # Fibonaccinivåerna; de testas som vilka trösklar som helst.
@@ -443,6 +469,10 @@ def run(close, vol, cfg, vix=None):
                                 if v == v and v >= cfg["buy_lower"]: return False
                             return True
                         cand_all = [t for t in cand_all if fresh(t)]
+                    if RSI is not None:
+                        rr = RSI.iloc[i]
+                        cand_all = [t for t in cand_all
+                                    if not (rr.get(t) == rr.get(t) and rr.get(t) > cfg["buy_rsi"])]
                     picks = cand_all[:room]
                     tot = value(i)
                     for t in picks:
@@ -507,7 +537,8 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            exit_obv=0, exit_ath=0, ath_worse_min=5, exit_lower=0,
            buy_obv=0, buy_ath=0, buy_lower=0,
            mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5,
-           tp=0, tp_sell=50)
+           tp=0, tp_sell=50,
+           w_mom=0.65, w_trend=0.35, w_vol=0.0, heat=False, pos_cap=0, buy_rsi=0)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -527,6 +558,7 @@ def main():
     ap.add_argument("--conc", action="store_true", help="få innehav, inget stopp, låt vinnare löpa")
     ap.add_argument("--decay", action="store_true", help="fångar volymbalans, ATH-avstånd och lägre toppar försämring i tid?")
     ap.add_argument("--tp", action="store_true", help="kapar vinstmålet vinnarna? (appens tp=35/tpSell=50 är aldrig testad)")
+    ap.add_argument("--score", action="store_true", help="är appens poängmodell bättre än backtestets enklare?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -571,6 +603,59 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Poängtest: är appens formel bättre än den backtestet validerat? ----------
+    if a.score:
+        B = dict(voladj=False, n=20, band_out=30, stop=15, reweight=True, reb="Q",
+                 refill_days=21, port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "0. BACKTESTETS formel: mom 65 + trend 35":        dict(B, w_mom=.65, w_trend=.35, w_vol=0, heat=False),
+            "A. APPENS formel: mom 55 + trend 30 + volym 15":  dict(B, w_mom=.55, w_trend=.30, w_vol=.15, heat=False),
+            "B. Appens formel MED överhettningsavdrag":        dict(B, w_mom=.55, w_trend=.30, w_vol=.15, heat=True),
+            "C. Backtestets formel med överhettningsavdrag":   dict(B, w_mom=.65, w_trend=.35, w_vol=0, heat=True),
+            "--- komponenterna var för sig ---":               None,
+            "D. Enbart momentum (100 %)":                      dict(B, w_mom=1.0, w_trend=0, w_vol=0),
+            "E. Enbart trendkvalitet (100 %)":                 dict(B, w_mom=0, w_trend=1.0, w_vol=0),
+            "F. Mom 50 + trend 50":                            dict(B, w_mom=.50, w_trend=.50, w_vol=0),
+            "G. Mom 80 + trend 20":                            dict(B, w_mom=.80, w_trend=.20, w_vol=0),
+            "H. Volym 30 % (dubbelt mot appen)":               dict(B, w_mom=.50, w_trend=.20, w_vol=.30),
+            "--- övriga otestade regler ---":                  None,
+            "I. Appens formel + RSI-tak 80 vid köp":           dict(B, w_mom=.55, w_trend=.30, w_vol=.15, heat=True, buy_rsi=80),
+            "J. Appens formel + RSI-tak 70":                   dict(B, w_mom=.55, w_trend=.30, w_vol=.15, heat=True, buy_rsi=70),
+            "K. ALLT som appen gör (formel+heat+RSI)":         dict(B, w_mom=.55, w_trend=.30, w_vol=.15, heat=True, buy_rsi=80),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Poängmodell, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: validerar backtestet appens rankning, eller en annan modell?")
+        print(f"   (fundamenta, 38 % av appens poäng, går inte att testa – Yahoo saknar historik)\n")
+        print(f"   {'likaviktat snitt av universumet':<52}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None:
+                print(f"\n   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                print(f"   {nm:<52}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<52} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        ref = ok.get("0. BACKTESTETS formel: mom 65 + trend 35", {}).get("CAGR_%", 0)
+        app = ok.get("K. ALLT som appen gör (formel+heat+RSI)", {}).get("CAGR_%", 0)
+        print(f"\n   Backtestets formel (allt vi validerat hittills): {ref} %")
+        print(f"   Appens tekniska formel i sin helhet: {app} %   → skillnad {round(app - ref, 2)} procentenheter")
+        best = max(ok, key=lambda k: ok[k]["CAGR_%"], default=None)
+        if best: print(f"   Bäst: {best} ({ok[best]['CAGR_%']} %)")
+        print(f"   (slumpvariationen mellan körningar är 2–3 procentenheter)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "poängmodell", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "backtestets_formel": ref, "appens_formel": app, "bäst": best, "varianter": res,
+               "varning": "Fundamenta (38 % av appens poäng) kan inte testas. Slumpvariation 2–3 procentenheter."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Vinstmålstest: kapar regeln högpresterande aktier? ----------
     if a.tp:
