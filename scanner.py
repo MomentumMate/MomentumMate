@@ -735,6 +735,39 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     except Exception:
         vol = None
 
+    # --- försämringsmått (visas som information i appen, styr inga signaler) ---
+    obvs = ath_gap = ath_chg = ltops = None
+    try:
+        # c har heltalsindex medan vols har datumindex – de måste riktas in mot varandra,
+        # annars ger multiplikationen bara tomma värden.
+        vv = pd.Series(vols.astype(float).tolist(), dtype="float64")
+        if len(vv) < len(c): vv = pd.concat([vv, pd.Series([float(vv.iloc[-1])] * (len(c) - len(vv)))], ignore_index=True)
+        vv = vv.iloc[:len(c)].reset_index(drop=True)
+        sgn = c.diff().apply(lambda x: 0.0 if x != x else (1.0 if x > 0 else (-1.0 if x < 0 else 0.0)))
+        obv = (sgn * vv.fillna(0)).cumsum()
+        sd = float(obv.iloc[-60:].std()) if len(obv) >= 60 else 0.0
+        if sd > 0 and len(obv) > 21:
+            obvs = float(obv.iloc[-1] - obv.iloc[-21]) / sd      # volymbalansens riktning
+    except Exception:
+        obvs = None
+    try:
+        ath = float(c.max())
+        if ath > 0:
+            ath_gap = (ath - px) / ath * 100                      # procent under högsta notering
+            if len(c) > 22:
+                px_m = float(c.iloc[-22]); ath_m = float(c.iloc[:-21].max())
+                if ath_m > 0:
+                    ath_chg = ath_gap - (ath_m - px_m) / ath_m * 100   # förändring senaste månaden
+    except Exception:
+        pass
+    try:
+        if len(c) > 40:
+            h5 = c.rolling(5).max()
+            ltops = int(sum(1 for k in range(5, 31, 5)
+                            if float(h5.iloc[-k]) < float(h5.iloc[-k - 5])))   # veckor med lägre topp
+    except Exception:
+        ltops = None
+
     # --- likviditet: snittomsättning per dag (20 dagar), omräknad till USD ---
     FXU = {"USD": 1.0, "SEK": 0.10, "NOK": 0.096, "DKK": 0.147, "EUR": 1.08, "GBp": 0.0127,
            "GBX": 0.0127, "GBP": 1.27, "CHF": 1.12, "JPY": 0.0066, "HKD": 0.128, "CAD": 0.73,
@@ -842,9 +875,11 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "adv": (round(adv) if adv else None),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "adv": (round(adv) if adv else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
+            "roe": num((roe or 0) * 100, 0) if roe is not None else None,
+            "tsc": round(tech, 1), "fsc": round(fund, 1),
             "hi": round(float(max(closes[-252:])), 2), "lo": round(float(min(closes[-252:])), 2),
             "gr": gr, "grn": sum(grc), "grc": grc, "ey": num(ey), "roc": num(roc), "mfr": {}, "mf": False, "_ex": excl,
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
@@ -914,7 +949,17 @@ def finalize(recs, markets):
                 r.setdefault("vs", {})[k] = round(v, 1)
                 val.append(t)
         val = sorted(val, key=lambda t: -recs[t]["vs"][k])[:25]
-        rank[k] = {"mom": mom, "val": val, "all": by_sc}
+
+        # Graham: rankad efter antal uppfyllda kriterier, därefter lägst P/B.
+        grm = [t for t in members if recs[t].get("grn", 0) >= 4 and not recs[t].get("_ex")]
+        grm = sorted(grm, key=lambda t: (-recs[t].get("grn", 0), recs[t].get("pb") or 99))[:30]
+
+        # Magic Formula: Greenblatts kombinerade rankning av avkastning på kapital
+        # och vinstmultipel. Lägst mfr är bäst.
+        mgf = [t for t in members if recs[t].get("mfr", {}).get(k) is not None and not recs[t].get("_ex")]
+        mgf = sorted(mgf, key=lambda t: recs[t]["mfr"][k])[:30]
+
+        rank[k] = {"mom": mom, "val": val, "all": by_sc, "grm": grm, "mgf": mgf}
     rank["DT"] = rank_dt(recs)
     return rank
 
