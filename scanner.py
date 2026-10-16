@@ -785,8 +785,12 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
 
     # --- grundvärden ---
     pe, pb = info.get("trailingPE"), info.get("priceToBook")
-    eg = (info.get("earningsGrowth") or 0) * 100; rg = (info.get("revenueGrowth") or 0) * 100
-    pm = (info.get("profitMargins") or 0) * 100
+    _eg_raw, _rg_raw = info.get("earningsGrowth"), info.get("revenueGrowth")
+    _pm_raw = info.get("profitMargins")
+    eg = (_eg_raw or 0) * 100; rg = (_rg_raw or 0) * 100
+    pm = (_pm_raw or 0) * 100
+    # Saknade nyckeltal markeras så att poängen kan sättas neutralt i stället för till noll.
+    fund_missing = sum(1 for x in (_eg_raw, _rg_raw, _pm_raw, info.get("returnOnEquity")) if x is None)
     de, cr = info.get("debtToEquity"), info.get("currentRatio")
     dy = (info.get("trailingAnnualDividendYield") or 0) * 100
     ev, ebitda, roa = info.get("enterpriseValue"), info.get("ebitda"), info.get("returnOnAssets")
@@ -832,17 +836,34 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     if r1 > 25: heat += min((r1 - 25) / 25, 1) * 15
     if rs > 80: heat += min((rs - 80) / 15, 1) * 10
 
-    tech = max(0.0, min(100.0, mom * .55 + trend * .30 + volconf * .15 - heat))
+    # Vikter efter backtest 2026-10-16 (1 481 aktier, 10 år): mom 80 / trend 20 gav 16,00 %
+    # mot 15,56 % för 65/35 och 13,73 % när volymbekräftelsen vägdes in med 15 %.
+    # Volymbekräftelsen är borttagen ur poängen men sparas och visas i appen.
+    tech = max(0.0, min(100.0, mom * .80 + trend * .20 - heat))
 
     # Fundamenta: tillväxt + kvalitet (marginal och avkastning på eget kapital)
     roe = info.get("returnOnEquity")
-    fund = (min(max(eg, 0), 50) / 50 * 35 + min(max(rg, 0), 30) / 30 * 35
-            + min(max(pm, 0), 25) / 25 * 15 + min(max((roe or 0) * 100, 0), 35) / 35 * 15)
+    # Varje komponent räknas bara när värdet finns. Saknas allt sätts poängen neutralt (50)
+    # i stället för 0 – annars straffas aktier för att data inte gick att hämta.
+    _parts, _wsum = 0.0, 0.0
+    if _eg_raw is not None: _parts += min(max(eg, 0), 50) / 50 * 35; _wsum += 35
+    if _rg_raw is not None: _parts += min(max(rg, 0), 30) / 30 * 35; _wsum += 35
+    if _pm_raw is not None: _parts += min(max(pm, 0), 25) / 25 * 15; _wsum += 15
+    if roe is not None:     _parts += min(max(roe * 100, 0), 35) / 35 * 15; _wsum += 15
+    # Ju tunnare underlag, desto mer dras poängen mot neutralt. Ett enda bra nyckeltal
+    # ska inte ge högre poäng än fyra bra – det vore samma skevhet fast åt andra hållet.
+    if _wsum > 0:
+        _conf = _wsum / 100.0                       # andel av full viktsumma som finns
+        fund = (_parts / _wsum * 100) * _conf + 50.0 * (1 - _conf)
+    else:
+        fund = 50.0                                 # ingen data: neutral, varken belöning eller straff
 
     # Nyhetssentimentet ingick tidigare med 5 %. Det byggde på att räkna positiva och negativa
     # ord i rubriker, vilket inte fångar innebörden i en nyhet. Komponenten är borttagen ur poängen.
     # Sentimentet sparas fortfarande i posten och visas i appen, men styr inte urvalet.
-    score = tech * .62 + fund * .38
+    # Fundamenta ingår inte längre i poängen. Nyckeltalen sparas och visas i appen, och
+    # Graham- och Magic Formula-listorna bygger vidare på dem som egna bevakningslistor.
+    score = tech
 
     # Likviditeten bedöms relativt den egna börsen i efterpasset (rel_liquidity).
     # Här dras bara av för aktier som är otradbara i absoluta tal, oavsett marknad.
@@ -879,7 +900,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
-            "tsc": round(tech, 1), "fsc": round(fund, 1),
+            "tsc": round(tech, 1), "fsc": round(fund, 1), "fmiss": fund_missing,
             "hi": round(float(max(closes[-252:])), 2), "lo": round(float(min(closes[-252:])), 2),
             "gr": gr, "grn": sum(grc), "grc": grc, "ey": num(ey), "roc": num(roc), "mfr": {}, "mf": False, "_ex": excl,
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,

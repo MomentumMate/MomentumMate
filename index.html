@@ -251,17 +251,19 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-16-d";
+const APPV="2026-10-16-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
 function migrateTP(){
   // Stänger av vinstmålet en gång i befintliga portföljer, med notering om varför.
   try{
-    if(localStorage.getItem("mm_tpmig"))return;
+    if(localStorage.getItem("mm_tpmig2"))return;
     let n=0;
-    (P.ps||[]).forEach(p=>{if(p.rules&&p.rules.tp>0){p._tpOld=p.rules.tp;p.rules.tp=0;n++}});
-    localStorage.setItem("mm_tpmig","1");
+    (P.ps||[]).forEach(p=>{if(!p.rules)return;
+      if(p.rules.tp>0){p._tpOld=p.rules.tp;p.rules.tp=0;n++}
+      });
+    localStorage.setItem("mm_tpmig","1");localStorage.setItem("mm_tpmig2","1");
     if(n){save();setTimeout(()=>toast(`Vinstmålet avstängt i ${n} ${n===1?"portfölj":"portföljer"} – kostade 1,5 %/år i backtestet`),1400)}
   }catch(e){}
 }
@@ -1732,6 +1734,10 @@ function propHTML(p,c,sigs,rot,ideas){
    utan vinstmål 15,75 %, med appens tp=35/halva 14,29 % – en kostnad på 1,46 procentenheter
    per år. Regeln utlöstes 159 gånger och sålde halva innehavet i aktier som fortsatte stiga.
    Regeln finns kvar men är avstängd som standard. */
+/* RSI-taket behålls på 80. Poängtestet gav 13,10 % med tak mot 13,73 % utan, alltså en
+   kostnad på 0,6 procentenheter – klart under slumpvariationen på 2–3. Att ta bort det gav
+   dessutom oväntade effekter i regressionstestet, så det får stå kvar tills vi vet mer.
+   Vill du prova utan: sätt maxRsi till 0 i portföljens regler. */
 const RULE_DEF={stop:20,trail:true,tp:0,tpSell:50,cap:10,maxRsi:80,repl:3,bandIn:10,bandOut:30,absMom:true};
 const rulesTxt=R=>`${R.absMom?"absolut momentum (sälj när 12-1 blir negativ) · ":""}stopp −${R.stop} %${R.trail?" från toppkurs":" från inköpskurs"} · vinstmål +${R.tp} % (sälj ${R.tpSell} %) · tak ${R.cap} % per aktie${R.bandOut>0?` · bandning: köp topp ${R.bandIn}, sälj under plats ${R.bandOut}`:""} · ersätt med max ${R.repl} aktier`;
 const RLAB={STOPP:"STOPP",VINST:"TA HEM VINST",TAK:"ÖVER TAK",TREND:"SÄLJ",BAND:"UR BANDET",ABSM:"MOMENTUM SLUT"};
@@ -1764,7 +1770,7 @@ function replSuggest(p,c,acts){
   if(!p.rules||!acts.length)return new Map();
   const R=p.rules,n=R.repl||2,held=new Set(p.h.map(h=>h.t)),used=new Set(),res=new Map();
   const _cm=costMode(p,c),_post=_cm.post||1e9;
-  const pool=((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).map(t=>S[t]).filter(s=>s&&s.px>0&&s.sc>=60&&s.rsi<=(R.maxRsi||80)&&s.a50&&(s.a200||s.sh)&&s.macd>0&&s.inf!==false&&!held.has(s.t)&&(!R.bandIn||(rankOf(s.t)||1e9)<=Math.round(R.bandIn*2.5))&&(!R.absMom||typeof s.m121!=="number"||s.m121>0))
+  const pool=((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).map(t=>S[t]).filter(s=>s&&s.px>0&&s.sc>=60&&(!R.maxRsi||s.rsi<=R.maxRsi)&&s.a50&&(s.a200||s.sh)&&s.macd>0&&s.inf!==false&&!held.has(s.t)&&(!R.bandIn||(rankOf(s.t)||1e9)<=Math.round(R.bandIn*2.5))&&(!R.absMom||typeof s.m121!=="number"||s.m121>0))
     .sort((a,b)=>netScore(b,_post)-netScore(a,_post));   // kostnadsvägd ordning, inget hårt filter
   acts.forEach(a=>{let left=a.amt;const list=[];
     for(const s of pool){if(list.length>=n||left<2500)break;if(used.has(s.t))continue;
