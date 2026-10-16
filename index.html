@@ -251,7 +251,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-16-b";
+const APPV="2026-10-16-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -364,7 +364,7 @@ function detail(s,mk,extra=""){
   const crit=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
   const n=s.dt.filter(x=>x===true).length,na=s.dt.some(x=>x==null);
   const mfp=(s.mfr&&(s.mfr[mk]!=null?s.mfr[mk]:s.mfr[s.m[0]]));
-  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
+  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${typeof s.fsc==="number"?`<div><small>Fundamentapoäng</small><b class="${s.fmiss>=3?"dn":""}">${f(s.fsc,0)}${s.fmiss?` <span class="mu" style="font-size:10px">(${s.fmiss}/4 saknas)</span>`:""}</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
   <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
   <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>${s.sh?`<div class="mu">⚠ Kort kurshistorik (${s.nb} handelsdagar) – SMA200 saknas.</div>`:""}
   <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
@@ -2384,11 +2384,32 @@ function fundImpact(mk){
     saknas:saknas.map(x=>({t:x.t,d:x.d,sc:x.sc,tsc:x.tsc,fsc:x.fsc,plats:posTech[x.t]+1})),
     nya:nya.map(x=>({t:x.t,d:x.d,sc:x.sc,tsc:x.tsc,fsc:x.fsc,plats:posFull[x.t]+1}))}
 }
+/* Skiljer två effekter åt: ändrar fundamenta rankningen för att bolagen SKILJER SIG,
+   eller för att en del aktier saknar data och klumpas på neutralt 50? */
+function fundSplit(){
+  const pool=Object.values(S).filter(x=>x&&x.px>0&&typeof x.tsc==="number"&&typeof x.fsc==="number");
+  if(pool.length<40)return null;
+  const hel=pool.filter(x=>!x.fmiss);                 // alla fyra nyckeltalen finns
+  const ov=(arr,n)=>{const A=new Set(arr.slice().sort((a,b)=>b.sc-a.sc).slice(0,n).map(x=>x.t));
+    return arr.slice().sort((a,b)=>b.tsc-a.tsc).slice(0,n).filter(x=>A.has(x.t)).length};
+  return{alla:pool.length,hel:hel.length,
+    ovAlla:ov(pool,20),
+    ovHel:hel.length>=40?ov(hel,20):null,
+    andelUtan:pool.filter(x=>x.fmiss>=4).length/pool.length*100}
+}
 function fundSheet(){
   const r=fundImpact("ALL");
   if(!r){sheet(`<h3>🔬 Vad gör fundamentadelen?</h3><p class="mu">Behöver en ny skanning först – delpoängen sparas från och med version 2026-10-16-b.</p>`);return}
   const row=(x,extra)=>`<div class="sr"><div class="m"><b>${esc(x.d||x.t)}</b><div class="mu">teknik ${f(x.tsc,0)} · fundamenta ${f(x.fsc,0)} · total ${f(x.sc,0)}</div></div><div class="p"><span class="mu">${esc(extra)} ${x.plats}</span></div></div>`;
   sheet(`<h3>🔬 Vad gör fundamentadelen?</h3>
+  ${(()=>{const pool=Object.values(S).filter(x=>x&&x.px>0&&typeof x.fmiss==="number");
+    if(!pool.length)return"";
+    const ingen=pool.filter(x=>x.fmiss>=4).length,tunt=pool.filter(x=>x.fmiss>=2&&x.fmiss<4).length;
+    return`<div class="stat ${ingen/pool.length>0.3?"BAD":"WAIT"}" style="margin:0 0 8px"><b>📊 DATATÄCKNING</b>
+      ${ingen} av ${pool.length} aktier saknar alla fyra nyckeltalen, ${tunt} saknar två eller tre.
+      Yahoo stryper anropen, så nyckeltal hämtas bara för en del av universumet.<br>
+      <b>Rättat 2026-10-16:</b> saknad data sätts nu till neutralt 50, inte till 0. Tidigare straffades
+      aktier för att data inte gick att hämta – AMD med teknikpoäng 93 hamnade på plats 89.</div>`})()}
   <p class="mu" style="margin-top:-4px">Fundamenta väger 38 % av poängen men har aldrig kunnat valideras – Yahoo ger bara dagens nyckeltal. Här mäts i stället hur mycket den faktiskt ändrar rankningen på ${r.n} aktier.</p>
   <div class="g"><div><small>Samma i topp 10</small><b>${r.ov10}/10</b></div>
    <div><small>Samma i topp 20</small><b>${r.ov20}/20</b></div>
@@ -2402,6 +2423,19 @@ function fundSheet(){
    ${r.corr!==null&&r.corr>0.4?"<br><br><b>Hög samvariation:</b> teknik- och fundamentapoängen rör sig åt samma håll. Det tyder på att fundamentadelen till stor del mäter samma sak som momentum en gång till, snarare än något eget. 70 % av den är tillväxtmått, som är bakåtblickande.":""}
    ${r.corr!==null&&Math.abs(r.corr)<0.2?"<br><br><b>Låg samvariation:</b> delarna mäter olika saker. Fundamenta tillför alltså något eget – men om det är rätt eller fel vet vi inte.":""}
   </div>
+  ${(()=>{const sp=fundSplit();if(!sp)return"";
+    if(sp.ovHel===null)return`<div class="mu" style="font-size:11.5px;margin:8px 0">Bara ${sp.hel} aktier har alla fyra nyckeltalen – för få för att skilja effekterna åt.</div>`;
+    const dAlla=20-sp.ovAlla,dHel=20-sp.ovHel;
+    const andel=dAlla>0?Math.max(0,Math.min(100,(dAlla-dHel)/dAlla*100)):0;
+    return`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">BEROR DET PÅ BOLAGEN ELLER PÅ SAKNAD DATA?</h2></div>
+    <div class="g"><div><small>Byten i topp 20, alla aktier</small><b>${dAlla}/20</b></div>
+     <div><small>Byten bland de ${sp.hel} med komplett data</small><b>${dHel}/20</b></div>
+     <div><small>Saknar all data</small><b>${f(sp.andelUtan,0)} %</b></div></div>
+    <div class="mu" style="font-size:11.5px;margin:6px 0">
+     ${dHel<=2?`<b>Nästan hela effekten kommer från saknad data.</b> Bland aktier med komplett data ändrar fundamenta knappt rankningen alls (${dHel} byten). Komponenten sorterar alltså mest efter om Yahoo svarade – inte efter hur bolagen mår. Då bör den tas bort.`
+      :dHel>=dAlla*0.7?`<b>Effekten är verklig.</b> Även bland aktier med komplett data byts ${dHel} av 20 ut. Fundamenta skiljer alltså på bolagen, inte bara på datatillgång. Om det är rätt eller fel vet vi fortfarande inte utan historiska nyckeltal.`
+      :`<b>Blandad orsak.</b> Ungefär ${f(andel,0)} % av effekten kommer från saknad data och resten från verkliga skillnader mellan bolagen.`}
+     <br><br>Att sätta saknad data till 50 tar bort straffet, men de aktierna klumpas ändå ihop på mitten medan de med data sprids över hela skalan. Att ge <b>alla</b> samma värde vore matematiskt identiskt med att ta bort fundamenta helt.</div>`})()}
   ${r.saknas.length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">FUNDAMENTA LYFTER IN DESSA I TOPP 20</h2></div>
    <div class="mu" style="font-size:11.5px;margin-bottom:6px">Ligger utanför topp 20 på enbart teknik.</div>
    ${r.saknas.slice(0,8).map(x=>row(x,"teknikplats")).join("")}`:""}
