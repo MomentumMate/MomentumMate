@@ -1,0 +1,217 @@
+{
+ "skapad": "2026-10-16T17:49:44Z",
+ "läge": "poängmodell",
+ "portfölj_sek": 7000000.0,
+ "år": 10.3,
+ "backtestets_formel": 16.52,
+ "appens_formel": 14.67,
+ "bäst": "G. Mom 80 + trend 20",
+ "varianter": {
+  "_snitt": {
+   "slutkapital": 6.299,
+   "CAGR_%": 19.61,
+   "volatilitet_%": 18.0,
+   "Sharpe": 1.09,
+   "max_nedgång_%": -39.4,
+   "affärer": 0,
+   "köp": 0,
+   "köp_per_år": 0.0,
+   "innehavstid_dagar": null,
+   "längsta_innehav_dagar": null,
+   "utgångar": {}
+  },
+  "0. BACKTESTETS formel: mom 65 + trend 35": {
+   "slutkapital": 4.812,
+   "CAGR_%": 16.52,
+   "volatilitet_%": 20.2,
+   "Sharpe": 0.82,
+   "max_nedgång_%": -29.7,
+   "affärer": 1903,
+   "köp": 930,
+   "köp_per_år": 90.5,
+   "innehavstid_dagar": 57,
+   "längsta_innehav_dagar": 335,
+   "utgångar": {
+    "stop": 621,
+    "band": 289
+   }
+  },
+  "A. APPENS formel: mom 55 + trend 30 + volym 15": {
+   "slutkapital": 4.307,
+   "CAGR_%": 15.27,
+   "volatilitet_%": 20.4,
+   "Sharpe": 0.75,
+   "max_nedgång_%": -31.5,
+   "affärer": 2140,
+   "köp": 1059,
+   "köp_per_år": 103.1,
+   "innehavstid_dagar": 55,
+   "längsta_innehav_dagar": 396,
+   "utgångar": {
+    "stop": 602,
+    "band": 437
+   }
+  },
+  "B. Appens formel MED överhettningsavdrag": {
+   "slutkapital": 4.554,
+   "CAGR_%": 15.9,
+   "volatilitet_%": 19.3,
+   "Sharpe": 0.82,
+   "max_nedgång_%": -28.0,
+   "affärer": 2092,
+   "köp": 1036,
+   "köp_per_år": 100.8,
+   "innehavstid_dagar": 57,
+   "längsta_innehav_dagar": 396,
+   "utgångar": {
+    "stop": 565,
+    "band": 451
+   }
+  },
+  "C. Backtestets formel med överhettningsavdrag": {
+   "slutkapital": 3.959,
+   "CAGR_%": 14.33,
+   "volatilitet_%": 20.1,
+   "Sharpe": 0.71,
+   "max_nedgång_%": -29.8,
+   "affärer": 1957,
+   "köp": 955,
+   "köp_per_år": 92.9,
+   "innehavstid_dagar": 57,
+   "längsta_innehav_dagar": 335,
+   "utgångar": {
+    "stop": 602,
+    "band": 333
+   }
+  },
+  "D. Enbart momentum (100 %)": {
+   "slutkapital": 4.141,
+   "CAGR_%": 14.83,
+   "volatilitet_%": 20.9,
+   "Sharpe": 0.71,
+   "max_nedgång_%": -34.2,
+   "affärer": 1940,
+   "köp": 945,
+   "köp_per_år": 92.0,
+   "innehavstid_dagar": 53,
+   "längsta_innehav_dagar": 385,
+   "utgångar": {
+    "stop": 669,
+    "band": 256
+   }
+  },
+  "E. Enbart trendkvalitet (100 %)": {
+   "slutkapital": 1.568,
+   "CAGR_%": 4.48,
+   "volatilitet_%": 13.9,
+   "Sharpe": 0.32,
+   "max_nedgång_%": -29.2,
+   "affärer": 1410,
+   "köp": 689,
+   "köp_per_år": 67.1,
+   "innehavstid_dagar": 88,
+   "längsta_innehav_dagar": 962,
+   "utgångar": {
+    "stop": 342,
+    "band": 327
+   }
+  },
+  "F. Mom 50 + trend 50": {
+   "slutkapital": 4.095,
+   "CAGR_%": 14.71,
+   "volatilitet_%": 20.1,
+   "Sharpe": 0.73,
+   "max_nedgång_%": -29.1,
+   "affärer": 1918,
+   "köp": 936,
+   "köp_per_år": 91.1,
+   "innehavstid_dagar": 57,
+   "längsta_innehav_dagar": 335,
+   "utgångar": {
+    "stop": 623,
+    "band": 293
+   }
+  },
+  "G. Mom 80 + trend 20": {
+   "slutkapital": 4.89,
+   "CAGR_%": 16.7,
+   "volatilitet_%": 20.5,
+   "Sharpe": 0.82,
+   "max_nedgång_%": -29.7,
+   "affärer": 1906,
+   "köp": 933,
+   "köp_per_år": 90.8,
+   "innehavstid_dagar": 57,
+   "längsta_innehav_dagar": 335,
+   "utgångar": {
+    "stop": 627,
+    "band": 286
+   }
+  },
+  "H. Volym 30 % (dubbelt mot appen)": {
+   "slutkapital": 4.355,
+   "CAGR_%": 15.4,
+   "volatilitet_%": 19.9,
+   "Sharpe": 0.77,
+   "max_nedgång_%": -31.6,
+   "affärer": 2200,
+   "köp": 1094,
+   "köp_per_år": 106.5,
+   "innehavstid_dagar": 54,
+   "längsta_innehav_dagar": 396,
+   "utgångar": {
+    "stop": 590,
+    "band": 484
+   }
+  },
+  "I. Appens formel + RSI-tak 80 vid köp": {
+   "slutkapital": 4.08,
+   "CAGR_%": 14.67,
+   "volatilitet_%": 19.3,
+   "Sharpe": 0.76,
+   "max_nedgång_%": -29.0,
+   "affärer": 2102,
+   "köp": 1041,
+   "köp_per_år": 101.3,
+   "innehavstid_dagar": 56,
+   "längsta_innehav_dagar": 396,
+   "utgångar": {
+    "stop": 568,
+    "band": 453
+   }
+  },
+  "J. Appens formel + RSI-tak 70": {
+   "slutkapital": 4.046,
+   "CAGR_%": 14.57,
+   "volatilitet_%": 19.5,
+   "Sharpe": 0.75,
+   "max_nedgång_%": -30.6,
+   "affärer": 2104,
+   "köp": 1038,
+   "köp_per_år": 101.0,
+   "innehavstid_dagar": 56,
+   "längsta_innehav_dagar": 396,
+   "utgångar": {
+    "stop": 570,
+    "band": 455
+   }
+  },
+  "K. ALLT som appen gör (formel+heat+RSI)": {
+   "slutkapital": 4.08,
+   "CAGR_%": 14.67,
+   "volatilitet_%": 19.3,
+   "Sharpe": 0.76,
+   "max_nedgång_%": -29.0,
+   "affärer": 2102,
+   "köp": 1041,
+   "köp_per_år": 101.3,
+   "innehavstid_dagar": 56,
+   "längsta_innehav_dagar": 396,
+   "utgångar": {
+    "stop": 568,
+    "band": 453
+   }
+  }
+ },
+ "varning": "Fundamenta (38 % av appens poäng) kan inte testas. Slumpvariation 2–3 procentenheter."
+}

@@ -1,0 +1,77 @@
+  OMXS: 114 aktier
+  SP500: 503 aktier
+  Nasdaq-100 hämtad från Nasdaq API
+  NASDAQ: 101 aktier
+  DOW: 30 aktier
+  OMXC: 28 aktier
+  OSE: 31 aktier
+  OMXH: 17 aktier
+  DAX: 48 aktier
+  CAC: 43 aktier
+  FTSE: 70 aktier
+  AEX: 23 aktier
+  SMI: 18 aktier
+  IBEX: 20 aktier
+  MIB: 20 aktier
+Varning: Wikipedia-hämtning misslyckades ( List_of_S%26P_400_companies ): listan har orimlig storlek (594) – använder reservlista.
+  SP400: 272 aktier
+  SP600: 603 aktier
+  STOXX600: 459 aktier
+  ADR: 86 aktier
+  SMSN: 5 aktier
+Universum: 2317 aktier – Europa/övrigt 247, Norden 190, USA 1880
+Hämtar 2317 aktier 2015-09-12 → 2026-10-16 …
+  1–250 av 2317 …
+  251–500 av 2317 …
+  501–750 av 2317 …
+  751–1000 av 2317 …
+  1001–1250 av 2317 …
+  1251–1500 av 2317 …
+  1501–1750 av 2317 …
+  1751–2000 av 2317 …
+  2001–2250 av 2317 …
+  2251–2317 av 2317 …
+  1203 aktier med data, 2867 handelsdagar
+Nedladdat: Europa/övrigt 150, Norden 112, USA 941
+
+=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===
+   slutkapital       6.299
+   CAGR_%            19.61
+   volatilitet_%     18.0
+   Sharpe            1.09
+   max_nedgång_%     -39.4
+   affärer           0
+   köp               0
+   köp_per_år        0.0
+   innehavstid_dagar None
+   längsta_innehav_dagarNone
+   utgångar          {}
+
+########## Poängmodell, portfölj 7,000,000 kr  (1203 aktier) ##########
+   Frågan: validerar backtestet appens rankning, eller en annan modell?
+   (fundamenta, 38 % av appens poäng, går inte att testa – Yahoo saknar historik)
+
+   likaviktat snitt av universumet                       19.61 %  Sharpe 1.09
+   0. BACKTESTETS formel: mom 65 + trend 35              16.52 %  Sharpe 0.82  nedgång -29.7 %  köp/år  90.5  innehav 57 d
+   A. APPENS formel: mom 55 + trend 30 + volym 15        15.27 %  Sharpe 0.75  nedgång -31.5 %  köp/år 103.1  innehav 55 d
+   B. Appens formel MED överhettningsavdrag               15.9 %  Sharpe 0.82  nedgång -28.0 %  köp/år 100.8  innehav 57 d
+   C. Backtestets formel med överhettningsavdrag         14.33 %  Sharpe 0.71  nedgång -29.8 %  köp/år  92.9  innehav 57 d
+
+   --- komponenterna var för sig ---
+   D. Enbart momentum (100 %)                            14.83 %  Sharpe 0.71  nedgång -34.2 %  köp/år  92.0  innehav 53 d
+   E. Enbart trendkvalitet (100 %)                        4.48 %  Sharpe 0.32  nedgång -29.2 %  köp/år  67.1  innehav 88 d
+   F. Mom 50 + trend 50                                  14.71 %  Sharpe 0.73  nedgång -29.1 %  köp/år  91.1  innehav 57 d
+   G. Mom 80 + trend 20                                   16.7 %  Sharpe 0.82  nedgång -29.7 %  köp/år  90.8  innehav 57 d
+   H. Volym 30 % (dubbelt mot appen)                      15.4 %  Sharpe 0.77  nedgång -31.6 %  köp/år 106.5  innehav 54 d
+
+   --- övriga otestade regler ---
+   I. Appens formel + RSI-tak 80 vid köp                 14.67 %  Sharpe 0.76  nedgång -29.0 %  köp/år 101.3  innehav 56 d
+   J. Appens formel + RSI-tak 70                         14.57 %  Sharpe 0.75  nedgång -30.6 %  köp/år 101.0  innehav 56 d
+   K. ALLT som appen gör (formel+heat+RSI)               14.67 %  Sharpe 0.76  nedgång -29.0 %  köp/år 101.3  innehav 56 d
+
+   Backtestets formel (allt vi validerat hittills): 16.52 %
+   Appens tekniska formel i sin helhet: 14.67 %   → skillnad -1.85 procentenheter
+   Bäst: G. Mom 80 + trend 20 (16.7 %)
+   (slumpvariationen mellan körningar är 2–3 procentenheter)
+
+Skrev backtest.json
