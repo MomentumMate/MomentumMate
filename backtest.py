@@ -266,6 +266,23 @@ def run(close, vol, cfg, vix=None):
                 q = p.get(t)
                 cash += hold[t]["sh"] * (q if q == q else hold[t]["px"]) - fee(hold[t]["sh"] * (q if q == q else hold[t]["px"]), t, "sell")
                 trades.append(("delisted", t, d)); del hold[t]
+        # --- vinstmål: sälj en andel när aktien stigit X % över inköpskursen ---
+        if cfg.get("tp", 0) > 0:
+            for t in list(hold):
+                h = hold[t]
+                if h.get("tp_done"): continue
+                px = p.get(t)
+                if px != px or px <= 0: continue
+                if px >= h["px"] * (1 + cfg["tp"] / 100.0):
+                    frac = cfg.get("tp_sell", 50) / 100.0
+                    sh = h["sh"] * frac
+                    cash += sh * px - fee(sh * px, t, "sell")
+                    h["sh"] -= sh
+                    h["tp_done"] = True          # utlöses bara en gång per position
+                    trades.append(("tp", t, d))
+                    if h["sh"] <= 1e-9:
+                        hold_days.append(i - h["i"]); del hold[t]
+
         # --- dagliga stopp (gäller mellan ombalanseringarna) ---
         for t in list(hold):
             px = p.get(t)
@@ -489,7 +506,8 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            pullback=0, pb_win=60, pb_mode='pct', pb_max=1.0,
            exit_obv=0, exit_ath=0, ath_worse_min=5, exit_lower=0,
            buy_obv=0, buy_ath=0, buy_lower=0,
-           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5)
+           mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5,
+           tp=0, tp_sell=50)
 
 def main():
     ap = argparse.ArgumentParser()
@@ -508,6 +526,7 @@ def main():
     ap.add_argument("--freq", action="store_true", help="hur ofta lönar det sig att handla?")
     ap.add_argument("--conc", action="store_true", help="få innehav, inget stopp, låt vinnare löpa")
     ap.add_argument("--decay", action="store_true", help="fångar volymbalans, ATH-avstånd och lägre toppar försämring i tid?")
+    ap.add_argument("--tp", action="store_true", help="kapar vinstmålet vinnarna? (appens tp=35/tpSell=50 är aldrig testad)")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -552,6 +571,53 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Vinstmålstest: kapar regeln högpresterande aktier? ----------
+    if a.tp:
+        B = dict(voladj=False, n=20, band_out=30, stop=15, reweight=True, reb="Q",
+                 refill_days=21, port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "0. INGET vinstmål (så backtestet mätts hittills)": dict(B),
+            "A. +35 %, sälj halva (APPENS STANDARD)":           dict(B, tp=35, tp_sell=50),
+            "B. +35 %, sälj en tredjedel":                      dict(B, tp=35, tp_sell=33),
+            "C. +35 %, sälj allt":                              dict(B, tp=35, tp_sell=100),
+            "D. +50 %, sälj halva":                             dict(B, tp=50, tp_sell=50),
+            "E. +75 %, sälj halva":                             dict(B, tp=75, tp_sell=50),
+            "F. +100 %, sälj halva":                            dict(B, tp=100, tp_sell=50),
+            "G. +150 %, sälj halva":                            dict(B, tp=150, tp_sell=50),
+            "H. +100 %, sälj en tredjedel":                     dict(B, tp=100, tp_sell=33),
+            "I. +20 %, sälj halva (mycket tidigt)":             dict(B, tp=20, tp_sell=50),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Vinstmål, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: kapar vinstmålet de aktier som hade fortsatt stiga?\n")
+        print(f"   {'likaviktat snitt av universumet':<52}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                st["år"] = yearly(e); res[nm] = st
+                ntp = sum(1 for x in tr if x[0] == "tp")
+                print(f"   {nm:<52}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  innehav {st['innehavstid_dagar']} d  vinsthemtagningar {ntp}")
+            except Exception as ex:
+                print(f"   {nm:<52} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        ref = ok.get("0. INGET vinstmål (så backtestet mätts hittills)", {}).get("CAGR_%", 0)
+        app = ok.get("A. +35 %, sälj halva (APPENS STANDARD)", {}).get("CAGR_%", 0)
+        print(f"\n   Utan vinstmål: {ref} %")
+        print(f"   Appens standard (+35 %, halva): {app} %   → skillnad {round(app - ref, 2)} procentenheter")
+        best = max(ok, key=lambda k: ok[k]["CAGR_%"], default=None)
+        if best: print(f"   Bäst: {best} ({ok[best]['CAGR_%']} %)")
+        print(f"   (slumpvariationen mellan körningar är 2–3 procentenheter)")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "vinstmål", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "utan_vinstmål": ref, "appens_standard": app, "bäst": best, "varianter": res,
+               "varning": "Survivorship bias. Slumpvariationen mellan körningar är 2–3 procentenheter."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Försämringstest: upptäcker måtten att momentum mattas av, i tid? ----------
     if a.decay:
