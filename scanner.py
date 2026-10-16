@@ -360,17 +360,56 @@ def split_frames(df, tickers):
         out[tickers[0]] = df.dropna(how="all")
     return out
 
+DL_DIAG = {"chunk_fail": [], "chunk_err": {}}
+
 def dl(tickers, **kw):
+    """Hämtar kursdata. Loggar vilka som faller bort, eftersom bortfallet varierat
+    kraftigt mellan körningar (1 190–1 950 av 2 317) och gör rankningen ofullständig."""
     out = {}
     for i in range(0, len(tickers), CHUNK):
         ch = tickers[i:i + CHUNK]
         try:
             df = retry(lambda: yf.download(ch, group_by="ticker", auto_adjust=False, progress=False, threads=True, timeout=45, **kw))
-            out.update(split_frames(df, ch))
+            got = split_frames(df, ch)
+            out.update(got)
+            miss = [t for t in ch if t not in got]
+            if miss:
+                DL_DIAG["chunk_fail"].extend(miss)
+                for t in miss: DL_DIAG["chunk_err"][t] = "tom serie"
         except Exception as e:
             print("Varning: nedladdning misslyckades för", ch[:2], "…", e)
+            DL_DIAG["chunk_fail"].extend(ch)
+            for t in ch: DL_DIAG["chunk_err"][t] = str(e)[:60]
         print(f"  nedladdat {min(i + CHUNK, len(tickers))}/{len(tickers)}", flush=True)
     return out
+
+def coverage_report(want, got, recs=None):
+    """Jämför önskat mot hämtat universum, och mot föregående körning."""
+    want_s, got_s = set(want), set(got)
+    miss = sorted(want_s - got_s)
+    def grp(t):
+        if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
+        return "Europa/övrigt" if "." in t else "USA"
+    from collections import Counter
+    cm, cw = Counter(grp(t) for t in miss), Counter(grp(t) for t in want_s)
+    print(f"\n=== TÄCKNING: {len(got_s)} av {len(want_s)} aktier ({len(got_s)/max(1,len(want_s))*100:.0f} %) ===")
+    for g in sorted(cw):
+        print(f"   {g:<16}{cw[g]-cm[g]:>5} av {cw[g]:<5} ({(cw[g]-cm[g])/cw[g]*100:>3.0f} %)   saknas {cm[g]}")
+    # jämför med föregående körning
+    prev = _CACHE.get("_coverage") or {}
+    pset = set(prev.get("got", []))
+    if pset:
+        nya = got_s - pset; borta = pset - got_s
+        print(f"   Mot föregående körning ({prev.get('ts','?')[:16]}): {len(nya)} tillkom, {len(borta)} föll bort")
+        stabil = len(pset & got_s) / max(1, len(pset | got_s)) * 100
+        print(f"   Överlapp mellan körningarna: {stabil:.0f} %")
+        if borta:
+            print(f"   Exempel på bortfallna: {', '.join(sorted(borta)[:12])}")
+    _CACHE["_coverage"] = {"ts": dt.datetime.now(dt.timezone.utc).isoformat(), "got": sorted(got_s)}
+    try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
+    except Exception: pass
+    return {"want": len(want_s), "got": len(got_s), "miss_by_group": dict(cm),
+            "missing": miss[:400]}
 
 CUR_SYM = {"USD": "$", "EUR": "€", "SEK": "kr", "DKK": "kr", "NOK": "kr", "GBP": "£", "GBX": "p", "CHF": "CHF", "CAD": "$"}
 def norm_ccy(c): return {"GBp": "GBX", "GBX": "GBX"}.get(c, c)
@@ -1305,6 +1344,14 @@ def main():
         selected, light_stats = select_light(light_only, ld, uni, mk_by)
         print(f"  {len(selected)} aktier valda för full analys {light_stats}")
         daily.update(dl(sorted(selected), period="5y", interval="1d"))
+    # Mät bortfallet: hur mycket av universumet som faktiskt kom ned, och om det är
+    # samma aktier som förra körningen. Bortfallet har varierat 1 190–1 950 av 2 317.
+    COV = coverage_report(core if not light_only else sorted(set(core) | set(selected)), list(daily))
+    if DL_DIAG["chunk_fail"]:
+        from collections import Counter
+        why = Counter(DL_DIAG["chunk_err"].get(t, "okänt") for t in DL_DIAG["chunk_fail"])
+        print(f"   Orsaker till bortfall: {dict(list(why.most_common(4)))}")
+
     deep = [t for t in tickers if t in selected or t not in light_only]
     us = [t for t in deep if is_us(t) and t in daily]
     print("Hämtar pre-market/intradag…"); intra = dl(us, period="5d", interval="5m", prepost=True)
