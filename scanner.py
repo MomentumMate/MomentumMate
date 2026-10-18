@@ -124,7 +124,7 @@ EODHD_INDEX = {"SP500": "GSPC.INDX", "SP400": "SP400.INDX", "SP600": "SP600.INDX
 
 def eodhd_index(key):
     """Medlemmar i ett index från EODHD:s fundamentaldata. Returnerar [] om nyckel saknas."""
-    if not EODHD_KEY or key not in EODHD_INDEX: return []
+    if not EODHD_KEY or key not in EODHD_INDEX or globals().get("_EODHD_NO_FUND"): return []
     try:
         j = eodhd_get(f"fundamentals/{EODHD_INDEX[key]}")
         comp = (j or {}).get("Components") or {}
@@ -138,7 +138,14 @@ def eodhd_index(key):
             return out
         print(f"  {key}: EODHD gav {len(out)} medlemmar – utanför rimligt spann, använder annan källa")
     except Exception as e:
-        print(f"  {key}: EODHD-indexlista misslyckades ({str(e)[:50]})")
+        msg = str(e)
+        if "403" in msg:
+            global _EODHD_NO_FUND
+            if not globals().get("_EODHD_NO_FUND"):
+                print("  EODHD: planen omfattar inte fundamentaldata (403) – indexlistor, namn och nyckeltal hämtas från andra källor")
+                _EODHD_NO_FUND = True
+        else:
+            print(f"  {key}: EODHD-indexlista misslyckades ({msg[:50]})")
     return []
 
 def _idx(key, fallback_fn):
@@ -239,6 +246,8 @@ def stoxx600():
                                "sweden": ".ST", "denmark": ".CO", "norway": ".OL", "finland": ".HE",
                                "belgium": ".BR", "austria": ".VI", "portugal": ".LS", "poland": ".WA",
                                "ireland": ".IR", "luxembourg": ".PA"}.get(c)
+                m_cls = re.fullmatch(r"([A-Z0-9]+)([a-z])", sym)          # ATCOa, ASSAb, INVEb
+                if m_cls: sym = m_cls.group(1) + "-" + m_cls.group(2).upper()
                 if "." in sym and sym.split(".")[-1].isalpha() and len(sym.split(".")[-1]) <= 2:
                     pass                                      # har redan suffix
                 elif suf:
@@ -489,7 +498,9 @@ def dl_eodhd(tickers, period="5y"):
             if df is not None and len(df) >= 20: return t, df, None
             return t, None, "tom serie"
         except Exception as e:
-            return t, None, str(e)[:60]
+            m = re.sub(r"for url: \S+", "", str(e))[:70].strip()   # korta ned, ta bort URL med nyckel
+            EODHD_STAT.setdefault("errs", []).append(m)
+            return t, None, m
     with ThreadPoolExecutor(max_workers=8) as ex:                   # 1 000 anrop/min tillåts; 8 trådar räcker
         futs = [ex.submit(one, t) for t in tickers]
         for i, f in enumerate(as_completed(futs), 1):
@@ -632,7 +643,7 @@ def _num(x):
 def eodhd_info(t):
     """Bolagsinfo från EODHD, översatt till samma nycklar som Yahoo så att resten av
     skannern inte behöver ändras. Returnerar {} om nyckel saknas eller bolaget inte finns."""
-    if not EODHD_KEY: return {}
+    if not EODHD_KEY or globals().get("_EODHD_NO_FUND"): return {}
     try:
         j = eodhd_get(f"fundamentals/{eodhd_symbol(t)}")
         if not j: return {}
@@ -1542,6 +1553,10 @@ def main():
     if EODHD_KEY:
         print(f"   EODHD: {EODHD_STAT['ok']} lyckade, {EODHD_STAT['miss']} tomma, {EODHD_STAT['err']} fel, "
               f"{EODHD_STAT['fallback']} hämtades från Yahoo i stället")
+        if EODHD_STAT.get("errs"):
+            from collections import Counter
+            top = Counter(EODHD_STAT["errs"]).most_common(3)
+            print("   EODHD vanligaste fel: " + "; ".join(f"{n}× {m}" for m, n in top))
     if DL_DIAG["chunk_fail"]:
         from collections import Counter
         why = Counter(DL_DIAG["chunk_err"].get(t, "okänt") for t in DL_DIAG["chunk_fail"])
