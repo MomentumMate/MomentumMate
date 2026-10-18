@@ -502,9 +502,17 @@ def eodhd_eod(t, period="5y"):
     df = pd.DataFrame(j)
     if df.empty or "close" not in df: return None
     df["date"] = pd.to_datetime(df["date"]); df = df.set_index("date").sort_index()
-    out = pd.DataFrame({"Open": df["open"], "High": df["high"], "Low": df["low"],
-                        "Close": df["adjusted_close"] if "adjusted_close" in df else df["close"],
-                        "Volume": df["volume"]}).astype(float)
+    # EODHD justerar bara "adjusted_close" för splittar och utdelningar. Open/High/Low
+    # måste skalas med samma faktor, annars blir ATR, toppkurser och stödnivåer fel
+    # efter en split (Close en tiondel, High det gamla värdet).
+    close = df["close"].astype(float)
+    adj = df["adjusted_close"].astype(float) if "adjusted_close" in df else close
+    factor = (adj / close.replace(0, np.nan)).fillna(1.0)
+    out = pd.DataFrame({"Open": df["open"].astype(float) * factor,
+                        "High": df["high"].astype(float) * factor,
+                        "Low": df["low"].astype(float) * factor,
+                        "Close": adj,
+                        "Volume": df["volume"].astype(float) / factor})   # fler aktier efter split
     return out.dropna(how="all")
 
 def dl_eodhd(tickers, period="5y"):
@@ -566,7 +574,7 @@ def dl(tickers, **kw):
         print(f"  nedladdat {min(i + CHUNK, len(tickers))}/{len(tickers)}", flush=True)
     return out
 
-def sr_levels(close, px, win=5, tol=0.02, max_lv=6):
+def sr_levels(close, px, win=5, tol=0.02, max_lv=7):
     """Stöd/motståndszoner ur lokala extrempunkter.
 
     win  – en punkt är lokal topp/botten om den är högst/lägst inom ±win dagar
@@ -1080,7 +1088,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # --- stöd- och motståndsnivåer (information: ritas i grafen, flaggas vid närhet) ---
     # Lokala toppar/bottnar de senaste 6 månaderna, klustrade till zoner, viktade efter
     # antal träffar och närhet i tid. Rollbyte: en bruten topp räknas som stöd.
-    sr = sr_levels(c.iloc[-130:], px)
+    sr = sr_levels(c.iloc[-250:], px)        # 12 månader; nyare träffar väger tyngre
     strc = structure(c.iloc[-70:])
 
     # --- försämringsmått (visas som information i appen, styr inga signaler) ---

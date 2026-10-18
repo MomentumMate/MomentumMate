@@ -324,6 +324,31 @@ def run(close, vol, cfg, vix=None):
                     if h["sh"] <= 1e-9:
                         hold_days.append(i - h["i"]); del hold[t]
 
+        # --- stopp vid stöd (dokumentets förslag): räknas om varje dag för varje innehav ---
+        if cfg.get("stop_mode") == "support" and i >= 130:
+            for t in list(hold):
+                h = hold[t]; px = p.get(t)
+                if px != px or px <= 0: continue
+                ci = close.columns.get_loc(t)
+                win = close.iloc[max(0, i - cfg.get("sr_win", 130)):i + 1, ci].dropna()
+                if len(win) < 40: continue
+                v = win.values.tolist()
+                # lokala bottnar (±5 dagar) under aktuell kurs, klustrade inom 2 %
+                lows = [v[k] for k in range(5, len(v) - 5) if v[k] == min(v[k - 5:k + 6]) and v[k] < px * 0.995]
+                zones = []
+                for q in sorted(lows):
+                    for z in zones:
+                        if abs(q / z[0] - 1) <= 0.02: z[1] += 1; break
+                    else: zones.append([q, 1])
+                good = [z for z in zones if z[1] >= cfg.get("sr_min_touch", 2)]
+                if not good: continue
+                sup = max(z[0] for z in good)                        # närmaste stöd under kursen
+                atr = float(close.iloc[max(0, i - 14):i + 1, ci].diff().abs().mean()) or px * 0.02
+                lvl = sup - cfg.get("sr_buf_atr", 0.4) * atr
+                # säkerhetsnät: aldrig lösare än regelns procentstopp (om ett sådant finns)
+                floor_pct = max(h["px"], h["peak"]) * (1 - cfg["stop"] / 100.0) if cfg["stop"] > 0 else 0
+                h["sr_stop"] = max(lvl, floor_pct)
+
         # --- dagliga stopp (gäller mellan ombalanseringarna) ---
         for t in list(hold):
             px = p.get(t)
@@ -333,7 +358,9 @@ def run(close, vol, cfg, vix=None):
             h["peak"] = max(h["peak"], px)
             base = h["peak"] if cfg["trail"] else h["px"]
             why = None
-            if cfg["stop"] > 0 and px <= base * (1 - cfg["stop"] / 100): why = "stop"
+            if cfg.get("stop_mode") == "support" and h.get("sr_stop"):
+                if px <= h["sr_stop"]: why = "stopp vid stöd"
+            elif cfg["stop"] > 0 and px <= base * (1 - cfg["stop"] / 100): why = "stop"
             if why is None and "sma50" in EX:
                 lv = EX["sma50"].iat[i, close.columns.get_loc(t)]
                 if lv == lv and px < lv: why = "sma50"
@@ -533,7 +560,7 @@ def stats(e, trades, years, hold_days=None):
             "innehavstid_dagar": (round(float(np.median(hold_days)) * 1.4) if hold_days else None),
             "längsta_innehav_dagar": (round(max(hold_days) * 1.4) if hold_days else None),
             "utgångar": {k: sum(1 for t in trades if t[0] == k)
-                         for k in ("stop", "sma50", "sma200", "atr", "svag poäng", "band") 
+                         for k in ("stop", "stopp vid stöd", "sma50", "sma200", "atr", "svag poäng", "band") 
                          if any(t[0] == k for t in trades)}}
 
 def benchmark(close, years, start_i=210):
@@ -552,6 +579,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            exit_obv=0, exit_ath=0, ath_worse_min=5, exit_lower=0,
            buy_obv=0, buy_ath=0, buy_lower=0,
            mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5,
+           stop_mode='pct', sr_win=130, sr_min_touch=2, sr_buf_atr=0.4,
            tp=0, tp_sell=50,
            w_mom=0.65, w_trend=0.35, w_vol=0.0, heat=False, pos_cap=0, buy_rsi=0)
 
@@ -574,6 +602,7 @@ def main():
     ap.add_argument("--decay", action="store_true", help="fångar volymbalans, ATH-avstånd och lägre toppar försämring i tid?")
     ap.add_argument("--tp", action="store_true", help="kapar vinstmålet vinnarna? (appens tp=35/tpSell=50 är aldrig testad)")
     ap.add_argument("--score", action="store_true", help="är appens poängmodell bättre än backtestets enklare?")
+    ap.add_argument("--srstop", action="store_true", help="stopp strax under närmaste stöd mot fast procent")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -618,6 +647,51 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Stopp vid stöd: dokumentets förslag mot vårt validerade procentstopp ----------
+    if a.srstop:
+        B = dict(voladj=False, n=20, band_out=30, reweight=True, reb="Q", refill_days=21,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True,
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "0. Fast stopp 15 % (validerat)":                       dict(B, stop=15),
+            "A. Stöd 6 mån, ≥2 träffar, 0,4 ATR under (tak 15 %)":  dict(B, stop=15, stop_mode="support", sr_win=130),
+            "B. Stöd 12 mån, ≥2 träffar (tak 15 %)":                dict(B, stop=15, stop_mode="support", sr_win=250),
+            "C. Stöd 6 mån, ≥3 träffar (tak 15 %)":                 dict(B, stop=15, stop_mode="support", sr_win=130, sr_min_touch=3),
+            "D. Stöd 6 mån, 1 ATR under (tak 15 %)":                dict(B, stop=15, stop_mode="support", sr_buf_atr=1.0),
+            "E. Stöd 6 mån, tak 20 % (lösare nät)":                 dict(B, stop=20, stop_mode="support", sr_win=130),
+            "F. Stöd 6 mån, tak 25 %":                               dict(B, stop=25, stop_mode="support", sr_win=130),
+            "G. Stöd 6 mån, INGET tak":                              dict(B, stop=0, stop_mode="support", sr_win=130),
+            "H. Fast stopp 20 % (jämförelse)":                      dict(B, stop=20),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Stopp vid stöd, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: är ett stopp som följer aktiens stödnivåer bättre än ett fast procentstopp?\n")
+        print(f"   {'likaviktat snitt av universumet':<52}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                ut = st.get("utgångar", {}); srn = ut.get("stopp vid stöd", 0); pn = ut.get("stop", 0)
+                print(f"   {nm:<52}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  innehav {st['innehavstid_dagar']} d  stopp {srn or pn}")
+            except Exception as ex:
+                print(f"   {nm:<52} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        ref = ok.get("0. Fast stopp 15 % (validerat)", {})
+        best = max(ok, key=lambda k: ok[k]["CAGR_%"], default=None)
+        print(f"\n   Fast 15 %: {ref.get('CAGR_%')} %, Sharpe {ref.get('Sharpe')}")
+        if best: print(f"   Bäst: {best} ({ok[best]['CAGR_%']} %, Sharpe {ok[best]['Sharpe']})")
+        print(f"   Med EODHD är universumet detsamma varje körning – skillnader under ~1 pe är ändå tveksamma.")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "stopp vid stöd", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "referens": ref.get("CAGR_%"), "bäst": best, "varianter": res,
+               "varning": "Survivorship bias. Stödnivåerna räknas på stängningskurser, utan intradag."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Poängtest: är appens formel bättre än den backtestet validerat? ----------
     if a.score:
