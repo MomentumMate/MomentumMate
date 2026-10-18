@@ -197,10 +197,64 @@ def nyse_all():
     except Exception as e:
         print("Varning: kunde inte hämta NYSE-listan:", e); return []
 
+# Wikipedias börskoder → Yahoos suffix. Wikipedia skriver "ETR: ADS", "SIX: ABBN" osv.
+WIKI_EXCH = {"ETR": ".DE", "FWB": ".DE", "XETRA": ".DE", "FRA": ".DE",
+             "SIX": ".SW", "SWX": ".SW", "LSE": ".L", "LON": ".L",
+             "AMS": ".AS", "EURONEXT AMSTERDAM": ".AS", "EPA": ".PA", "EURONEXT PARIS": ".PA",
+             "BME": ".MC", "MAD": ".MC", "BIT": ".MI", "MIL": ".MI", "MTA": ".MI",
+             "STO": ".ST", "OMX": ".ST", "NASDAQ STOCKHOLM": ".ST", "CPH": ".CO", "OMXC": ".CO",
+             "OSL": ".OL", "OSE": ".OL", "HEL": ".HE", "OMXH": ".HE",
+             "EBR": ".BR", "BRU": ".BR", "EURONEXT BRUSSELS": ".BR", "WBAG": ".VI", "VIE": ".VI",
+             "ELI": ".LS", "LIS": ".LS", "EURONEXT LISBON": ".LS", "WSE": ".WA", "GPW": ".WA",
+             "ISE": ".IR", "EURONEXT DUBLIN": ".IR", "ATH": ".AT", "PRA": ".PR"}
+
 def stoxx600():
-    """STOXX Europe 600 – europeisk motsvarighet till S&P 400/600 i bredd.
-    Wikipedia listar bolagen med Yahoo-kompatibla tickers i kolumnen Ticker."""
-    return _wiki("https://en.wikipedia.org/wiki/STOXX_Europe_600", ["ticker", "symbol"], [], 300, key="STOXX600")
+    """STOXX Europe 600. Wikipedia listar tickers som 'ETR: ADS' – börskoden före kolon
+    översätts till Yahoos suffix. Tidigare kastades koden bort, vilket gjorde att 365 av
+    459 aktier inte gick att hämta (Yahoo tolkade 'ADS' som en amerikansk ticker)."""
+    try:
+        r = requests.get("https://en.wikipedia.org/wiki/STOXX_Europe_600", headers=UA, timeout=20); r.raise_for_status()
+        best = []
+        for t in pd.read_html(io.StringIO(r.text), flavor="lxml"):
+            t = t.copy()
+            t.columns = [" ".join(str(x) for x in c if "Unnamed" not in str(x)).strip() if isinstance(c, tuple) else str(c) for c in t.columns]
+            tcol = next((c for c in t.columns if any(k in c.lower() for k in ("ticker", "symbol"))), None)
+            if not tcol: continue
+            ccol = next((c for c in t.columns if any(k in c.lower() for k in ("country", "exchange", "market"))), None)
+            vals = []
+            for idx, x in t[tcol].items():
+                if not isinstance(x, str) or not x.strip(): continue
+                raw = x.strip()
+                suf = None
+                if ":" in raw:
+                    ex, sym = raw.split(":", 1)
+                    suf = WIKI_EXCH.get(ex.strip().upper())
+                    sym = sym.strip().split()[0]
+                else:
+                    sym = raw.split()[0]
+                    if ccol:                                  # härled ur landskolumnen
+                        c = str(t.at[idx, ccol]).strip().lower()
+                        suf = {"germany": ".DE", "switzerland": ".SW", "united kingdom": ".L", "uk": ".L",
+                               "netherlands": ".AS", "france": ".PA", "spain": ".MC", "italy": ".MI",
+                               "sweden": ".ST", "denmark": ".CO", "norway": ".OL", "finland": ".HE",
+                               "belgium": ".BR", "austria": ".VI", "portugal": ".LS", "poland": ".WA",
+                               "ireland": ".IR", "luxembourg": ".PA"}.get(c)
+                if "." in sym and sym.split(".")[-1].isalpha() and len(sym.split(".")[-1]) <= 2:
+                    pass                                      # har redan suffix
+                elif suf:
+                    sym = sym.replace(".", "-") + suf         # 'BRK.B' → 'BRK-B' + suffix
+                else:
+                    continue                                  # kan inte avgöra börs – hoppa över
+                if re.fullmatch(r"[A-Za-z0-9\-]{1,8}\.[A-Z]{1,2}", sym): vals.append(sym)
+            if len(vals) > len(best): best = vals
+        res = list(dict.fromkeys(best))
+        if len(res) >= 300 and register_list("STOXX600", res, "Wikipedia"):
+            print(f"  STOXX600: {len(res)} tickers med börssuffix")
+            return res
+        raise ValueError(f"för få ({len(res)})")
+    except Exception as e:
+        print("Varning: STOXX600 från Wikipedia misslyckades:", e)
+        return use_cache_or_fallback("STOXX600", [], str(e))
 
 SP400_FALLBACK = [
     "AAON","ACIW","ACM","AFG","AGCO","ALTR","AMED","AMG","AN","ANF","AR","ARW","ASB","ASGN","ATI","AVNT","AVT",
