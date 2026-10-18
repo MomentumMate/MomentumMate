@@ -59,6 +59,10 @@ on:
         description: "Poängmodell: är appens formel bättre än den validerade?"
         type: boolean
         default: false
+      srstop:
+        description: "Stopp vid stöd: nivåbaserat stopp mot fast 15 %"
+        type: boolean
+        default: false
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"
         default: "10000000"
@@ -96,6 +100,7 @@ jobs:
             ${{ github.event.inputs.decay == 'true' && format('--decay --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.tp == 'true' && format('--tp --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.score == 'true' && format('--score --port {0}', github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.srstop == 'true' && format('--srstop --port {0}', github.event.inputs.port || '10000000') || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
