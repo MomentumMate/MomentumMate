@@ -467,16 +467,35 @@ def eodhd_symbol(t):
         if t.endswith(suf): return t[:-len(suf)] + "." + ex
     return t.replace("-", "-") + ".US"          # BRK-B.US fungerar hos EODHD
 
+# Hastighetsspärr: EODHD tillåter 1 000 anrop per minut. Åtta trådar utan spärr gav
+# 1 239 × "429 Too Many Requests" i en körning. Nu högst ~12 anrop per sekund (720/min)
+# fördelat över alla trådar, och omförsök med väntetid när 429 ändå kommer.
+import threading as _th
+_RL = {"lock": _th.Lock(), "next": 0.0, "min_gap": 1 / 12.0}
+
+def _rate_wait():
+    with _RL["lock"]:
+        now = time.time()
+        if now < _RL["next"]: time.sleep(_RL["next"] - now); now = time.time()
+        _RL["next"] = now + _RL["min_gap"]
+
 def eodhd_get(path, **params):
     params["api_token"] = EODHD_KEY; params["fmt"] = "json"
-    r = requests.get(f"{EODHD_URL}/{path}", params=params, timeout=30)
-    if r.status_code == 404: return None
+    for attempt in range(4):
+        _rate_wait()
+        r = requests.get(f"{EODHD_URL}/{path}", params=params, timeout=30)
+        if r.status_code == 404: return None
+        if r.status_code == 429:
+            time.sleep(3 * (attempt + 1))               # 3, 6, 9 s – låt kvoten återhämta sig
+            continue
+        r.raise_for_status()
+        return r.json()
     r.raise_for_status()
-    return r.json()
 
 def eodhd_eod(t, period="5y"):
     """Daglig kurshistorik för en aktie som en DataFrame i Yahoo-form (Open/High/Low/Close/Volume)."""
-    yrs = {"5y": 5, "2y": 2, "1y": 1, "6mo": 0.5}.get(period, 5)
+    m = re.fullmatch(r"(\d+)(y|mo)", str(period))
+    yrs = (int(m.group(1)) * (1 if m.group(2) == "y" else 1 / 12)) if m else 5
     start = (dt.date.today() - dt.timedelta(days=int(365 * yrs) + 7)).isoformat()
     j = eodhd_get(f"eod/{eodhd_symbol(t)}", **{"from": start, "period": "d"})
     if not j: return None
@@ -501,7 +520,7 @@ def dl_eodhd(tickers, period="5y"):
             m = re.sub(r"for url: \S+", "", str(e))[:70].strip()   # korta ned, ta bort URL med nyckel
             EODHD_STAT.setdefault("errs", []).append(m)
             return t, None, m
-    with ThreadPoolExecutor(max_workers=8) as ex:                   # 1 000 anrop/min tillåts; 8 trådar räcker
+    with ThreadPoolExecutor(max_workers=6) as ex:                   # spärren ovan håller takten under 1 000/min
         futs = [ex.submit(one, t) for t in tickers]
         for i, f in enumerate(as_completed(futs), 1):
             t, df, err = f.result()

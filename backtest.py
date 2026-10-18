@@ -47,6 +47,21 @@ def load_prices(tickers, years, cache=None):
     start = end - dt.timedelta(days=int(years * 365.25) + 400)   # extra år för 12-1-fönstret
     print(f"Hämtar {len(tickers)} aktier {start} → {end} …")
     cl, vl = [], []
+    # EODHD först om nyckel finns – samma aktier varje körning, vilket tar bort den
+    # slumpvariation på 2–3 procentenheter som Yahoos varierande leverans orsakade.
+    try:
+        import scanner as SC
+        if SC.EODHD_KEY:
+            print("  Datakälla: EODHD (nyckel hittad), Yahoo som reserv")
+            got = SC.dl_eodhd(list(tickers), period=f"{int(years) + 2}y")
+            if got:
+                cl.append(pd.DataFrame({t: d["Close"] for t, d in got.items()}))
+                vl.append(pd.DataFrame({t: d["Volume"] for t, d in got.items()}))
+                rest = [t for t in tickers if t not in got]
+                print(f"  EODHD gav {len(got)} av {len(tickers)} – {len(rest)} hämtas från Yahoo")
+                tickers = rest
+    except Exception as ex:
+        print(f"  EODHD ej tillgängligt ({str(ex)[:60]}) – använder Yahoo")
     CH = 250
     for i in range(0, len(tickers), CH):
         part = tickers[i:i + CH]
