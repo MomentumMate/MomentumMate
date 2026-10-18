@@ -549,6 +549,8 @@ def coverage_report(want, got, recs=None):
         print(f"   Överlapp mellan körningarna: {stabil:.0f} %")
         if borta:
             print(f"   Exempel på bortfallna: {', '.join(sorted(borta)[:12])}")
+    if miss:
+        print(f"   Exempel på aktier som saknas: {', '.join(miss[:15])}")
     _CACHE["_coverage"] = {"ts": dt.datetime.now(dt.timezone.utc).isoformat(), "got": sorted(got_s)}
     try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
     except Exception: pass
@@ -1464,7 +1466,14 @@ def main():
     light_keys = {m["k"] for m in markets_used if m.get("light")}
     light_only = {t for t in tickers if uni[t] and all(k in light_keys for k in uni[t])}
     core = [t for t in tickers if t not in light_only]
-    print(f"Datakälla kurser/nyckeltal: {'EODHD (nyckel hittad), Yahoo som reserv' if EODHD_KEY else 'Yahoo (ingen EODHD_KEY satt)'}")
+    if EODHD_KEY:
+        print(f"Datakälla kurser/nyckeltal: EODHD (nyckel hittad, {len(EODHD_KEY)} tecken), Yahoo som reserv")
+    elif "EODHD_KEY" in os.environ:
+        print("Datakälla kurser/nyckeltal: Yahoo – EODHD_KEY skickas in av arbetsflödet men är TOM. "
+              "Hemligheten saknas eller är felstavad under Settings → Secrets → Actions (måste heta exakt EODHD_KEY).")
+    else:
+        print("Datakälla kurser/nyckeltal: Yahoo – EODHD_KEY finns inte i miljön alls. "
+              "scan.yml på GitHub saknar raden 'EODHD_KEY: ${{ secrets.EODHD_KEY }}' under env.")
     print("Hämtar kurshistorik (5 år)…");   daily = dl(core, period="5y", interval="1d")
     selected, light_stats = set(), {}
     if light_only:
