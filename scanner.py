@@ -383,6 +383,51 @@ def dl(tickers, **kw):
         print(f"  nedladdat {min(i + CHUNK, len(tickers))}/{len(tickers)}", flush=True)
     return out
 
+def sr_levels(close, px, win=5, tol=0.02, max_lv=6):
+    """Stöd/motståndszoner ur lokala extrempunkter.
+
+    win  – en punkt är lokal topp/botten om den är högst/lägst inom ±win dagar
+    tol  – punkter inom tol (2 %) av varandra slås ihop till en zon
+    Zonens styrka = antal träffar, med nyare träffar viktade högre.
+    Returnerar nivåer sorterade efter styrka, med avstånd till aktuell kurs.
+    """
+    try:
+        v = [float(x) for x in close]
+        n = len(v)
+        if n < win * 4 or not px: return []
+        pts = []
+        for i in range(win, n - win):
+            seg = v[i - win:i + win + 1]
+            if v[i] == max(seg): pts.append((v[i], i, "hi"))
+            elif v[i] == min(seg): pts.append((v[i], i, "lo"))
+        # senaste dagarna kan inte bekräftas som extrempunkt men räknas som färska nivåer
+        if n >= 3:
+            pts.append((max(v[-win:]), n - 1, "hi")); pts.append((min(v[-win:]), n - 1, "lo"))
+        zones = []
+        for p, i, kind in sorted(pts, key=lambda x: x[0]):
+            for z in zones:
+                if abs(p / z["lvl"] - 1) <= tol:
+                    z["pts"].append((p, i, kind)); z["lvl"] = sum(q for q, _, _ in z["pts"]) / len(z["pts"])
+                    break
+            else:
+                zones.append({"lvl": p, "pts": [(p, i, kind)]})
+        out = []
+        for z in zones:
+            touches = len(z["pts"])
+            if touches < 2 and abs(z["lvl"] / px - 1) > 0.15: continue   # enstaka gamla punkter långt bort
+            rec = max(i for _, i, _ in z["pts"]) / max(1, n - 1)            # 1.0 = idag, 0 = för 6 mån sedan
+            kinds = {k for _, _, k in z["pts"]}
+            lo = min(q for q, _, _ in z["pts"]); hi = max(q for q, _, _ in z["pts"])
+            out.append({"lvl": round(z["lvl"], 2), "lo": round(lo, 2), "hi": round(hi, 2),
+                        "n": touches, "str": round(touches * (0.5 + 0.5 * rec), 2),
+                        "role": "stöd" if z["lvl"] < px else "motstånd",
+                        "both": len(kinds) > 1,                              # både tak och golv = extra stark
+                        "dist": round((z["lvl"] / px - 1) * 100, 1)})
+        out.sort(key=lambda z: -z["str"])
+        return out[:max_lv]
+    except Exception:
+        return []
+
 def coverage_report(want, got, recs=None):
     """Jämför önskat mot hämtat universum, och mot föregående körning."""
     want_s, got_s = set(want), set(got)
@@ -774,6 +819,11 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     except Exception:
         vol = None
 
+    # --- stöd- och motståndsnivåer (information: ritas i grafen, flaggas vid närhet) ---
+    # Lokala toppar/bottnar de senaste 6 månaderna, klustrade till zoner, viktade efter
+    # antal träffar och närhet i tid. Rollbyte: en bruten topp räknas som stöd.
+    sr = sr_levels(c.iloc[-130:], px)
+
     # --- försämringsmått (visas som information i appen, styr inga signaler) ---
     obvs = ath_gap = ath_chg = ltops = None
     try:
@@ -800,10 +850,18 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     except Exception:
         pass
     try:
+        # Räkna veckor med lägre topp I RAD, räknat BAKÅT FRÅN SENASTE VECKAN.
+        # Tidigare version hoppade över den senaste veckan helt och räknade dessutom
+        # antal negativa jämförelser var som helst i fönstret, inte antal i följd.
+        # En aktie som fallit i fem veckor men vänt upp den senaste får nu 0, inte 4.
         if len(c) > 40:
-            h5 = c.rolling(5).max()
-            ltops = int(sum(1 for k in range(5, 31, 5)
-                            if float(h5.iloc[-k]) < float(h5.iloc[-k - 5])))   # veckor med lägre topp
+            w = [float(c.iloc[-(i + 1) * 5:len(c) - i * 5].max()) if i else float(c.iloc[-5:].max())
+                 for i in range(7)]                      # veckotoppar, nyast först
+            n = 0
+            for i in range(6):
+                if w[i] == w[i] and w[i + 1] == w[i + 1] and w[i] < w[i + 1]: n += 1
+                else: break                              # bryt så fort en vecka gör högre topp
+            ltops = n
     except Exception:
         ltops = None
 
@@ -906,7 +964,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "adv": (round(adv) if adv else None),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "adv": (round(adv) if adv else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
@@ -950,9 +1008,7 @@ def finalize(recs, markets):
         members = [t for t, r in recs.items() if member(k, r)]
         if not members: continue
         by_sc = sorted(members, key=lambda t: -recs[t]["sc"])
-        hits = [t for t in by_sc if recs[t]["hit"]]
-        top = hits[:25] if len(hits) >= 25 else hits + [t for t in by_sc if t not in hits][:25 - len(hits)]
-        mom = sorted(top, key=lambda t: -recs[t]["sc"])
+        mom = by_sc[:25]          # ren poängordning – samma ordning som fliken Alla
         rank[k] = {"mom": mom, "all": by_sc}
     rank["DT"] = rank_dt(recs)
     return rank

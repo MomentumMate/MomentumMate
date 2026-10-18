@@ -69,7 +69,8 @@ h4[data-i]{cursor:pointer}
 .al{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
 .al2{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 12px 10px 50px}.al2 .sig{margin:0}
 .ab{font-size:10.5px;padding:2px 7px;border-radius:7px;background:#1b1710;border:1px solid var(--bd);color:var(--mu);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.ab.graham,.ab.magic{color:var(--gd);border-color:#5a4418}
+.ab.decay{color:#e2a07a;border-color:#6b3a28;background:#2a1a14}
+.ab.level{color:#8fd3b0;border-color:#2f5a44;background:#132419}
 .hz{font-size:10.5px;padding:2px 7px;border-radius:7px;border:1px solid;white-space:nowrap;font-weight:600}
 .sig{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;margin-left:6px;vertical-align:2px}
 .sig.SELL{background:#4a1d16;color:#ffb4a3}.sig.TRIM{background:#4a3513;color:#ffd166}.sig.BUY{background:#143a24;color:#7ddc9b}
@@ -236,8 +237,8 @@ const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u03
 const HZ={"1-3":["1–3 mån","#ffd166"],"3-6":["3–6 mån","#e8b64a"],"6-12":["6–12 mån","#d09a3a"],"12-24":["1–2 år","#b08a4a"],"24+":["2+ år","#a09070"],none:["Avvakta","#7a7262"]};
 const hz=h=>{const x=HZ[h]||HZ.none;return `<span class="hz" style="color:${x[1]};border-color:${x[1]}66">${x[0]}</span>`};
 const SIGL={SELL:"SÄLJ",TRIM:"OMFÖRDELA",WATCH:"BEVAKA",BUY:"KÖP MER",HOLD:"BEHÅLL",NA:"–"};
-const ic=k=>({sma50:"📈 ",rsi:"⚡ ",fib:"📐 "}[k]||"• ");
-const shortA=a=>({sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.includes("över")?"RSI hög":"RSI låg",fib:"Fibonacci"}[a.k]||a.t);
+const ic=k=>({sma50:"📈 ",rsi:"⚡ ",fib:"📐 ",decay:"📉 ",level:"〓 "}[k]||"• ");
+const shortA=a=>({sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.includes("över")?"RSI hög":"RSI låg",fib:"Fibonacci",decay:a.s||"Tappar kraft",level:a.s||"Vid nivå"}[a.k]||a.t);
 
 /* ---------- DATA ---------- */
 let D=null,S={},SL=[],DEMO=false,OLD=false,H={};
@@ -249,9 +250,27 @@ const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5,NOK:.95,DKK:1.54,GBP:13.3
    inläsningen, så att ingen del av appen kan visa eller räkna på det. */
 const DEAD_ALERTS=new Set(["graham","magic"]);
 const DEAD_FIELDS=["gr","grn","grc","mf","mfr","ey","roc","vs","_ex","fsc","fmiss","tsc"];
+/* Försämringsmåtten visas som larm bredvid SMA50, RSI och Fibonacci, så att en gul flagga
+   syns direkt i listorna. De är INFORMATION – backtestet visade att de kostar avkastning som
+   regel: som säljregel 5–13 % mot referensens 16–17 %, som köpfilter ingen mätbar vinst. */
+function decayAlerts(s){
+  const out=[];
+  if(typeof s.obv==="number"&&s.obv<-1)
+    out.push({k:"decay",s:"Volymbalans faller",t:`Volymbalansen faller (${f(s.obv,1)}) – uppgångarna sker på tunn handel och nedgångarna på tjock.`});
+  if(typeof s.ltop==="number"&&s.ltop>=3)
+    out.push({k:"decay",s:`${s.ltop} v lägre toppar`,t:`${s.ltop} veckor i rad med lägre toppar – varje ny topp är lägre än den förra.`});
+  if(typeof s.athg==="number"&&s.athg>25&&(s.athc||0)>8)
+    out.push({k:"decay",s:`${f(s.athg,0)} % under toppen`,t:`${f(s.athg,0)} % under högsta notering, ${f(s.athc,0)} procentenheter sämre än för en månad sedan.`});
+  const nz=srNear(s,3)[0];
+  if(nz)out.push({k:"level",s:`${nz.role==="stöd"?"Vid stöd":"Vid motstånd"} ${f(nz.lvl,0)}`,
+    t:`Kursen ligger ${sg(nz.dist,1)} från ${nz.role}et vid ${f(nz.lvl,2)} (${nz.n} träffar${nz.both?", både tak och golv":""}). ${nz.role==="stöd"?"Håller stödet är det ett läge att köpa strax ovanför. Bryts det på hög volym är det ett tecken på svaghet.":"Här har aktien vänt ned förut. Ett utbrott på hög volym gör nivån till nytt stöd."}`});
+  if(typeof s.r1m==="number"&&typeof s.r3m==="number"&&s.sc>=70&&s.r1m<0&&s.r3m<5)
+    out.push({k:"decay",s:"Svag senaste tiden",t:`Hög poäng men svag senaste tiden: ${f(s.r1m,1)} % på en månad, ${f(s.r3m,1)} % på tre. Poängen vilar på tidigare uppgång.`});
+  return out}
 function scrubLegacy(s){
   if(!s)return s;
-  if(Array.isArray(s.al)) s.al=s.al.filter(a=>a&&!DEAD_ALERTS.has(a.k));
+  if(Array.isArray(s.al)) s.al=s.al.filter(a=>a&&!DEAD_ALERTS.has(a.k)&&a.k!=="decay"&&a.k!=="level");
+  try{const d=decayAlerts(s);if(d.length)s.al=d.concat(s.al||[])}catch(e){}
   DEAD_FIELDS.forEach(f=>{if(f in s)delete s[f]});
   return s}
 function indexData(){
@@ -266,7 +285,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-17-c";
+const APPV="2026-10-18-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -568,6 +587,7 @@ trend:()=>["Trendstyrka","<p>Andelen av aktierna på listan som ligger över sit
 signaler:()=>["Signaler","<p>Appen flaggar automatiskt när något av följande inträffar:</p><p>📈 <b>SMA50-brott:</b> priset korsar 50-dagars medelvärde upp eller ner – tidigt tecken på trendskifte.</p><p>⚡ <b>RSI:</b> under 30 (översåld, möjlig studs) eller över 70 (överköpt, möjlig rekyl).</p><p>📐 <b>Fibonacci:</b> priset ligger nära en retracement-nivå (23,6/38,2/50/61,8/78,6 %) av senaste halvårets rörelse – vanliga stöd/motstånd.</p>"+F],
 dag:()=>["Daghandelsfilter","<p>Aktien är en kandidat bara om <b>alla fem</b> kriterier uppfylls:</p><p>1. Pris över gårdagens high<br>2. Gårdagens stängning över SMA200<br>3. Pris över dagens pre-market high<br>4. Pris över dagens öppningskurs<br>5. Pre-market volym ≥ 50 000</p><p>➖ betyder att kriteriet inte kan bedömas (t.ex. svenska aktier saknar pre-market, eller marknaden har inte öppnat än). Dagens kandidater: <b>"+(H.dc||0)+"</b>.</p>"+F],
 hz:()=>["Placeringshorisont","<p>Varje aktie får en flagga för vilken tidshorisont som passar bäst just nu, enligt fasta regler i skannern:</p><p><b>1–3 mån:</b> starkt kortsiktigt momentum (stark 1–3 mån-avkastning, över SMA50, MACD uppåt).</p><p><b>3–6 mån:</b> etablerad uppåttrend över SMA50 och SMA200.</p><p><b>6–12 mån:</b> trenden håller och vinst/omsättning växer.</p><p><b>1–2 år:</b> långsiktig trend intakt över SMA200.</p><p><b>Avvakta:</b> ingen tydlig setup just nu.</p>"+F],
+sr:()=>["Stöd och motstånd","<p>Nivåerna beräknas ur <b>lokala toppar och bottnar de senaste sex månaderna</b> – det tidsfönster som ger färskt minne hos marknadens aktörer utan att dränkas i gammalt brus. Punkter inom två procent av varandra slås ihop till en zon.</p><p><b>Styrka:</b> antal gånger kursen testat zonen och vänt, med nyare träffar viktade högre. Heldragen linje = minst tre träffar, streckad = färre. En zon som varit både tak och golv (rollbyte) markeras särskilt – den är extra stark.</p><p><b>Rollbyte:</b> ett brutet motstånd blir ofta nytt stöd, och tvärtom. Därför avgörs rollen av var kursen ligger nu, inte av hur zonen bildades.</p><p><b>I handelsplanen</b> läggs stoppet strax under närmaste stöds nedre kant (marknaden skjuter ofta över), och mål 1 strax under närmaste motstånd. Är avståndet till motståndet mindre än dubbla risken varnar appen för dålig risk/avkastning.</p><p><b>Vid nya toppar</b> finns inga historiska motstånd. Då saknas nivåer ovanför, vilket är normalt.</p><p>Nivåerna är <b>information</b>. De påverkar varken poängen eller köpförslagen – i backtestet har varje regel som väntar på rekyl till stöd kostat avkastning.</p>"],
 nyck:()=>["Nyckeltal","<p>P/E, P/B och direktavkastning visas som information om bolaget. <b>De påverkar varken momentumpoängen eller köpförslagen.</b></p><p>Graham Screener och Magic Formula fanns tidigare här men togs bort 2026-10-16. Magic Formula använde avkastning på totala tillgångar i stället för Greenblatts arbetande kapital, rankade per börs i stället för hela universumet, och sökte bland indexmedlemmar – Greenblatts egen lista innehåller mest bolag vi inte skannar. Graham saknade de tre strängaste kriterierna (tioårig vinststabilitet, tjugoårig utdelningshistorik och storlek) och dubbelräknade värderingsmåtten.</p><p>Magic Formulas riktiga lista finns gratis på magicformulainvesting.com.</p>"],
 psig:()=>["Portföljsignaler","<p>Varje innehav granskas dagligen av regelmotorn:</p><p><b>SÄLJ:</b> minst två varningar (t.ex. under SMA200, under SMA50 med negativ MACD, RSI &gt; 78, låg momentumpoäng, kraftigt tapp, stor förlust eller överköpt efter stor vinst).</p><p><b>OMFÖRDELA:</b> innehavet väger över 30 % av portföljen.</p><p><b>BEVAKA:</b> en varningssignal.</p><p><b>KÖP MER:</b> minst tre positiva signaler (hög momentumpoäng, trend, Fibonacci i upptrend, översåld i upptrend, växande vinst).</p><p><b>BEHÅLL:</b> inga tydliga signaler.</p>"+F]
 };
@@ -1571,11 +1591,19 @@ function histSlice(h,s,rng){
   if((!r||r.p.length<2)&&s.sp&&(rng==="1m"||rng==="3m"))r={t:null,p:s.sp.slice(rng==="1m"?-22:0),fb:1};
   return r&&r.p.length>=2?r:null
 }
-function histChart(r,rng,up){
-  const W=360,Hh=190,pl=4,pr=4,pt=10,pb=22,n=r.p.length,mn=Math.min(...r.p),mx=Math.max(...r.p),sp=(mx-mn)||1,X=i=>pl+i/(n-1)*(W-pl-pr),Y=v=>pt+(mx-v)/sp*(Hh-pt-pb);
+function histChart(r,rng,up,lv){
+  // lv: stöd/motståndszoner från skannern. Tas med i skalan så att nära nivåer syns.
+  lv=(lv||[]).filter(z=>z&&z.lvl>0);
+  const vals=r.p.concat(lv.filter(z=>Math.abs(z.dist)<=20).map(z=>z.lvl));
+  const W=360,Hh=190,pl=4,pr=4,pt=10,pb=22,n=r.p.length,mn=Math.min(...vals),mx=Math.max(...vals),sp=(mx-mn)||1,X=i=>pl+i/(n-1)*(W-pl-pr),Y=v=>pt+(mx-v)/sp*(Hh-pt-pb);
+  // zoner: grön för stöd, röd för motstånd, starkare = mindre genomskinlig
+  let zones="";lv.forEach(z=>{if(z.lvl<mn||z.lvl>mx)return;
+    const y1=Y(Math.min(mx,Math.max(mn,z.hi))),y2=Y(Math.min(mx,Math.max(mn,z.lo))),h=Math.max(3,y2-y1);
+    const col=z.role==="stöd"?"#3fb67a":"#e86b5c",op=Math.min(.55,.15+z.str*.1);
+    zones+=`<rect x="${pl}" y="${y1}" width="${W-pl-pr}" height="${h}" fill="${col}" opacity="${op}"/><line x1="${pl}" x2="${W-pr}" y1="${Y(z.lvl)}" y2="${Y(z.lvl)}" stroke="${col}" stroke-width="${z.both?1.6:1}" stroke-dasharray="${z.n>=3?"":"4 3"}" opacity=".85"/><text x="${pl+3}" y="${Y(z.lvl)-3}" fill="${col}" font-size="8.5" font-weight="600">${z.role==="stöd"?"S":"M"} ${z.lvl}${z.n>=2?` ×${z.n}`:""}</text>`});
   const pts=r.p.map((v,i)=>X(i).toFixed(1)+","+Y(v).toFixed(1)),col=up?"#e8b64a":"#f0846f",line="M"+pts.join("L"),area=line+`L${X(n-1).toFixed(1)},${Hh-pb}L${X(0).toFixed(1)},${Hh-pb}Z`;
   let g="";for(let k=0;k<=3;k++){const y=pt+(Hh-pt-pb)*k/3;g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="#1a150c"/><text x="${W-pr}" y="${y-2}" fill="#7a7060" font-size="8.5" text-anchor="end">${(mx-sp*k/3).toFixed(2)}</text>`}
-  return`<svg id="hsvg" viewBox="0 0 ${W} ${Hh}" style="width:100%;display:block;touch-action:none;background:#0a0805;border:1px solid var(--bd);border-radius:14px"><defs><linearGradient id="ha" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>${g}<path d="${area}" fill="url(#ha)"/><path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line id="hcl" x1="0" x2="0" y1="${pt}" y2="${Hh-pb}" stroke="#ffd166" stroke-width="1" style="display:none"/><circle id="hdot" r="4" fill="#ffd166" style="display:none"/><text id="hx0" x="${pl+2}" y="${Hh-6}" fill="#7a7060" font-size="8.5"></text><text id="hx1" x="${W-pr-2}" y="${Hh-6}" fill="#7a7060" font-size="8.5" text-anchor="end"></text></svg>`
+  return`<svg id="hsvg" viewBox="0 0 ${W} ${Hh}" style="width:100%;display:block;touch-action:none;background:#0a0805;border:1px solid var(--bd);border-radius:14px"><defs><linearGradient id="ha" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>${g}${zones}<path d="${area}" fill="url(#ha)"/><path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line id="hcl" x1="0" x2="0" y1="${pt}" y2="${Hh-pb}" stroke="#ffd166" stroke-width="1" style="display:none"/><circle id="hdot" r="4" fill="#ffd166" style="display:none"/><text id="hx0" x="${pl+2}" y="${Hh-6}" fill="#7a7060" font-size="8.5"></text><text id="hx1" x="${W-pr-2}" y="${Hh-6}" fill="#7a7060" font-size="8.5" text-anchor="end"></text></svg>`
 }
 const TZS={".ST":"Europe/Stockholm",".CO":"Europe/Copenhagen",".OL":"Europe/Oslo",".DE":"Europe/Berlin",".PA":"Europe/Paris",".L":"Europe/London",".AS":"Europe/Amsterdam",".HE":"Europe/Helsinki",".SW":"Europe/Zurich",".MC":"Europe/Madrid",".MI":"Europe/Rome"};
 function tzOf(t){if(/-USD$/.test(t))return undefined;for(const k in TZS)if(t.endsWith(k))return TZS[k];return"America/New_York"}
@@ -1583,7 +1611,7 @@ function histFmt(ts,rng){if(!ts)return"";const d=new Date(ts*1000),tz=tzOf(HCUR.
   try{return(rng==="1d"||rng==="1w")?d.toLocaleString("sv-SE",{timeZone:tz,month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("sv-SE",{timeZone:tz,year:"numeric",month:"short",day:"numeric"})}catch(e){return""}}
 async function chartSheet(t,rng){
   const s=S[t];if(!s)return;HCUR={t,rng:rng||HCUR.rng||"3m"};
-  sheet(`<h3>${fl(s)} ${esc(s.d)} <span class="mu" style="font-weight:400">${esc(s.n)}</span></h3><div id="hhead"></div><div class="chips" style="margin:8px 0;gap:6px">${HR.map(x=>`<span class="chip mk${x[1]===HCUR.rng?" on":""}" data-act="hrng" data-r="${x[1]}">${x[0]}</span>`).join("")}</div><div id="hbody"><div class="empty">Hämtar kurshistorik…</div></div><div class="mu" id="hnote" style="margin-top:8px;font-size:11.5px"></div>`);
+  sheet(`<h3>${fl(s)} ${esc(s.d)} <span class="mu" style="font-weight:400">${esc(s.n)}</span></h3><div id="hhead"></div><div id="hlv"></div><div class="chips" style="margin:8px 0;gap:6px">${HR.map(x=>`<span class="chip mk${x[1]===HCUR.rng?" on":""}" data-act="hrng" data-r="${x[1]}">${x[0]}</span>`).join("")}</div><div id="hbody"><div class="empty">Hämtar kurshistorik…</div></div><div class="mu" id="hnote" style="margin-top:8px;font-size:11.5px"></div>`);
   await drawHist()
 }
 async function drawHist(){
@@ -1593,8 +1621,9 @@ async function drawHist(){
   if(!r){body.innerHTML=`<div class="empty">Ingen kurshistorik för det här intervallet än.${DEMO?"":" Historiken skapas av skanningen – kör “Daily momentum scan” och försök igen."}</div>`;$("#hhead").innerHTML="";$("#hnote").textContent="";return}
   const a=r.p[0],b=r.p[r.p.length-1],ch=(b/a-1)*100,hi=Math.max(...r.p),lo=Math.min(...r.p);
   $("#hhead").innerHTML=`<span class="big" id="hpr">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span><div class="mu" id="hdt" style="min-height:16px">${r.t?histFmt(r.t[r.t.length-1],rng):""}</div>`;
-  body.innerHTML=histChart(r,rng,ch>=0);
+  body.innerHTML=histChart(r,rng,ch>=0,s.sr);
   $("#hx0").textContent=r.t?histFmt(r.t[0],rng):"45 dagar sedan";$("#hx1").textContent=r.t?histFmt(r.t[r.t.length-1],rng):"nu";
+  const lvN=$("#hlv");if(lvN)lvN.innerHTML=srHTML(s);
   $("#hnote").innerHTML=`Hög ${hi.toFixed(2)} · Låg ${lo.toFixed(2)}${r.fb?" · begränsad historik (45 dagar) tills skanningen byggt full historik":""}${(rng==="1d"||rng==="1w")?" · intradag: stängningskurser vid senaste skanning":""}. Tryck eller dra över grafen för att se enskilda värden.`;
   const svg=$("#hsvg"),W=360,n=r.p.length,mn=Math.min(...r.p),mx=Math.max(...r.p),sp=(mx-mn)||1,Hh=190,pt=10,pb=22;
   const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-4)/(W-8)*(n-1)))),px=4+i/(n-1)*(W-8),py=pt+(mx-r.p[i])/sp*(Hh-pt-pb);
@@ -1981,9 +2010,19 @@ function tradePlan(s,R){
   const extAtr=s20?(px-s20)/atr:0,hot=s.rsi>=70||extAtr>2.2;
   const eLo=hot?Math.max(s20||px-1.5*atr,px-1.8*atr):px-0.5*atr, eHi=hot?px-0.6*atr:px+0.3*atr;
   // Stopp: under närmaste struktur, men aldrig lösare än regelns procentstopp
-  const sATR=px-2*atr,sPct=px*(1-R.stop/100),stop=Math.max(Math.min(sATR,swing-0.2*atr),sPct);
-  const entry=(eLo+eHi)/2,risk=entry-stop,t1=entry+2*risk,t2=entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
-  return{px,atr,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,stopPct:(1-stop/entry)*100,
+  // Stöd/motstånd från skannern: stoppet läggs strax UNDER närmaste stöd (inte på det –
+  // marknaden skjuter ofta över), målet strax UNDER närmaste motstånd.
+  const lv=(s.sr||[]).filter(z=>z.n>=2);
+  const sup=lv.filter(z=>z.role==="stöd"&&z.lvl<px*0.995).sort((a,b)=>b.lvl-a.lvl)[0];
+  const res=lv.filter(z=>z.role==="motstånd"&&z.lvl>px*1.01).sort((a,b)=>a.lvl-b.lvl)[0];
+  const sATR=px-2*atr,sPct=px*(1-R.stop/100);
+  const sStruct=sup?sup.lo-0.4*atr:swing-0.2*atr;             // en bit under stödzonens botten
+  const stop=Math.max(Math.min(sATR,sStruct),sPct);
+  const entry=(eLo+eHi)/2,risk=entry-stop;
+  const t1=res&&res.lo>entry+risk?Math.min(res.lo-0.2*atr,entry+2*risk):entry+2*risk,t2=entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
+  return{px,atr,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,stopPct:(1-stop/entry)*100,sup,res,
+    stopWhy:sup?`strax under stödet vid ${f(sup.lvl,2)} (${sup.n} träffar)`:`under senaste tio dagarnas lägsta`,
+    t1Why:res&&res.lo>entry+risk?`strax under motståndet vid ${f(res.lvl,2)}`:`2 × risken`,
     why:hot?`Utsträckt läge (RSI ${s.rsi}${s20?`, ${f((px/s20-1)*100,1)} % över 20-dagars medel`:""}) – invänta rekyl.`:"Normalt läge – köp i zonen eller på styrka."}
 }
 function posSize(cap,riskPct,entry,stop,ccy){
@@ -2020,10 +2059,11 @@ function planSheet(t,pid){
   <div class="g"><div><small>Kurs nu</small><b>${f(tp.px)} ${esc(u)}</b></div>
    <div><small>Köpzon</small><b>${f(tp.eLo)}–${f(tp.eHi)}</b></div>
    <div><small>Stopp</small><b class="dn">${f(tp.stop)} (−${f(tp.stopPct,1)} %)</b></div>
-   <div><small>Mål 1 (2R)</small><b class="up">${f(tp.t1)}</b></div>
+   <div><small>Mål 1</small><b class="up">${f(tp.t1)}</b></div>
    <div><small>Mål 2 (3R)</small><b class="up">${f(tp.t2)}</b></div>
-   <div><small>Risk/avkastning</small><b>${f(tp.rr,1)}:1</b></div></div>
-  <div class="mu" style="white-space:normal;margin:6px 0 2px">${esc(tp.why)} Stoppet ligger under närmaste stöd och som mest ${R.stop} % från köpkursen. ATR (dagssvängning) ${f(tp.atr)} ${esc(u)}.</div>
+   <div><small>Risk/avkastning</small><b class="${tp.rr<2?"dn":""}">${f(tp.rr,1)}:1</b></div></div>
+  ${tp.rr<2?`<div class="stat BAD" style="margin:6px 0"><b>R:R UNDER 2:1</b>Vinstpotentialen till närmaste motstånd är mindre än dubbla risken till stoppet. Överväg att vänta på ett bättre läge, eller flytta köpzonen närmare stödet.</div>`:""}
+  <div class="mu" style="white-space:normal;margin:6px 0 2px">${esc(tp.why)} Stoppet ligger ${esc(tp.stopWhy)} och som mest ${R.stop} % från köpkursen. Mål 1 ligger ${esc(tp.t1Why)}. ATR (dagssvängning) ${f(tp.atr)} ${esc(u)}.</div>
   <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">KOSTNAD FÖR AFFÄREN</h2></div>
   <div id="cst" class="mu" style="margin:2px 0 8px"></div>
   <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">POSITIONSSTORLEK</h2></div>
@@ -2324,6 +2364,18 @@ function decayHTML(s){
     d.warn.length?`<br><b class="dn">${d.warn.map(esc).join(". ")}.</b>`:""}
     <br><span style="opacity:.75">Information, inte signal. Backtestet visade att försäljning på dessa mått kostade 3–11 procentenheter per år.</span></div>`}
 
+/* Stöd och motstånd: lokala toppar och bottnar de senaste sex månaderna, klustrade till
+   zoner. S = stöd (under kursen), M = motstånd (över). ×3 = tre träffar. Heldragen linje
+   = minst tre träffar, streckad = färre. Information – styr inga signaler. */
+function srNear(s,pct){pct=pct||3;const lv=(s&&s.sr)||[];
+  return lv.filter(z=>z.n>=2&&Math.abs(z.dist)<=pct).sort((a,b)=>Math.abs(a.dist)-Math.abs(b.dist))}
+function srHTML(s){
+  const lv=(s&&s.sr)||[];if(!lv.length)return"";
+  const sup=lv.filter(z=>z.role==="stöd").sort((a,b)=>b.lvl-a.lvl)[0];
+  const res=lv.filter(z=>z.role==="motstånd").sort((a,b)=>a.lvl-b.lvl)[0];
+  const row=(z,lbl)=>z?`<b class="${z.role==="stöd"?"up":"dn"}">${lbl} ${f(z.lvl,2)}</b> (${sg(z.dist,1)}, ${z.n} ${z.n===1?"träff":"träffar"}${z.both?", både tak och golv":""})`:"";
+  return`<div class="mu" style="font-size:11.5px;margin:4px 0 6px">${[row(sup,"Närmaste stöd"),row(res,"Närmaste motstånd")].filter(Boolean).join(" · ")}
+   <span class="ii" data-i="sr">ⓘ</span></div>`}
 /* Graderade säljsignaler: en del regler är exakta, andra rör sig dagligen. */
 const SIG_URG={STOPP:["Sälj vid nästa tillfälle","Kursen har fallit under din stoppnivå. Villkoret är exakt och gäller idag."],
   ABSM:["Sälj vid nästa tillfälle","Tolvmånadersavkastningen har vänt negativ. Momentum är slut, inte svagt."],
