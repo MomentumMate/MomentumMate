@@ -71,6 +71,7 @@ h4[data-i]{cursor:pointer}
 .ab{font-size:10.5px;padding:2px 7px;border-radius:7px;background:#1b1710;border:1px solid var(--bd);color:var(--mu);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .ab.decay{color:#e2a07a;border-color:#6b3a28;background:#2a1a14}
 .ab.level{color:#8fd3b0;border-color:#2f5a44;background:#132419}
+.ab.struct{color:#c9b8e8;border-color:#4a3d66;background:#1c1726}
 .dd{position:relative;display:inline-block;margin:0 0 8px}
 .dd>button{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;border:1px solid var(--bd);background:#1b1710;color:var(--tx);font:inherit;font-weight:600;cursor:pointer}
 .dd>button::after{content:"▾";color:var(--mu);font-size:12px;margin-left:2px}
@@ -247,8 +248,8 @@ const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u03
 const HZ={"1-3":["1–3 mån","#ffd166"],"3-6":["3–6 mån","#e8b64a"],"6-12":["6–12 mån","#d09a3a"],"12-24":["1–2 år","#b08a4a"],"24+":["2+ år","#a09070"],none:["Avvakta","#7a7262"]};
 const hz=h=>{const x=HZ[h]||HZ.none;return `<span class="hz" style="color:${x[1]};border-color:${x[1]}66">${x[0]}</span>`};
 const SIGL={SELL:"SÄLJ",TRIM:"OMFÖRDELA",WATCH:"BEVAKA",BUY:"KÖP MER",HOLD:"BEHÅLL",NA:"–"};
-const ic=k=>({sma50:"📈 ",rsi:"⚡ ",fib:"📐 ",decay:"📉 ",level:"〓 "}[k]||"• ");
-const shortA=a=>({sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.includes("över")?"RSI hög":"RSI låg",fib:"Fibonacci",decay:a.s||"Tappar kraft",level:a.s||"Vid nivå"}[a.k]||a.t);
+const ic=k=>({sma50:"📈 ",rsi:"⚡ ",fib:"📐 ",decay:"📉 ",level:"〓 ",struct:"⟷ "}[k]||"• ");
+const shortA=a=>({sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.includes("över")?"RSI hög":"RSI låg",fib:"Fibonacci",decay:a.s||"Tappar kraft",level:a.s||"Vid nivå",struct:a.s||"Struktur"}[a.k]||a.t);
 
 /* ---------- DATA ---------- */
 let D=null,S={},SL=[],DEMO=false,OLD=false,H={};
@@ -271,6 +272,10 @@ function decayAlerts(s){
     out.push({k:"decay",s:`${s.ltop} v lägre toppar`,t:`${s.ltop} veckor i rad med lägre toppar – varje ny topp är lägre än den förra.`});
   if(typeof s.athg==="number"&&s.athg>25&&(s.athc||0)>8)
     out.push({k:"decay",s:`${f(s.athg,0)} % under toppen`,t:`${f(s.athg,0)} % under högsta notering, ${f(s.athc,0)} procentenheter sämre än för en månad sedan.`});
+  const st=s.strc&&s.strc.k;
+  if(st==="ned")out.push({k:"decay",s:"Lägre toppar & bottnar",t:"Marknadsstruktur: nedtrend – de senaste svängtopparna och svängbottnarna är båda lägre än de föregående."});
+  else if(st==="kil")out.push({k:"struct",s:"Smalnande intervall",t:"Marknadsstruktur: lägre toppar men högre bottnar – intervallet smalnar och ett utbrott brukar följa, åt endera hållet."});
+  else if(st==="vidgande")out.push({k:"struct",s:"Vidgande svängar",t:"Marknadsstruktur: högre toppar men lägre bottnar – svängarna växer åt båda håll, vilket ofta föregår ett trendskifte."});
   const nz=srNear(s,3)[0];
   if(nz)out.push({k:"level",s:`${nz.role==="stöd"?"Vid stöd":"Vid motstånd"} ${f(nz.lvl,0)}`,
     t:`Kursen ligger ${sg(nz.dist,1)} från ${nz.role}et vid ${f(nz.lvl,2)} (${nz.n} träffar${nz.both?", både tak och golv":""}). ${nz.role==="stöd"?"Håller stödet är det ett läge att köpa strax ovanför. Bryts det på hög volym är det ett tecken på svaghet.":"Här har aktien vänt ned förut. Ett utbrott på hög volym gör nivån till nytt stöd."}`});
@@ -279,7 +284,7 @@ function decayAlerts(s){
   return out}
 function scrubLegacy(s){
   if(!s)return s;
-  if(Array.isArray(s.al)) s.al=s.al.filter(a=>a&&!DEAD_ALERTS.has(a.k)&&a.k!=="decay"&&a.k!=="level");
+  if(Array.isArray(s.al)) s.al=s.al.filter(a=>a&&!DEAD_ALERTS.has(a.k)&&a.k!=="decay"&&a.k!=="level"&&a.k!=="struct");
   try{const d=decayAlerts(s);if(d.length)s.al=d.concat(s.al||[])}catch(e){}
   DEAD_FIELDS.forEach(f=>{if(f in s)delete s[f]});
   return s}
@@ -295,7 +300,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-18-c";
+const APPV="2026-10-18-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -408,7 +413,7 @@ function card(s,i,o={}){
 function detail(s,mk,extra=""){
   const crit=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
   const n=s.dt.filter(x=>x===true).length,na=s.dt.some(x=>x==null);
-  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
+  return`<div class="d">${aboutHTML(s)}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${s.strc&&s.strc.k?`<div><small>Struktur</small><b class="${s.strc.k==="upp"?"up":s.strc.k==="ned"?"dn":""}">${{upp:"Högre toppar & bottnar",ned:"Lägre toppar & bottnar",sidled:"Sidled",kil:"Smalnande",vidgande:"Vidgande"}[s.strc.k]||s.strc.k}</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
   <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
   <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>${s.sh?`<div class="mu">⚠ Kort kurshistorik (${s.nb} handelsdagar) – SMA200 saknas.</div>`:""}
   <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
@@ -525,14 +530,14 @@ function holdCard(r,p){
   <div class="m"><div>${s?fl(s):`<span class="fg">${flagOf(h.t)}</span>`}<b>${esc(s?s.d:h.t)}</b>${s?`<span class="gb" data-act="chart" data-t="${esc(h.t)}" aria-label="Graf">📈</span>`:""}${repChip(s)}</div><div class="mu">${esc(s?s.n:(h.n||"Ingen live-data"))} · ${n} st · GAV ${f(h.c)}</div></div>
   ${s?spark(s.sp):""}<div class="p"><b>${kr(r.val)} kr</b><div class="${cls(r.ret)}">${sg(r.ret,1)}</div><div class="mu" style="font-size:11.5px;white-space:nowrap">${f(r.px)} ${s?esc(s.cur):esc(h.ccy||"")} ${s?`<span class="${cls(s.chg)}">${sg(s.chg,2)}</span>`:""}</div></div></div>
   <div class="al2"><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span>${r.hl?`<span class="sig SELL">⚠ ${esc(r.hl.short)}</span>`:""}${s?hz(s.h):""}</div>
-  <div class="d">${s?aboutHTML(s):""}<div class="g"><div><small>Kurs</small><b>${f(r.px)} ${s?s.cur:""}</b></div><div><small>Idag</small><b class="${cls(s?s.chg:0)}">${s?sg(s.chg):"–"}</b></div><div><small>Vikt</small><b>${f(r.w,1)}%</b></div>
-   <div><small>Antal</small><b>${n}</b></div><div><small>Inköpskurs (GAV)</small><b>${f(h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div>
-   <div><small>Värde</small><b>${kr(r.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(r.pnl)}">${r.pnl>=0?"+":"−"}${kr(Math.abs(r.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(r.ret)}">${sg(r.ret,1)}</b></div>
-   ${s?`<div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div><div><small>Momentum</small><b>${s.sc}</b></div>`:""}</div>
+  <div class="d">
+   <div class="g"><div><small>Vikt</small><b>${f(r.w,1)}%</b></div><div><small>Antal</small><b>${n}</b></div><div><small>GAV</small><b>${f(h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div>
+   <div><small>Värde</small><b>${kr(r.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(r.pnl)}">${r.pnl>=0?"+":"−"}${kr(Math.abs(r.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(r.ret)}">${sg(r.ret,1)}</b></div></div>
    ${r.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(r.hl.msg)}<div class="acts"><button class="btn sm" data-act="lookup" data-q="${esc((h.n||h.t).replace(/\.[A-Z]{1,3}$/,""))}">Slå upp online</button><button class="btn sm ghost" data-act="edit" data-t="${esc(h.t)}" data-pid="${p.id}">Rätta ticker</button></div></div>`:""}
-   <h4 data-i="psig">Signal: ${SIGL[r.sig.k]} <span class="ii">ⓘ</span></h4>${r.sig.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}
-   ${s&&s.al.length?`<h4>Tekniska/fundamentala larm</h4>${s.al.map(a=>`<div class="k">${ic(a.k)} ${esc(a.t)}</div>`).join("")}`:""}
-   <div class="acts"><button class="btn sm" data-act="buy" data-t="${esc(h.t)}" data-pid="${p.id}">Köp mer</button><button class="btn sm ghost" data-act="sell" data-t="${esc(h.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(h.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(h.t)}" data-pid="${p.id}">Ändra</button>${s?`<button class="btn sm ghost" data-go="#/stock/${encodeURIComponent(h.t)}">Analys</button>`:""}</div></div></div>`
+   <h4 data-i="psig">Signal: ${SIGL[r.sig.k]} <span class="ii">ⓘ</span></h4>${r.sig.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}${r.rule?urgHTML(r.rule.k):""}
+   <div class="acts"><button class="btn sm" data-act="buy" data-t="${esc(h.t)}" data-pid="${p.id}">Köp mer</button><button class="btn sm ghost" data-act="sell" data-t="${esc(h.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(h.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(h.t)}" data-pid="${p.id}">Ändra</button></div>
+   ${s?detail(s,(s.m||[])[0]).replace(/^<div class="d">/,"").replace(/<\/div>$/,""):""}
+  </div>`
 }
 
 /* ---------- BÖRSDESK ---------- */

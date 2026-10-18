@@ -611,6 +611,39 @@ def sr_levels(close, px, win=5, tol=0.02, max_lv=6):
     except Exception:
         return []
 
+def structure(close, win=5):
+    """Marknadsstruktur: gör aktien högre toppar OCH högre bottnar (upptrend),
+    lägre toppar OCH lägre bottnar (nedtrend), eller något däremellan?
+
+    Jämför de två–tre senaste bekräftade svängtopparna och svängbottnarna
+    (extrempunkter inom ±win dagar) de senaste ~3 månaderna.
+    Returnerar 'upp', 'ned', 'sidled' eller None, plus antal toppar/bottnar som jämförts.
+    """
+    try:
+        v = [float(x) for x in close]
+        n = len(v)
+        if n < 30: return None
+        his, los = [], []
+        for i in range(win, n - win):
+            if v[i] == v[i - 1]: continue              # platå – räkna vändpunkten en gång
+            seg = v[i - win:i + win + 1]
+            if v[i] == max(seg): his.append(v[i])
+            elif v[i] == min(seg): los.append(v[i])
+        his, los = his[-3:], los[-3:]
+        if len(his) < 2 or len(los) < 2: return {"k": "sidled", "hi": len(his), "lo": len(los), "note": "för få svängpunkter"}
+        hh = all(his[i] > his[i - 1] for i in range(1, len(his)))
+        hl = all(los[i] > los[i - 1] for i in range(1, len(los)))
+        lh = all(his[i] < his[i - 1] for i in range(1, len(his)))
+        ll = all(los[i] < los[i - 1] for i in range(1, len(los)))
+        if hh and hl: k = "upp"
+        elif lh and ll: k = "ned"
+        elif hh and ll: k = "vidgande"     # större svängar åt båda håll – osäkert
+        elif lh and hl: k = "kil"          # smalnande intervall – utbrott väntas
+        else: k = "sidled"
+        return {"k": k, "hi": len(his), "lo": len(los)}
+    except Exception:
+        return None
+
 def coverage_report(want, got, recs=None):
     """Jämför önskat mot hämtat universum, och mot föregående körning."""
     want_s, got_s = set(want), set(got)
@@ -1048,6 +1081,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # Lokala toppar/bottnar de senaste 6 månaderna, klustrade till zoner, viktade efter
     # antal träffar och närhet i tid. Rollbyte: en bruten topp räknas som stöd.
     sr = sr_levels(c.iloc[-130:], px)
+    strc = structure(c.iloc[-70:])
 
     # --- försämringsmått (visas som information i appen, styr inga signaler) ---
     obvs = ath_gap = ath_chg = ltops = None
@@ -1189,7 +1223,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "adv": (round(adv) if adv else None),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
