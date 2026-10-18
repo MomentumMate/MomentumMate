@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
 import xml.etree.ElementTree as ET
 import logging
-import pandas as pd, requests, yfinance as yf
+import pandas as pd, numpy as np, requests, yfinance as yf
 
 # yfinance loggar varje 401/429 från Yahoo. De är ofarliga (biblioteket gör om anropet)
 # men dränker loggen i tusentals rader, vilket gjorde riktiga fel omöjliga att hitta.
