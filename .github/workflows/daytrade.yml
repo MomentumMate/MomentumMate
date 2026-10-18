@@ -25,6 +25,8 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - name: Hämta live-data
+        env:
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
         run: |
           if [ -f data.json ]; then python scanner.py --daytrade; else echo "data.json saknas – kör dagsskanningen först"; exit 0; fi
       - name: Publicera på grenen live (en enda commit, ingen historik)

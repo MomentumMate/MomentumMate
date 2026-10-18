@@ -30,6 +30,7 @@ jobs:
       - run: python scanner.py
         env:
           BENZINGA_KEY: ${{ secrets.BENZINGA_KEY }}   # valfritt – lämna tom om du inte har någon
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}         # betald kursdata utan strypning; saknas den används Yahoo
 
       - name: Publicera kurshistorik (grenen hist – en enda commit, ingen historik)
         run: |

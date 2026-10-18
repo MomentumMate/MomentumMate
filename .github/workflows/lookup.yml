@@ -28,6 +28,7 @@ jobs:
       - run: python scanner.py --lookup "$QUERY"
         env:
           QUERY: ${{ github.event.inputs.query }}
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
       - name: Spara lookup.json
         run: |
           git config user.name "momentum-bot"
