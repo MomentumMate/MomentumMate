@@ -285,7 +285,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-18-a";
+const APPV="2026-10-18-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1000,7 +1000,7 @@ function addMarketSheet(i){
 }
 function settingsSheet(){
   const c=gh();
-  sheet(`<h3>Inställningar</h3><div class="mu" style="margin:-6px 0 8px;font-size:11.5px">Appversion ${APPV}</div>
+  sheet(`<h3>Inställningar</h3><div class="mu" style="margin:-6px 0 8px;font-size:11.5px">Appversion ${APPV}${D&&D.source?` · Datakälla ${esc(D.source.prices)}${D.source.coverage?` · täckning ${D.source.coverage.got} av ${D.source.coverage.want}`:""}${D.source.eodhd?` · EODHD ${D.source.eodhd.ok} ok, ${D.source.eodhd.fallback} via Yahoo`:""}`:""}</div>
   <h4>GitHub-koppling (valfri)</h4><p class="mu" style="font-size:13px">Behövs bara för att slå upp och lägga till okända aktier/börser direkt i appen. Skapa en <b>fine-grained token</b> via <a class="lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">den här länken ›</a> (eller profilbilden → Settings → längst ned: Developer settings). Välj <b>endast det här repot</b> och behörigheterna <b>Contents</b> och <b>Actions</b> = Read and write. Token sparas bara i den här webbläsaren.</p>
   <label class="fld"><span>Repo (användare/repo)</span><input id="ghr" value="${esc(c.repo||ghRepoGuess())}" placeholder="dittnamn/MomentumMate" autocapitalize="off"></label>
   <label class="fld"><span>Token</span><input id="ght" type="password" value="${esc(c.token||"")}" placeholder="github_pat_…" autocomplete="off"></label>

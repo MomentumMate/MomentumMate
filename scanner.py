@@ -119,7 +119,32 @@ def _wiki(url, cols, fallback, minimum, key=None):
         print("Varning: Wikipedia-hämtning misslyckades (", url.split("/")[-1], "):", e, "– använder reservlista.")
         return use_cache_or_fallback(key, fallback, str(e)[:100]) if key else fallback
 
-def sp500():    return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["symbol", "ticker"], SP500_FALLBACK, 400, key="SP500")
+EODHD_INDEX = {"SP500": "GSPC.INDX", "SP400": "SP400.INDX", "SP600": "SP600.INDX",
+               "NASDAQ": "NDX.INDX", "DOW": "DJI.INDX"}
+
+def eodhd_index(key):
+    """Medlemmar i ett index från EODHD:s fundamentaldata. Returnerar [] om nyckel saknas."""
+    if not EODHD_KEY or key not in EODHD_INDEX: return []
+    try:
+        j = eodhd_get(f"fundamentals/{EODHD_INDEX[key]}")
+        comp = (j or {}).get("Components") or {}
+        out = []
+        for v in comp.values():
+            code = (v.get("Code") or "").strip()
+            if code: out.append(code.replace(".", "-"))        # BRK.B → BRK-B som Yahoo och appen använder
+        lo, hi = EXPECT.get(key, (0, 10**6))
+        if lo <= len(out) <= hi:
+            print(f"  {key}: {len(out)} medlemmar från EODHD")
+            return out
+        print(f"  {key}: EODHD gav {len(out)} medlemmar – utanför rimligt spann, använder annan källa")
+    except Exception as e:
+        print(f"  {key}: EODHD-indexlista misslyckades ({str(e)[:50]})")
+    return []
+
+def _idx(key, fallback_fn):
+    return eodhd_index(key) or fallback_fn()
+
+def sp500():    return _idx("SP500", lambda: _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies", ["symbol", "ticker"], SP500_FALLBACK, 400, key="SP500"))
 NASDAQ_ALWAYS = ["SPCX", "NBIS", "CRWV", "ALAB", "RKLB", "TER"]   # bekräftade medlemmar 2026 (SPCX: snabbinträde efter börsnoteringen 12 juni; övriga: Nasdaq-100 omviktning 22 juni)
 
 def nasdaq_api():
@@ -195,8 +220,8 @@ SP400_FALLBACK = [
     "VC","VLY","VMI","VNO","VNT","VOYA","VVV","WBS","WCC","WEX","WH","WHR","WING","WLK","WMG","WSO","WTFC","WTRG",
     "WTS","X","XRAY","YETI","ZI","ZION"]
 
-def sp400(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], SP400_FALLBACK, 300, key="SP400")
-def sp600(): return _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400, key="SP600")
+def sp400(): return _idx("SP400", lambda: _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_400_companies", ["symbol", "ticker"], SP400_FALLBACK, 300, key="SP400"))
+def sp600(): return _idx("SP600", lambda: _wiki("https://en.wikipedia.org/wiki/List_of_S%26P_600_companies", ["symbol", "ticker"], [], 400, key="SP600"))
 
 LIGHT_TOP = 120            # antal aktier per hel börs som får full analys
 LIGHT_MIN_DV = 3_000_000   # lägsta genomsnittliga omsättning per dag (i handelsvaluta) för full analys
@@ -360,12 +385,86 @@ def split_frames(df, tickers):
         out[tickers[0]] = df.dropna(how="all")
     return out
 
+# ----------------------------------------------------------------------------------
+# EODHD – betald kursdata utan strypning. Används när EODHD_KEY finns i miljön,
+# annars Yahoo som förut. Varje aktie som saknas hos EODHD hämtas från Yahoo i stället.
+# ----------------------------------------------------------------------------------
+EODHD_KEY = (os.environ.get("EODHD_KEY") or "").strip()
+EODHD_URL = "https://eodhd.com/api"
+EODHD_STAT = {"ok": 0, "miss": 0, "err": 0, "fallback": 0}
+
+# Yahoo-suffix → EODHD-börskod. Saknas suffixet är aktien amerikansk (.US).
+EODHD_EXCH = {".ST": "ST", ".CO": "CO", ".OL": "OL", ".HE": "HE", ".DE": "XETRA", ".PA": "PA",
+              ".L": "LSE", ".IL": "LSE", ".AS": "AS", ".SW": "SW", ".MC": "MC", ".MI": "MI",
+              ".TO": "TO", ".AX": "AU", ".T": "TSE", ".HK": "HK", ".KS": "KO", ".NS": "NSE", ".TW": "TW"}
+
+def eodhd_symbol(t):
+    """Översätter en Yahoo-ticker till EODHD:s format."""
+    for suf, ex in EODHD_EXCH.items():
+        if t.endswith(suf): return t[:-len(suf)] + "." + ex
+    return t.replace("-", "-") + ".US"          # BRK-B.US fungerar hos EODHD
+
+def eodhd_get(path, **params):
+    params["api_token"] = EODHD_KEY; params["fmt"] = "json"
+    r = requests.get(f"{EODHD_URL}/{path}", params=params, timeout=30)
+    if r.status_code == 404: return None
+    r.raise_for_status()
+    return r.json()
+
+def eodhd_eod(t, period="5y"):
+    """Daglig kurshistorik för en aktie som en DataFrame i Yahoo-form (Open/High/Low/Close/Volume)."""
+    yrs = {"5y": 5, "2y": 2, "1y": 1, "6mo": 0.5}.get(period, 5)
+    start = (dt.date.today() - dt.timedelta(days=int(365 * yrs) + 7)).isoformat()
+    j = eodhd_get(f"eod/{eodhd_symbol(t)}", **{"from": start, "period": "d"})
+    if not j: return None
+    df = pd.DataFrame(j)
+    if df.empty or "close" not in df: return None
+    df["date"] = pd.to_datetime(df["date"]); df = df.set_index("date").sort_index()
+    out = pd.DataFrame({"Open": df["open"], "High": df["high"], "Low": df["low"],
+                        "Close": df["adjusted_close"] if "adjusted_close" in df else df["close"],
+                        "Volume": df["volume"]}).astype(float)
+    return out.dropna(how="all")
+
+def dl_eodhd(tickers, period="5y"):
+    """Hämtar alla tickers från EODHD parallellt. Returnerar {ticker: DataFrame}."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    out = {}
+    def one(t):
+        try:
+            df = eodhd_eod(t, period)
+            if df is not None and len(df) >= 20: return t, df, None
+            return t, None, "tom serie"
+        except Exception as e:
+            return t, None, str(e)[:60]
+    with ThreadPoolExecutor(max_workers=8) as ex:                   # 1 000 anrop/min tillåts; 8 trådar räcker
+        futs = [ex.submit(one, t) for t in tickers]
+        for i, f in enumerate(as_completed(futs), 1):
+            t, df, err = f.result()
+            if df is not None: out[t] = df; EODHD_STAT["ok"] += 1
+            else:
+                EODHD_STAT["miss" if err == "tom serie" else "err"] += 1
+                DL_DIAG["chunk_fail"].append(t); DL_DIAG["chunk_err"][t] = "eodhd: " + (err or "?")
+            if i % 200 == 0: print(f"  EODHD {i}/{len(tickers)}", flush=True)
+    return out
+
 DL_DIAG = {"chunk_fail": [], "chunk_err": {}}
 
 def dl(tickers, **kw):
-    """Hämtar kursdata. Loggar vilka som faller bort, eftersom bortfallet varierat
-    kraftigt mellan körningar (1 190–1 950 av 2 317) och gör rankningen ofullständig."""
+    """Hämtar kursdata. Med EODHD_KEY satt hämtas dagsdata därifrån, och det som
+    saknas kompletteras från Yahoo. Intradag (5m) går alltid via Yahoo."""
     out = {}
+    if EODHD_KEY and kw.get("interval", "1d") == "1d" and not kw.get("prepost"):
+        out = dl_eodhd(list(tickers), kw.get("period", "5y"))
+        rest = [t for t in tickers if t not in out]
+        if rest:
+            print(f"  EODHD gav {len(out)} av {len(tickers)} – {len(rest)} hämtas från Yahoo i stället")
+            EODHD_STAT["fallback"] += len(rest)
+            # rensa EODHD-felen för dem som Yahoo kanske löser
+            for t in rest: DL_DIAG["chunk_err"].pop(t, None)
+            DL_DIAG["chunk_fail"] = [t for t in DL_DIAG["chunk_fail"] if t not in rest]
+            tickers = rest
+        else:
+            return out
     for i in range(0, len(tickers), CHUNK):
         ch = tickers[i:i + CHUNK]
         try:
@@ -470,7 +569,47 @@ def session(t):
         if t.endswith(suf): return v
     return "Europe/Stockholm", 540
 
+def _num(x):
+    try: return float(x) if x not in (None, "", "NA") else None
+    except Exception: return None
+
+def eodhd_info(t):
+    """Bolagsinfo från EODHD, översatt till samma nycklar som Yahoo så att resten av
+    skannern inte behöver ändras. Returnerar {} om nyckel saknas eller bolaget inte finns."""
+    if not EODHD_KEY: return {}
+    try:
+        j = eodhd_get(f"fundamentals/{eodhd_symbol(t)}")
+        if not j: return {}
+        g = j.get("General") or {}; hl = j.get("Highlights") or {}; v = j.get("Valuation") or {}
+        f = j.get("Financials") or {}
+        # kassalikviditet och skuldsättning ur senaste balansräkningen
+        bs = ((f.get("Balance_Sheet") or {}).get("yearly") or {})
+        last = next(iter(bs.values()), {}) if bs else {}
+        ca, cl = _num(last.get("totalCurrentAssets")), _num(last.get("totalCurrentLiabilities"))
+        debt, eq = _num(last.get("totalLiab")), _num(last.get("totalStockholderEquity"))
+        pm = _num(hl.get("ProfitMargin")); roe = _num(hl.get("ReturnOnEquityTTM")); roa = _num(hl.get("ReturnOnAssetsTTM"))
+        return {
+            "longName": g.get("Name"), "shortName": g.get("Name"), "sector": g.get("Sector"),
+            "industry": g.get("Industry"), "country": g.get("CountryName"),
+            "currency": g.get("CurrencyCode"), "exchange": g.get("Exchange"), "fullExchangeName": g.get("Exchange"),
+            "quoteType": "EQUITY" if (g.get("Type") or "").lower().startswith("common") else g.get("Type"),
+            "longBusinessSummary": g.get("Description"), "fullTimeEmployees": g.get("FullTimeEmployees"),
+            "marketCap": _num(hl.get("MarketCapitalization")), "enterpriseValue": _num(v.get("EnterpriseValue")),
+            "ebitda": _num(hl.get("EBITDA")), "trailingPE": _num(hl.get("PERatio")), "priceToBook": _num(v.get("PriceBookMRQ")),
+            "profitMargins": pm, "returnOnEquity": roe, "returnOnAssets": roa,
+            "earningsGrowth": _num(hl.get("QuarterlyEarningsGrowthYOY")),
+            "revenueGrowth": _num(hl.get("QuarterlyRevenueGrowthYOY")),
+            "trailingAnnualDividendYield": _num(hl.get("DividendYield")),
+            "debtToEquity": (debt / eq * 100) if (debt and eq) else None,
+            "currentRatio": (ca / cl) if (ca and cl) else None,
+            "_src": "eodhd"}
+    except Exception:
+        return {}
+
 def get_info(t, tries=2, wait=2):
+    """Bolagsinfo: EODHD först (ingen strypning), Yahoo som reserv."""
+    i = eodhd_info(t)
+    if i.get("longName"): return i
     try: return retry(lambda: yf.Ticker(t).info or {}, tries=tries, wait=wait)
     except Exception: return {}
 
@@ -1325,6 +1464,7 @@ def main():
     light_keys = {m["k"] for m in markets_used if m.get("light")}
     light_only = {t for t in tickers if uni[t] and all(k in light_keys for k in uni[t])}
     core = [t for t in tickers if t not in light_only]
+    print(f"Datakälla kurser/nyckeltal: {'EODHD (nyckel hittad), Yahoo som reserv' if EODHD_KEY else 'Yahoo (ingen EODHD_KEY satt)'}")
     print("Hämtar kurshistorik (5 år)…");   daily = dl(core, period="5y", interval="1d")
     selected, light_stats = set(), {}
     if light_only:
@@ -1336,6 +1476,9 @@ def main():
     # Mät bortfallet: hur mycket av universumet som faktiskt kom ned, och om det är
     # samma aktier som förra körningen. Bortfallet har varierat 1 190–1 950 av 2 317.
     COV = coverage_report(core if not light_only else sorted(set(core) | set(selected)), list(daily))
+    if EODHD_KEY:
+        print(f"   EODHD: {EODHD_STAT['ok']} lyckade, {EODHD_STAT['miss']} tomma, {EODHD_STAT['err']} fel, "
+              f"{EODHD_STAT['fallback']} hämtades från Yahoo i stället")
     if DL_DIAG["chunk_fail"]:
         from collections import Counter
         why = Counter(DL_DIAG["chunk_err"].get(t, "okänt") for t in DL_DIAG["chunk_fail"])
@@ -1437,6 +1580,9 @@ def main():
             x = make_dtx(t, intra[t], recs[t])
             if x: dtx[t] = x
     out = {"v": 2, "updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
+           "source": {"prices": "EODHD + Yahoo" if EODHD_KEY else "Yahoo",
+                      "eodhd": dict(EODHD_STAT) if EODHD_KEY else None,
+                      "coverage": {"got": COV["got"], "want": COV["want"]} if "COV" in dir() else None},
            "fx": fx_rates({m["ccy"] for m in markets_used} | {r["ccy"] for r in recs.values()}),
            "markets": [{"k": "ALL", "n": "Alla marknader", "flag": "🌍", "cur": "", "ccy": ""}] +
                       [{"k": g, "n": GROUP_NAMES.get(g, (g, "🌐"))[0], "flag": GROUP_NAMES.get(g, (g, "🌐"))[1], "cur": "", "ccy": "", "group": True}
