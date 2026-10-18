@@ -80,6 +80,8 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - name: Kör backtest
+        env:
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
         run: |
           python backtest.py --years "${{ github.event.inputs.years || 10 }}" \
             ${{ github.event.inputs.quick == 'true' && '--quick' || '' }} \
