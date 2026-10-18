@@ -72,6 +72,19 @@ h4[data-i]{cursor:pointer}
 .ab.decay{color:#e2a07a;border-color:#6b3a28;background:#2a1a14}
 .ab.level{color:#8fd3b0;border-color:#2f5a44;background:#132419}
 .ab.struct{color:#c9b8e8;border-color:#4a3d66;background:#1c1726}
+.cv{padding:0 10px 90px}
+.cv .ctl{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.cv .ctl .chip{font-size:11.5px}
+.cv .lay{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.cv .lay .chip{font-size:11px;padding:4px 9px}
+.cv .lay .chip.off{opacity:.45}
+.cv svg{width:100%;display:block;touch-action:none;background:#0f0c08;border-radius:14px;border:1px solid var(--bd)}
+.cv .cpath{stroke-dasharray:4000;stroke-dashoffset:4000;animation:cdraw 1.1s ease-out forwards}
+@keyframes cdraw{to{stroke-dashoffset:0}}
+.cv .cfade{opacity:0;animation:cfade .5s ease-out .9s forwards}
+@keyframes cfade{to{opacity:1}}
+.cv .leg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--mu);margin:6px 2px}
+.cv .leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
 .dd{position:relative;display:inline-block;margin:0 0 8px}
 .dd>button{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;border:1px solid var(--bd);background:#1b1710;color:var(--tx);font:inherit;font-weight:600;cursor:pointer}
 .dd>button::after{content:"▾";color:var(--mu);font-size:12px;margin-left:2px}
@@ -300,7 +313,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-18-d";
+const APPV="2026-10-18-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -440,10 +453,10 @@ function route(keep){
   closeSheet();
   if(!(a==="desk"&&!arg))Ui.reorder=false;
   if(!(a==="portfolio"&&!arg))Ui.pfReorder=false;
-  if(a!=="stock"&&a!=="portfolio")Ui.back=null;
+  if(a!=="stock"&&a!=="portfolio"&&a!=="chart")Ui.back=null;
   if(!(a==="daytrade"&&arg))liveStop();
-  ({home:vHome,portfolio:()=>vPort(arg),desk:()=>arg?vMarket(arg):vDesk(),news:()=>vNews(arg),search:()=>vSearch(arg),stock:()=>vStock(arg),daytrade:()=>arg?vDTx(arg):vDT()}[a]||vHome)();
-  setNav(({stock:"desk"})[a]||a);
+  ({home:vHome,portfolio:()=>vPort(arg),desk:()=>arg?vMarket(arg):vDesk(),news:()=>vNews(arg),search:()=>vSearch(arg),stock:()=>vStock(arg),chart:()=>chartView(arg),daytrade:()=>arg?vDTx(arg):vDT()}[a]||vHome)();
+  setNav(({stock:"desk",chart:"desk"})[a]||a);
   $("#mate").style.display=(a==="daytrade"&&arg)?"none":"grid";if(a==="daytrade"&&arg)$("#mb").classList.remove("on");
   window.scrollTo(0,keep===true?y:0);
   if(a==="portfolio"&&keep!==true)setTimeout(quoteTick,60)
@@ -729,6 +742,8 @@ function act(a,d){
       toast(`Inställt: ${pr.n} innehav, ${pr.stop} % stopp`);break}
     case"feesheet":feeSheet();break;
     case"sigsheet":sigSheet();break;
+    case"cvrng":CV.rng=d.r;chartView(CV.t,d.r);break;
+    case"cvlay":CV.lay[d.k]=!CV.lay[d.k];chartView(CV.t);break;
     case"cash":cashSheet(d.pid);break;
     case"rebdone":{const p=getP(d.pid);if(p&&p.reb){p.reb.last=todayISO();save();route(true);toast("Ombalansering noterad")}break}
     case"proprefresh":refreshSheet(d.pid);break;
@@ -747,7 +762,8 @@ function act(a,d){
     case"goback":{const b=Ui.back;Ui.back=null;if(b){location.hash=b.h;setTimeout(()=>window.scrollTo(0,b.y),180)}else history.back();break}
     case"archclear":{const p=getP(d.pid);if(p&&confirm("Rensa hela arkivet för den här portföljen?")){p.archive=[];save();route(true)}break}
     case"plandel":{const p=getP(d.pid);if(p&&confirm("Ta bort förslaget från portföljen?")){delete p.plan;save();route(true)}break}
-    case"chart":chartSheet(d.t);break;
+    case"chart":Ui.back={h:location.hash,y:window.scrollY,label:"Tillbaka"};location.hash="#/chart/"+encodeURIComponent(d.t);break;
+    case"chartsheet":chartSheet(d.t);break;
     case"hrng":HCUR.rng=d.r;drawHist();break;
     case"reorder":Ui.reorder=true;route();break;
     case"reorderdone":Ui.reorder=false;route();break;
@@ -1639,6 +1655,89 @@ const TZS={".ST":"Europe/Stockholm",".CO":"Europe/Copenhagen",".OL":"Europe/Oslo
 function tzOf(t){if(/-USD$/.test(t))return undefined;for(const k in TZS)if(t.endsWith(k))return TZS[k];return"America/New_York"}
 function histFmt(ts,rng){if(!ts)return"";const d=new Date(ts*1000),tz=tzOf(HCUR.t);
   try{return(rng==="1d"||rng==="1w")?d.toLocaleString("sv-SE",{timeZone:tz,month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("sv-SE",{timeZone:tz,year:"numeric",month:"short",day:"numeric"})}catch(e){return""}}
+/* ====== HELSIDESGRAF ======
+   Ljusstakar (när OHLC finns i historiken, annars linje), volym, SMA50/200, stöd- och
+   motståndszoner, handelsplanens stopp/köpzon/mål, och svängpunkter (marknadsstrukturen).
+   Varje lager kan slås av och på. Ritas med en inritningsanimation. */
+const CV={t:null,rng:"6m",lay:{candle:true,vol:true,sma:true,sr:true,plan:true,swing:true}};
+const smaSeries=(a,n)=>a.map((_,i)=>i<n-1?null:a.slice(i-n+1,i+1).reduce((x,y)=>x+y,0)/n);
+function swings(p,win){win=win||5;const hi=[],lo=[];
+  for(let i=win;i<p.length-win;i++){const seg=p.slice(i-win,i+win+1);
+    if(p[i]===Math.max(...seg))hi.push(i);else if(p[i]===Math.min(...seg))lo.push(i)}
+  return{hi,lo}}
+function chartView(t,rng){
+  const s=S[t];if(!s){go("#/desk");return}
+  CV.t=t;if(rng)CV.rng=rng;HCUR={t,rng:CV.rng};   // histFmt läser tidszon ur HCUR
+  view(`${topbar(`${fl(s)} ${esc(s.d)}`)}<div class="cv">
+   <div id="cvhead" class="mu" style="min-height:44px"></div>
+   <div class="ctl">${HR.map(x=>`<span class="chip${x[1]===CV.rng?" on":""}" data-act="cvrng" data-r="${x[1]}">${x[0]}</span>`).join("")}</div>
+   <div id="cvbody"><div class="empty">Laddar…</div></div>
+   <div class="lay">${[["candle","Ljusstakar"],["vol","Volym"],["sma","SMA 50/200"],["sr","Stöd/motstånd"],["plan","Handelsplan"],["swing","Svängpunkter"]].map(([k,n])=>`<span class="chip${CV.lay[k]?"":" off"}" data-act="cvlay" data-k="${k}">${n}</span>`).join("")}</div>
+   <div class="leg"><span><i style="background:#3fb67a"></i>stöd</span><span><i style="background:#e86b5c"></i>motstånd</span><span><i style="background:#8fb4ff"></i>SMA50</span><span><i style="background:#c9a85a"></i>SMA200</span><span><i style="background:#e2a07a"></i>stopp</span><span><i style="background:#9ad4a0"></i>köpzon</span><span><i style="background:#f0d070"></i>mål</span></div>
+   <div id="cvinfo"></div>
+   <div class="acts" style="margin-top:10px"><button class="btn sm" data-act="tplan" data-t="${esc(t)}">🎯 Handelsplan</button><button class="btn sm ghost" data-go="#/stock/${encodeURIComponent(t)}">Analys</button></div>
+  </div>`);
+  drawCV();
+}
+async function drawCV(){
+  const t=CV.t,s=S[t],h=await loadHist(t);if(CV.t!==t||!$("#cvbody"))return;
+  const r=histSlice(h,s,CV.rng);
+  if(!r){$("#cvbody").innerHTML='<div class="empty">Ingen kurshistorik för det här intervallet än.</div>';return}
+  const n=r.p.length,W=360,Hp=230,Hv=CV.lay.vol?46:0,pt=12,pb=22,H=Hp+Hv+pb;
+  // OHLC för samma fönster, om den finns (bara för dagsintervall)
+  const full=h&&h["2y"]&&h.o&&h.o.length===h["2y"].p.length;
+  const daily=["1m","3m","6m","1y","2y"].includes(CV.rng)&&full;
+  const off=daily?h["2y"].p.length-n:0;
+  const O=daily?h.o.slice(off):null,HI=daily?h.hi.slice(off):null,LO=daily?h.lo.slice(off):null,V=daily?h.v.slice(off):null;
+  const candle=CV.lay.candle&&daily&&n<=260;
+  const lv=CV.lay.sr?((s.sr||[]).filter(z=>z&&z.lvl>0)):[];
+  const tp=CV.lay.plan?tradePlan(s,rulesOf0({rules:{}})):null;
+  // skala: kurs + nivåer + planlinjer i närheten
+  let vals=r.p.slice();if(candle)vals=vals.concat(HI,LO);
+  vals=vals.concat(lv.filter(z=>Math.abs(z.dist)<=25).map(z=>z.lvl));
+  if(tp)vals=vals.concat([tp.stop,tp.t1].filter(x=>x>r.p[n-1]*0.7&&x<r.p[n-1]*1.4));
+  const mn=Math.min(...vals),mx=Math.max(...vals),sp=(mx-mn)||1;
+  const X=i=>6+i/(n-1)*(W-12),Y=v=>pt+(mx-v)/sp*(Hp-pt);
+  let g="";
+  // rutnät
+  for(let k=0;k<=4;k++){const v=mn+sp*k/4,y=Y(v);g+=`<line x1="6" x2="${W-6}" y1="${y}" y2="${y}" stroke="#2a2217" stroke-width="1"/><text x="${W-8}" y="${y-3}" fill="#6b5f4a" font-size="8.5" text-anchor="end">${v.toFixed(v<10?2:v<100?1:0)}</text>`}
+  // stöd/motstånd-zoner
+  lv.forEach(z=>{if(z.lvl<mn||z.lvl>mx)return;const y1=Y(Math.min(mx,z.hi)),y2=Y(Math.max(mn,z.lo)),col=z.role==="stöd"?"#3fb67a":"#e86b5c";
+    g+=`<rect class="cfade" x="6" y="${y1}" width="${W-12}" height="${Math.max(3,y2-y1)}" fill="${col}" opacity="${Math.min(.5,.12+z.str*.09)}"/><line class="cfade" x1="6" x2="${W-6}" y1="${Y(z.lvl)}" y2="${Y(z.lvl)}" stroke="${col}" stroke-width="${z.both?1.6:1}" ${z.n>=3?"":'stroke-dasharray="4 3"'} opacity=".9"/><text class="cfade" x="9" y="${Y(z.lvl)-3}" fill="${col}" font-size="8.5" font-weight="600">${z.role==="stöd"?"S":"M"} ${z.lvl}${z.n>=2?` ×${z.n}`:""}${z.both?" ⇅":""}</text>`});
+  // handelsplan
+  if(tp){const L=(v,col,lbl)=>{if(v<mn||v>mx)return"";const y=Y(v);return`<line class="cfade" x1="6" x2="${W-6}" y1="${y}" y2="${y}" stroke="${col}" stroke-width="1.2" stroke-dasharray="2 3"/><text class="cfade" x="${W-9}" y="${y+9}" fill="${col}" font-size="8.5" text-anchor="end" font-weight="600">${lbl} ${f(v,2)}</text>`};
+    g+=L(tp.stop,"#e2a07a","Stopp")+L(tp.t1,"#f0d070","Mål 1");
+    if(tp.eLo>=mn&&tp.eHi<=mx)g+=`<rect class="cfade" x="6" y="${Y(tp.eHi)}" width="${W-12}" height="${Math.max(2,Y(tp.eLo)-Y(tp.eHi))}" fill="#9ad4a0" opacity=".18"/><text class="cfade" x="${W-9}" y="${Y(tp.eHi)-3}" fill="#9ad4a0" font-size="8.5" text-anchor="end">Köpzon</text>`}
+  // SMA
+  if(CV.lay.sma&&daily){const base=h["2y"].p,s50=smaSeries(base,50).slice(off),s200=smaSeries(base,200).slice(off);
+    const path=(arr,col)=>{let d="",st=false;arr.forEach((v,i)=>{if(v==null||v<mn||v>mx){st=false;return}d+=(st?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" ";st=true});return d?`<path class="cfade" d="${d}" fill="none" stroke="${col}" stroke-width="1.2" opacity=".85"/>`:""};
+    g+=path(s50,"#8fb4ff")+path(s200,"#c9a85a")}
+  // kurs: ljusstakar eller linje
+  if(candle){const bw=Math.max(1.5,(W-12)/n*0.62);
+    for(let i=0;i<n;i++){const o=O[i],c=r.p[i],hi=HI[i],lo=LO[i];if(!(o>0&&c>0))continue;const up=c>=o,col=up?"#3fb67a":"#e86b5c",x=X(i);
+      g+=`<line x1="${x}" x2="${x}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="1"/><rect x="${x-bw/2}" y="${Y(Math.max(o,c))}" width="${bw}" height="${Math.max(1,Math.abs(Y(o)-Y(c)))}" fill="${col}"/>`}}
+  else{let d="";r.p.forEach((v,i)=>{d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" "});
+    const up=r.p[n-1]>=r.p[0];g+=`<path class="cpath" d="${d}" fill="none" stroke="${up?"#3fb67a":"#e86b5c"}" stroke-width="1.8"/>`}
+  // svängpunkter
+  if(CV.lay.swing&&n>=20){const sw=swings(r.p,5);
+    sw.hi.slice(-6).forEach(i=>{g+=`<circle class="cfade" cx="${X(i)}" cy="${Y(r.p[i])-5}" r="2.4" fill="#e86b5c"/>`});
+    sw.lo.slice(-6).forEach(i=>{g+=`<circle class="cfade" cx="${X(i)}" cy="${Y(r.p[i])+5}" r="2.4" fill="#3fb67a"/>`})}
+  // volym
+  if(CV.lay.vol&&daily&&V){const vm=Math.max(...V)||1,y0=Hp+Hv+4;
+    for(let i=0;i<n;i++){const hgt=V[i]/vm*(Hv-6),up=i?r.p[i]>=r.p[i-1]:true;g+=`<rect class="cfade" x="${X(i)-Math.max(1,(W-12)/n*0.35)}" y="${y0-hgt}" width="${Math.max(1.5,(W-12)/n*0.7)}" height="${hgt}" fill="${up?"#3fb67a":"#e86b5c"}" opacity=".5"/>`}}
+  // hårkors
+  g+=`<line id="cvcl" x1="0" x2="0" y1="${pt}" y2="${Hp}" stroke="#d4b86a" stroke-width="1" stroke-dasharray="2 2" style="display:none"/><circle id="cvdot" r="3.5" fill="#d4b86a" style="display:none"/>`;
+  $("#cvbody").innerHTML=`<svg id="cvsvg" viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],CV.rng):""}</span><span>${r.t?histFmt(r.t[n-1],CV.rng):"nu"}</span></div>`;
+  const a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
+  $("#cvhead").innerHTML=`<span class="big" id="cvpr">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu" id="cvdt">${r.t?histFmt(r.t[n-1],CV.rng):""}</span>${srHTML(s)}`;
+  const st=s.strc&&s.strc.k,stl={upp:"Högre toppar och bottnar – upptrend",ned:"Lägre toppar och bottnar – nedtrend",sidled:"Sidled",kil:"Smalnande intervall",vidgande:"Vidgande svängar"}[st];
+  $("#cvinfo").innerHTML=`<div class="mu" style="font-size:11.5px">${stl?`Struktur: <b class="${st==="upp"?"up":st==="ned"?"dn":""}">${stl}</b>. `:""}${tp?`Handelsplan: köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)}, stopp ${f(tp.stop,2)} (${esc(tp.stopWhy)}), mål 1 ${f(tp.t1,2)}, R:R ${f(tp.rr,1)}:1.`:""}${!daily&&CV.lay.candle?" Ljusstakar och volym visas för dagsintervall när skanningen byggt full historik.":""}</div>`;
+  const svg=$("#cvsvg");
+  const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-6)/(W-12)*(n-1)))),px=X(i),py=Y(r.p[i]);
+    const cl=$("#cvcl"),dt=$("#cvdot");cl.setAttribute("x1",px);cl.setAttribute("x2",px);cl.style.display="";dt.setAttribute("cx",px);dt.setAttribute("cy",py);dt.style.display="";
+    $("#cvpr").textContent=r.p[i].toFixed(2)+" "+s.cur;$("#cvdt").textContent=(r.t?histFmt(r.t[i],CV.rng):"")+(candle?`  Ö ${O[i]} H ${HI[i]} L ${LO[i]}`:"")};
+  svg.addEventListener("pointerdown",mv);svg.addEventListener("pointermove",e=>{if(e.buttons||e.pointerType==="touch")mv(e)});
+}
 async function chartSheet(t,rng){
   const s=S[t];if(!s)return;HCUR={t,rng:rng||HCUR.rng||"3m"};
   sheet(`<h3>${fl(s)} ${esc(s.d)} <span class="mu" style="font-weight:400">${esc(s.n)}</span></h3><div id="hhead"></div><div id="hlv"></div><div class="chips" style="margin:8px 0;gap:6px">${HR.map(x=>`<span class="chip mk${x[1]===HCUR.rng?" on":""}" data-act="hrng" data-r="${x[1]}">${x[0]}</span>`).join("")}</div><div id="hbody"><div class="empty">Hämtar kurshistorik…</div></div><div class="mu" id="hnote" style="margin-top:8px;font-size:11.5px"></div>`);

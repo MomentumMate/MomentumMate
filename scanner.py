@@ -1523,6 +1523,15 @@ def write_hist(recs, daily, intra_a, intra_b):
         try:
             c = d["Close"].dropna()
             h = {"u": int(time.time()), "2y": _series(c.index[-504:], c.iloc[-504:])}
+            # OHLC och volym för helsidesgrafen (ljusstakar och volymstaplar), 2 år
+            try:
+                seg = d.loc[c.index[-504:]]
+                h["o"] = [round(float(x), 2) for x in seg["Open"]]
+                h["hi"] = [round(float(x), 2) for x in seg["High"]]
+                h["lo"] = [round(float(x), 2) for x in seg["Low"]]
+                h["v"] = [int(x) if x == x else 0 for x in seg["Volume"]]
+            except Exception:
+                pass
             wk = c.resample("W").last().dropna()
             h["5y"] = _series(wk.index[-262:], wk.iloc[-262:])
             idf = intra_a.get(t) if t in intra_a else intra_b.get(t)
