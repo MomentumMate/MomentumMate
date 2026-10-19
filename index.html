@@ -383,6 +383,7 @@ function snapshot(){let ch=false;P.snap=P.snap||{};P.ps.forEach(p=>{if(!p.h.leng
 function allTotals(){let tot=0,day=0,n=0,sg2={SELL:0,TRIM:0,BUY:0,WATCH:0};P.ps.forEach(p=>{const c=calc(p);tot+=c.tot;day+=c.day;n+=p.h.length;c.rows.forEach(r=>{if(sg2[r.sig.k]!=null)sg2[r.sig.k]++})});return{tot,day,n,sg:sg2,dp:(tot-day)?day/(tot-day)*100:0}}
 
 /* ---------- NYHETER ---------- */
+const SV_SRC=/Dagens industri|EFN|Placera|Privata Affärer|Börskollen|Realtid|SVT|DN Ekonomi|Nordnet|Investing\.com Sverige|MarketScreener Sverige|börsen/i;
 function feed(scope){
   const mom=new Set(),port=new Set();
   D.markets.forEach(m=>{const r=D.rank[m.k];if(r)r.mom.slice(0,10).forEach(t=>mom.add(t))});
@@ -391,6 +392,7 @@ function feed(scope){
   if(scope==="mom"||scope==="all"||scope==="home")add(mom,"mom");
   if(scope==="port"||scope==="all"||scope==="home")add(port,"port");
   if(scope==="mkt"||scope==="all"||(scope==="home"&&src.length<8))(D.feed||[]).forEach(n=>src.push(Object.assign({},n,{tag:"mkt"})));
+  if(scope==="sv")(D.feed||[]).filter(n=>SV_SRC.test(n.src||"")).forEach(n=>src.push(Object.assign({},n,{tag:"mkt"})));
   const seen=new Set(),out=[];
   src.sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(n=>{const k=n.u||n.h;if(seen.has(k))return;seen.add(k);out.push(n)});
   return out
@@ -584,7 +586,7 @@ function vMarket(k){
 
 /* ---------- NYHETER / SÖK / AKTIE ---------- */
 function vNews(arg){
-  if(arg)Ui.news="all";const sc=Ui.news,items=feed(sc).slice(0,80),lab={all:"Alla",mom:"Momentum",port:"Min portfölj",mkt:"Marknaden"};
+  if(arg)Ui.news="all";const sc=Ui.news,items=feed(sc).slice(0,80),lab={all:"Alla",sv:"Sverige",mom:"Momentum",port:"Min portfölj",mkt:"Marknaden"};
   view(`${topbar("Nyheter",false)}<div class="chips scrollx">${Object.keys(lab).map(k=>`<span class="chip${k===sc?" on":""}" data-act="news" data-v="${k}">${lab[k]}</span>`).join("")}</div>${D.newsAt?`<div class="mu" style="margin:6px 2px 0;font-size:11.5px">Nyhetsflödet uppdaterades ${hhmm(D.newsAt)} · för ${ago(Math.floor(Date.parse(D.newsAt)/1000))} sedan</div>`:""}<div style="margin-top:10px">${items.length?items.map(nitem).join(""):`<div class="empty">${sc==="port"?"Inga nyheter för dina innehav ännu.":newsDiag()}</div>`}</div><div class="mu" style="text-align:center;padding:8px">Klicka på en nyhet för att läsa den hos källan.</div>`);if(arg)setTimeout(()=>{const el=document.getElementById("n-"+arg);if(el){el.scrollIntoView({block:"center"});el.classList.add("hl")}},90)
 }
 function vSearch(q){

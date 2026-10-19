@@ -403,6 +403,23 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     ("CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html"),
     ("MarketWatch", "https://feeds.content.dowjones.io/public/rss/mw_topstories"),
     ("Dagens industri", "https://www.di.se/rss"),
+    # --- svenska källor (samma som i iPhones Aktier-app). Direkt RSS där adressen är känd,
+    #     annars Google News med site:-filter, som fungerar för varje sajt Google indexerar.
+    #     En källa som misslyckas hoppas över och syns med 0 i loggen.
+    ("EFN", "https://news.google.com/rss/search?q=site:efn.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Placera", "https://news.google.com/rss/search?q=site:placera.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Privata Affärer", "https://www.privataaffarer.se/rss/"),
+    ("Privata Affärer (GN)", "https://news.google.com/rss/search?q=site:privataaffarer.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Börskollen", "https://news.google.com/rss/search?q=site:borskollen.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Realtid", "https://www.realtid.se/rss"),
+    ("Realtid (GN)", "https://news.google.com/rss/search?q=site:realtid.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("SVT Ekonomi", "https://www.svt.se/nyheter/ekonomi/rss.xml"),
+    ("DN Ekonomi", "https://www.dn.se/rss/ekonomi/"),
+    ("DN Ekonomi (GN)", "https://news.google.com/rss/search?q=site:dn.se/ekonomi+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Nordnet", "https://news.google.com/rss/search?q=site:nordnet.se+when:2d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Investing.com Sverige", "https://se.investing.com/rss/news.rss"),
+    ("Investing.com Sverige (GN)", "https://news.google.com/rss/search?q=site:se.investing.com+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("MarketScreener Sverige", "https://news.google.com/rss/search?q=site:se.marketscreener.com+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("Google News – marknaden", "https://news.google.com/rss/search?q=stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – senaste timmen", "https://news.google.com/rss/search?q=stocks+OR+nasdaq+OR+earnings+when:1h&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – börsen idag", "https://news.google.com/rss/search?q=b%C3%B6rsen+OR+aktier+OR+stockholmsb%C3%B6rsen+when:3h&hl=sv&gl=SE&ceid=SE:sv"),
@@ -921,21 +938,40 @@ def fetch_feeds():
             else:
                 r = requests.get(url, headers=UA, timeout=10); r.raise_for_status()
                 root = ET.fromstring(r.content)
-                for it in root.iter("item"):
-                    title = (it.findtext("title") or "").strip()
+                A = "{http://www.w3.org/2005/Atom}"
+                items = list(root.iter("item")) or list(root.iter(A + "entry"))
+                for it in items:
+                    title = (it.findtext("title") or it.findtext(A + "title") or "").strip()
                     if not title: continue
-                    try: ts = int(parsedate_to_datetime(it.findtext("pubDate")).timestamp())
-                    except Exception: ts = 0
-                    out.append({"h": title, "s": _clean(it.findtext("description")), "src": name, "u": (it.findtext("link") or "").strip(), "ts": ts})
+                    ts = 0
+                    for tag in ("pubDate", "dc:date", A + "updated", A + "published"):
+                        v = it.findtext(tag)
+                        if v:
+                            try: ts = int(parsedate_to_datetime(v).timestamp()); break
+                            except Exception:
+                                try: ts = int(dt.datetime.fromisoformat(v.replace("Z", "+00:00")).timestamp()); break
+                                except Exception: pass
+                    link = (it.findtext("link") or "").strip()
+                    if not link:
+                        le = it.find(A + "link"); link = (le.get("href") if le is not None else "") or ""
+                    desc = it.findtext("description") or it.findtext(A + "summary") or ""
+                    out.append({"h": title, "s": _clean(desc), "src": name, "u": link, "ts": ts})
             FEED_STATS[name] = len(out) - n0
         except Exception as e:
             FEED_STATS[name] = 0
             print("Varning: RSS-källa misslyckades:", name, e)
+    SV = {"Dagens industri", "EFN", "Placera", "Privata Affärer", "Privata Affärer (GN)", "Börskollen", "Realtid", "Realtid (GN)",
+          "SVT Ekonomi", "DN Ekonomi", "DN Ekonomi (GN)", "Nordnet", "Investing.com Sverige", "Investing.com Sverige (GN)",
+          "MarketScreener Sverige", "Google News – börsen idag", "Google News – börsen"}
     seen, res = set(), []
     for x in sorted(out, key=lambda x: -x["ts"]):
         k = x["u"] or x["h"]
         if k not in seen: seen.add(k); res.append(x)
-    return res[:80]
+    # svenska källor garanteras minst 40 av 120 platser; resten fylls på tidsordning
+    sv = [x for x in res if x["src"] in SV][:40]
+    svk = {x["u"] or x["h"] for x in sv}
+    rest = [x for x in res if (x["u"] or x["h"]) not in svk][:120 - len(sv)]
+    return sorted(sv + rest, key=lambda x: -x["ts"])
 
 def fx_rates(ccys):
     out = {"SEK": 1.0}
