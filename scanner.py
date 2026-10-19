@@ -408,17 +408,14 @@ FEEDS = [  # allmänna marknadsnyheter (RSS). Misslyckas en källa hoppas den ö
     #     En källa som misslyckas hoppas över och syns med 0 i loggen.
     ("EFN", "https://news.google.com/rss/search?q=site:efn.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("Placera", "https://news.google.com/rss/search?q=site:placera.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
-    ("Privata Affärer", "https://www.privataaffarer.se/rss/"),
-    ("Privata Affärer (GN)", "https://news.google.com/rss/search?q=site:privataaffarer.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Privata Affärer", "https://news.google.com/rss/search?q=site:privataaffarer.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("Börskollen", "https://news.google.com/rss/search?q=site:borskollen.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
-    ("Realtid", "https://www.realtid.se/rss"),
-    ("Realtid (GN)", "https://news.google.com/rss/search?q=site:realtid.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Realtid", "https://news.google.com/rss/search?q=site:realtid.se+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("SVT Ekonomi", "https://www.svt.se/nyheter/ekonomi/rss.xml"),
     ("DN Ekonomi", "https://www.dn.se/rss/ekonomi/"),
-    ("DN Ekonomi (GN)", "https://news.google.com/rss/search?q=site:dn.se/ekonomi+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("Nordnet", "https://news.google.com/rss/search?q=site:nordnet.se+when:2d&hl=sv&gl=SE&ceid=SE:sv"),
     ("Investing.com Sverige", "https://se.investing.com/rss/news.rss"),
-    ("Investing.com Sverige (GN)", "https://news.google.com/rss/search?q=site:se.investing.com+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
+    ("Investing.com Sverige (sök)", "https://news.google.com/rss/search?q=site:se.investing.com+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("MarketScreener Sverige", "https://news.google.com/rss/search?q=site:se.marketscreener.com+when:1d&hl=sv&gl=SE&ceid=SE:sv"),
     ("Google News – marknaden", "https://news.google.com/rss/search?q=stock+market+when:1d&hl=en-US&gl=US&ceid=US:en"),
     ("Google News – senaste timmen", "https://news.google.com/rss/search?q=stocks+OR+nasdaq+OR+earnings+when:1h&hl=en-US&gl=US&ceid=US:en"),
@@ -960,8 +957,8 @@ def fetch_feeds():
         except Exception as e:
             FEED_STATS[name] = 0
             print("Varning: RSS-källa misslyckades:", name, e)
-    SV = {"Dagens industri", "EFN", "Placera", "Privata Affärer", "Privata Affärer (GN)", "Börskollen", "Realtid", "Realtid (GN)",
-          "SVT Ekonomi", "DN Ekonomi", "DN Ekonomi (GN)", "Nordnet", "Investing.com Sverige", "Investing.com Sverige (GN)",
+    SV = {"Dagens industri", "EFN", "Placera", "Privata Affärer", "Börskollen", "Realtid",
+          "SVT Ekonomi", "DN Ekonomi", "Nordnet", "Investing.com Sverige", "Investing.com Sverige (sök)",
           "MarketScreener Sverige", "Google News – börsen idag", "Google News – börsen"}
     seen, res = set(), []
     for x in sorted(out, key=lambda x: -x["ts"]):
