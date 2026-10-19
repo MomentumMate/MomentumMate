@@ -699,7 +699,43 @@ def main():
                       f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
             except Exception as ex:
                 print(f"   {nm:<48} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
-        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        # --- håller resultatet i olika perioder och marknader? ---
+        print(f"\n   === UPPDELAT: 12-1 mot 3-1 mot blandat, per period och marknad (Sharpe) ===")
+        def group(cols):
+            us, nordic, eur = [], [], []
+            for t in cols:
+                if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): nordic.append(t)
+                elif "." in t: eur.append(t)
+                else: us.append(t)
+            return {"USA": us, "Norden": nordic, "Europa": eur}
+        grp = group(list(close.columns)); idx = close.index; mid = idx[len(idx) // 2]
+        segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
+        SUB = {"12-1": VAR["0. 12-1 (standard – Jegadeesh & Titman)"], "3-1": VAR["B. 3-1 (senaste kvartalet)"],
+               "blandat": VAR["C. Blandat: hälften 12-1, hälften 6-1"]}
+        wins = {k: 0 for k in SUB}; split = {}
+        print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>12}" for k in SUB) + "   vinnare")
+        for segn, (s0, s1) in segs.items():
+            for un, cols in [("Alla", list(close.columns))] + list(grp.items()):
+                cols = [c for c in cols if c in close.columns]
+                if len(cols) < 40: continue
+                sub = close.loc[s0:s1, cols]; subv = vol.loc[s0:s1, cols]
+                if len(sub) < 500: continue
+                y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
+                if y2 < 1.5: continue
+                row = {}
+                for k, over in SUB.items():
+                    cfg = dict(DEF); cfg.update(over)
+                    try:
+                        e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, y2, hd); row[k] = st["Sharpe"]
+                    except Exception: row[k] = None
+                good = {k: v for k, v in row.items() if v is not None}
+                if not good: continue
+                w = max(good, key=good.get); wins[w] += 1; split[f"{segn} / {un}"] = row
+                print(f"   {segn + ' / ' + un:<28}{len(cols):>7}" + "".join(f"{(row[k] if row[k] is not None else float('nan')):>12.2f}" for k in SUB) + f"   {w}")
+        print(f"   Antal delprov vunna: " + ", ".join(f"{k} {v}" for k, v in wins.items()))
+        res["_uppdelat"] = split; res["_vinster"] = wins
+
+        ok = {k: v for k, v in res.items() if not k.startswith("_") and "CAGR_%" in v}
         ref = ok.get("0. 12-1 (standard – Jegadeesh & Titman)", {})
         best = max(ok, key=lambda k: ok[k]["Sharpe"], default=None)
         print(f"\n   12-1: {ref.get('CAGR_%')} %, Sharpe {ref.get('Sharpe')}")
