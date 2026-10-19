@@ -85,6 +85,8 @@ h4[data-i]{cursor:pointer}
 @keyframes cfade{to{opacity:1}}
 .cv .leg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--mu);margin:6px 2px}
 .cv .leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+#verbar{position:fixed;left:10px;right:10px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:60;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:14px;background:#2a2217;border:1.5px solid var(--gd);color:var(--tx);font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#verbar button{padding:8px 14px;border-radius:10px;border:0;background:var(--gd);color:#1a1408;font:inherit;font-weight:700}
 .dd{position:relative;display:inline-block;margin:0 0 8px}
 .dd>button{display:flex;align-items:center;gap:9px;padding:11px 16px;border-radius:14px;border:1.5px solid var(--gd);background:linear-gradient(180deg,#221b11,#17120b);color:var(--tx);font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 0 0 1px rgba(212,184,106,.18),0 6px 18px rgba(0,0,0,.35)}
 .dd>button .ic{color:var(--gd)}
@@ -315,7 +317,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-19-f";
+const APPV="2026-10-19-h";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1040,14 +1042,14 @@ function addMarketSheet(i){
 }
 function settingsSheet(){
   const c=gh();
-  sheet(`<h3>Inställningar</h3><div class="mu" style="margin:-6px 0 8px;font-size:11.5px">Appversion ${APPV}${D&&D.source?` · Datakälla ${esc(D.source.prices)}${D.source.coverage?` · täckning ${D.source.coverage.got} av ${D.source.coverage.want}`:""}${D.source.eodhd?` · EODHD ${D.source.eodhd.ok} ok, ${D.source.eodhd.fallback} via Yahoo`:""}`:""}</div>
+  sheet(`<h3>Inställningar</h3><div class="mu" style="margin:-6px 0 8px;font-size:11.5px">Appversion ${APPV}${VER.server&&VER.server!==APPV?` · <b class="dn">ny version ${esc(VER.server)} finns</b>`:VER.server?" · senaste":""}${D&&D.source?` · Datakälla ${esc(D.source.prices)}${D.source.coverage?` · täckning ${D.source.coverage.got} av ${D.source.coverage.want}`:""}${D.source.eodhd?` · EODHD ${D.source.eodhd.ok} ok, ${D.source.eodhd.fallback} via Yahoo`:""}`:""}</div>
   <h4>GitHub-koppling (valfri)</h4><p class="mu" style="font-size:13px">Behövs bara för att slå upp och lägga till okända aktier/börser direkt i appen. Skapa en <b>fine-grained token</b> via <a class="lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">den här länken ›</a> (eller profilbilden → Settings → längst ned: Developer settings). Välj <b>endast det här repot</b> och behörigheterna <b>Contents</b> och <b>Actions</b> = Read and write. Token sparas bara i den här webbläsaren.</p>
   <label class="fld"><span>Repo (användare/repo)</span><input id="ghr" value="${esc(c.repo||ghRepoGuess())}" placeholder="dittnamn/MomentumMate" autocapitalize="off"></label>
   <label class="fld"><span>Token</span><input id="ght" type="password" value="${esc(c.token||"")}" placeholder="github_pat_…" autocomplete="off"></label>
   <button class="btn wide" id="ghs">Spara</button>
   <h4 style="margin-top:16px">Mate</h4><span class="chip${mateOff?"":" on"}" data-act="mmute">Popup-kommentarer: ${mateOff?"av":"på"}</span>
   <h4 style="margin-top:16px">Intro</h4><div class="chips"><span class="chip${introOff()?"":" on"}" data-act="introtoggle">Animerad intro: ${introOff()?"av":"på"}</span><span class="chip" data-act="introplay">▶ Visa introt nu</span></div>
-  <h4 style="margin-top:16px">Realtidskälla (Finnhub)</h4><p class="mu" style="font-size:13px">Skapa ett gratis konto på finnhub.io och kopiera din API key från Dashboard. Ger realtidsaffärer för amerikanska aktier (data från börsen IEX). Nyckeln sparas bara i den här webbläsaren, och en nyckel kan bara vara ansluten på en enhet åt gången.</p>
+  <h4 style="margin-top:16px">Realtidskälla (Finnhub) – valfritt</h4><p class="mu" style="font-size:12px;margin:-4px 0 6px">Behövs <b>bara</b> för tick-för-tick-kurser i daghandelsläget. Portföljen och börsdesken får sina kurser från EODHD och klarar sig utan.</p><p class="mu" style="font-size:13px">Skapa ett gratis konto på finnhub.io och kopiera din API key från Dashboard. Ger realtidsaffärer för amerikanska aktier (data från börsen IEX). Nyckeln sparas bara i den här webbläsaren, och en nyckel kan bara vara ansluten på en enhet åt gången.</p>
   <label class="fld"><span>Finnhub API-nyckel</span><input id="fhk" type="password" value="${esc(fhKey())}" placeholder="din API key" autocomplete="off"></label><button class="btn sm" id="fht">Testa nyckeln</button><div id="fhr" class="mu" style="font-size:11.5px;margin:4px 0 8px"></div><button class="btn sm" id="fhs">Spara realtidsnyckel</button>
   <h4 style="margin-top:16px">Benzinga-nyckel</h4><p class="mu" style="font-size:13px">Läggs i GitHub (inte i appen): repot → Settings → Secrets and variables → Actions → New repository secret. Namn: <b>BENZINGA_KEY</b>.</p>`,()=>{
     $("#fhs").onclick=()=>{try{localStorage.setItem(FHK,$("#fhk").value.trim())}catch(e){}toast("Realtidsnyckel sparad")};
@@ -1611,10 +1613,8 @@ function quoteStatus(){
   const hh=t=>new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   let t;if(DEMO)t="Demokurser.";
   else if(FHQ.ok)t=`Live-kurser (Finnhub) ${hh(FHQ.t)} för ${FHQ.n} av ${FHQ.tot} USA-aktier${FHQ.fx?` · USD/SEK ${FHQ.fx.toFixed(4)}`:""}. Övriga aktier: ${EQ.n?esc(EQ.src):"skanningens kurser"}.`;
-  else if(EQ.n)t=`Kurser från ${esc(EQ.src)} ${EQ.at?hhmm(EQ.at):""} för ${EQ.n} aktier – uppdateras var 5:e minut under börstid.${fhKey()&&FHQ.t&&!FHQ.ok?" Finnhub-nyckeln avvisas – ta bort den under Inställningar om du inte behöver realtid.":""}`;
-  else if(!fhKey())t=`Kurser från skanningen ${D.updated?hhmm(D.updated):""}. Fördröjda kurser från EODHD hämtas var 5:e minut under börstid när arbetsflödet körts.`;
-  else if(FHQ.t)t=`Realtidskurser från Finnhub kunde inte hämtas (${esc(FHQ.err||"okänt fel")}${/401/.test(FHQ.err||"")?" – nyckeln avvisas, kontrollera den under Inställningar → Realtidskälla":""}) – visar skanningens kurser ${D.updated?hhmm(D.updated):""}.`;
-  else t="Hämtar live-kurser…";
+  else if(EQ.n)t=`Kurser från ${esc(EQ.src)} ${EQ.at?hhmm(EQ.at):""} för ${EQ.n} aktier – uppdateras var 5:e minut under börstid.`;
+  else t=`Kurser från skanningen ${D.updated?hhmm(D.updated):""}. Fördröjda kurser från EODHD hämtas var 5:e minut under börstid.`;
   return`<div class="mu" style="margin:6px 2px;font-size:11.5px">${t}</div>`
 }
 function quoteTick(){if(!/^#\/portfolio/.test(location.hash))return;
@@ -2684,6 +2684,27 @@ $("#intro").addEventListener("click",introHide);
 /* ---------- START ---------- */
 function liveUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return null;const repo=location.pathname.split("/")[1];return repo?"https://raw.githubusercontent.com/"+h.split(".")[0]+"/"+repo+"/live/daytrade.json":null}
 const EQ={n:0,t:0,src:"",at:""};
+/* Versionskontroll: iPhone sparar en kopia av appen och kan visa en gammal version i dagar.
+   Vid start och var 10:e minut hämtas index.html utan cache och versionen jämförs. */
+const VER={server:null,t:0};
+async function checkVersion(){
+  try{
+    const u=location.pathname.replace(/[^/]*$/,"")+"index.html?nocache="+Date.now();
+    const r=await fetch(u,{cache:"no-store"});if(!r.ok)return;
+    const m=(await r.text()).match(/const APPV="([^"]+)"/);if(!m)return;
+    VER.server=m[1];VER.t=Date.now();
+    const b=document.getElementById("verbar");
+    if(VER.server!==APPV){
+      if(!b){const d=document.createElement("div");d.id="verbar";
+        d.innerHTML=`<span>🆕 Ny version ${esc(VER.server)} finns (du kör ${APPV})</span><button type="button" id="verbtn">Uppdatera</button>`;
+        document.body.appendChild(d);
+        document.getElementById("verbtn").onclick=()=>{
+          // portföljerna ligger i localStorage och påverkas inte av en omladdning
+          location.replace(location.pathname+"?v="+encodeURIComponent(VER.server)+location.hash)}}
+    }else if(b)b.remove();
+  }catch(e){}
+}
+setTimeout(checkVersion,4000);setInterval(checkVersion,600000);
 async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t]){Object.assign(S[t],j.stocks[t]);scrubLegacy(S[t])}});
   // Fördröjda kurser från EODHD för hela universumet – ersätter Finnhub på portföljsidan
   if(j.quotes){let n=0;Object.keys(j.quotes).forEach(t=>{const q=j.quotes[t],s=S[t];if(!s||!(q.px>0))return;
