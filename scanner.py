@@ -98,6 +98,7 @@ def _wiki(url, cols, fallback, minimum, key=None):
     try:
         r = requests.get(url, headers=UA, timeout=20); r.raise_for_status()
         best, seen = [], []
+        cands = []                                          # alla tabeller som ser ut som tickerlistor
         for t in pd.read_html(io.StringIO(r.text), flavor="lxml"):
             t = t.copy()
             t.columns = [" ".join(str(x) for x in c if "Unnamed" not in str(x)).strip() if isinstance(c, tuple) else str(c) for c in t.columns]
@@ -109,7 +110,12 @@ def _wiki(url, cols, fallback, minimum, key=None):
                         if not isinstance(x, str) or not x.strip(): continue
                         v = x.split(":")[-1].strip().split()[0]
                         if re.fullmatch(r"[A-Za-z0-9.\-]{1,8}", v): vals.append(v.replace(".", "-"))
-                    if len(vals) > len(best): best = vals
+                    if vals: cands.append(vals)
+        # Välj den största tabellen INOM förväntat spann. S&P 400-sidan har en historiktabell
+        # med 594 rader som annars vinner över medlemstabellen på ~400.
+        lo, hi = EXPECT.get(key, (minimum, 10**6)) if key else (minimum, 10**6)
+        inrange = [v for v in cands if lo <= len(dict.fromkeys(v)) <= hi]
+        best = max(inrange, key=len) if inrange else (max(cands, key=len) if cands else [])
         if len(best) >= minimum:
             res = list(dict.fromkeys(best))
             if key and not register_list(key, res, "Wikipedia"): raise ValueError(f"listan har orimlig storlek ({len(res)})")
@@ -696,6 +702,57 @@ def session(t):
         if t.endswith(suf): return v
     return "Europe/Stockholm", 540
 
+NAMES = {}
+def load_names():
+    """Fyller NAMES {yahoo-ticker: bolagsnamn} från EODHD:s börslistor, med cache."""
+    global NAMES
+    cached = _CACHE.get("_names") or {}
+    if cached.get("ts") and (dt.date.today() - dt.date.fromisoformat(cached["ts"])).days < 14 and cached.get("m"):
+        NAMES = cached["m"]; return
+    if not EODHD_KEY: NAMES = cached.get("m") or {}; return
+    out = dict(cached.get("m") or {})
+    inv = {v: k for k, v in EODHD_EXCH.items()}       # EODHD-börskod → Yahoo-suffix
+    for ex in ["US"] + sorted(set(EODHD_EXCH.values())):
+        try:
+            j = eodhd_get(f"exchange-symbol-list/{ex}")
+            if not j: continue
+            suf = "" if ex == "US" else inv.get(ex, "")
+            for row in j:
+                code, name = (row.get("Code") or "").strip(), (row.get("Name") or "").strip()
+                if code and name: out[code + suf] = name
+        except Exception as e:
+            print(f"  namnlista {ex}: {str(e)[:50]}")
+    if out:
+        NAMES = out
+        _CACHE["_names"] = {"ts": _today(), "m": out}
+        try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
+        except Exception: pass
+        print(f"  Namnkatalog: {len(out)} bolag från EODHD")
+
+def eodhd_quotes(tickers, batch=15):
+    """Fördröjda kurser (15–20 min) för många aktier via EODHD:s real-time-ändpunkt.
+    Batchar flera symboler per anrop. Returnerar {ticker: {px, chg, ts}}."""
+    out = {}
+    if not EODHD_KEY or not tickers: return out
+    tk = list(dict.fromkeys(tickers))
+    for i in range(0, len(tk), batch):
+        chunk = tk[i:i + batch]
+        syms = [eodhd_symbol(t) for t in chunk]
+        back = dict(zip(syms, chunk))
+        try:
+            j = eodhd_get(f"real-time/{syms[0]}", s=",".join(syms[1:])) if len(syms) > 1 else eodhd_get(f"real-time/{syms[0]}")
+            rows = j if isinstance(j, list) else ([j] if j else [])
+            for r in rows:
+                code = r.get("code"); t = back.get(code)
+                px = _num(r.get("close")); prev = _num(r.get("previousClose"))
+                if not t or not px or px <= 0: continue
+                chg = _num(r.get("change_p"))
+                if chg is None and prev: chg = (px / prev - 1) * 100
+                out[t] = {"px": round(px, 2), "chg": round(chg or 0, 2), "ts": int(r.get("timestamp") or 0)}
+        except Exception as e:
+            print(f"  kurser {i}–{i+len(chunk)}: {str(e)[:50]}")
+    return out
+
 def _num(x):
     try: return float(x) if x not in (None, "", "NA") else None
     except Exception: return None
@@ -1229,7 +1286,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     dts = round(max(0, min(max(chg, 0), 10) / 10 * 35 + min(math.log10((pre_vol or 0) + 1) / 6, 1) * 25 + min(volx, 4) / 4 * 20
                   + min(atrp, 6) / 6 * 10 + (10 if nf else 0) + (5 if sent > 0 else -5 if sent < 0 else 0)), 1)
     m = mk0
-    return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or t,
+    return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or NAMES.get(t) or NAMES.get(t.replace(".IL", ".L")) or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
             "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
@@ -1437,7 +1494,14 @@ def live():
         if t in intra:
             x = make_dtx(t, intra[t], recs[t])
             if x: dtx[t] = x
-    out = {"v": 2, "updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "stocks": upd, "dt": rk, "dtx": dtx}
+    # Fördröjda kurser för hela universumet, så att portföljsidan får färska kurser
+    # utan Finnhub. ~2 000 aktier i batchar om 15 = ~140 anrop, under 15 s med spärren.
+    quotes = {}
+    if EODHD_KEY:
+        quotes = eodhd_quotes(list(recs))
+        print(f"EODHD-kurser: {len(quotes)} av {len(recs)} aktier")
+    out = {"v": 2, "updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "stocks": upd, "dt": rk, "dtx": dtx,
+           "quotes": quotes, "quotes_src": "EODHD (fördröjd 15–20 min)" if quotes else None}
     with open("daytrade.json", "w", encoding="utf-8") as f:
         json.dump(clean(out), f, ensure_ascii=False, separators=(",", ":"))
     print(f"Klart: {len(upd)} uppdaterade, {len(rk['cand'])} kandidater, {len(dtx)} diagram")
@@ -1603,6 +1667,7 @@ def main():
     core = [t for t in tickers if t not in light_only]
     if EODHD_KEY:
         print(f"Datakälla kurser/nyckeltal: EODHD (nyckel hittad, {len(EODHD_KEY)} tecken), Yahoo som reserv")
+        load_names()
     elif "EODHD_KEY" in os.environ:
         print("Datakälla kurser/nyckeltal: Yahoo – EODHD_KEY skickas in av arbetsflödet men är TOM. "
               "Hemligheten saknas eller är felstavad under Settings → Secrets → Actions (måste heta exakt EODHD_KEY).")

@@ -54,6 +54,12 @@ def load_prices(tickers, years, cache=None):
         if SC.EODHD_KEY:
             print("  Datakälla: EODHD (nyckel hittad), Yahoo som reserv")
             got = SC.dl_eodhd(list(tickers), period=f"{int(years) + 2}y")
+            st = SC.EODHD_STAT
+            if st.get("err") or not got:
+                from collections import Counter
+                top = Counter(st.get("errs", [])).most_common(3)
+                print(f"  EODHD: {st.get('ok',0)} ok, {st.get('miss',0)} tomma, {st.get('err',0)} fel"
+                      + (": " + "; ".join(f"{n}× {m}" for m, n in top) if top else ""))
             if got:
                 cl.append(pd.DataFrame({t: d["Close"] for t, d in got.items()}))
                 vl.append(pd.DataFrame({t: d["Volume"] for t, d in got.items()}))
@@ -97,6 +103,21 @@ def score_panel(close, vol, cfg):
     MP = {"min_periods": None}
     # 12-1: avkastning från t-252 till t-21 (senaste månaden utelämnad)
     m121 = (close.shift(cfg["skip"]) / close.shift(cfg["look"]) - 1) * 100
+    mw = cfg.get("mom_win", "12-1")
+    if mw == "6-1":
+        m121 = (close.shift(21) / close.shift(126) - 1) * 100
+    elif mw == "3-1":
+        m121 = (close.shift(21) / close.shift(63) - 1) * 100
+    elif mw == "mix":                                   # hälften 12-1, hälften 6-1 (6-1 skalad till årstakt)
+        m61 = (close.shift(21) / close.shift(126) - 1) * 100
+        m121 = 0.5 * m121 + 0.5 * m61 * 2
+    elif mw == "weighted":                              # nyare månader väger tyngre: 2 × senaste halvåret + 1 × äldre
+        m_old = (close.shift(126) / close.shift(252) - 1) * 100    # mån 12→6
+        m_new = (close.shift(21) / close.shift(126) - 1) * 100     # mån 6→1
+        m121 = (m_old + 2 * m_new) / 3 * 2
+    elif mw == "12-1 kräver 6-1>0":                     # 12-1, men bara om aktien också stigit senaste halvåret
+        m61 = (close.shift(21) / close.shift(126) - 1) * 100
+        m121 = m121.where(m61 > 0, 0)
     if cfg["voladj"]:
         ann = r.rolling(126, min_periods=90).std() * math.sqrt(252) * 100
         vam = m121 / ann.replace(0, np.nan)
@@ -579,7 +600,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            exit_obv=0, exit_ath=0, ath_worse_min=5, exit_lower=0,
            buy_obv=0, buy_ath=0, buy_lower=0,
            mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5,
-           stop_mode='pct', sr_win=130, sr_min_touch=2, sr_buf_atr=0.4,
+           stop_mode='pct', sr_win=130, sr_min_touch=2, sr_buf_atr=0.4, mom_win='12-1',
            tp=0, tp_sell=50,
            w_mom=0.65, w_trend=0.35, w_vol=0.0, heat=False, pos_cap=0, buy_rsi=0)
 
@@ -603,6 +624,7 @@ def main():
     ap.add_argument("--tp", action="store_true", help="kapar vinstmålet vinnarna? (appens tp=35/tpSell=50 är aldrig testad)")
     ap.add_argument("--score", action="store_true", help="är appens poängmodell bättre än backtestets enklare?")
     ap.add_argument("--srstop", action="store_true", help="stopp strax under närmaste stöd mot fast procent")
+    ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -647,6 +669,47 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Momentumfönster: väger gammal uppgång lika tungt som ny? ----------
+    if a.momwin:
+        B = dict(voladj=False, n=20, band_out=30, reweight=True, reb="Q", refill_days=21, stop=15,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True,
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "0. 12-1 (standard – Jegadeesh & Titman)":   dict(B, mom_win="12-1"),
+            "A. 6-1 (senaste halvåret)":                 dict(B, mom_win="6-1"),
+            "B. 3-1 (senaste kvartalet)":                dict(B, mom_win="3-1"),
+            "C. Blandat: hälften 12-1, hälften 6-1":     dict(B, mom_win="mix"),
+            "D. Viktat: senaste halvåret dubbelt":       dict(B, mom_win="weighted"),
+            "E. 12-1 men kräver 6-1 > 0":                dict(B, mom_win="12-1 kräver 6-1>0"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Momentumfönster, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: ska uppgång för 6–12 månader sedan väga lika tungt som uppgång nyligen?")
+        print(f"   (Fallet HTRO: +110 % på 12 mån men +9 % på 6 – rankas över AMD med +92 % på 6 mån)\n")
+        print(f"   {'likaviktat snitt av universumet':<48}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                print(f"   {nm:<48}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<48} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if k != "_snitt" and "CAGR_%" in v}
+        ref = ok.get("0. 12-1 (standard – Jegadeesh & Titman)", {})
+        best = max(ok, key=lambda k: ok[k]["Sharpe"], default=None)
+        print(f"\n   12-1: {ref.get('CAGR_%')} %, Sharpe {ref.get('Sharpe')}")
+        if best: print(f"   Bäst Sharpe: {best} ({ok[best]['CAGR_%']} %, Sharpe {ok[best]['Sharpe']})")
+        print(f"   Trettio års forskning säger 12-1. Kortare fönster brukar ge mer brus och fler byten.")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+               "läge": "momentumfönster", "portfölj_sek": a.port, "år": round(yrs, 1),
+               "referens": ref.get("CAGR_%"), "bäst": best, "varianter": res, "varning": "Survivorship bias."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Stopp vid stöd: dokumentets förslag mot vårt validerade procentstopp ----------
     if a.srstop:

@@ -86,11 +86,13 @@ h4[data-i]{cursor:pointer}
 .cv .leg{display:flex;flex-wrap:wrap;gap:10px;font-size:11px;color:var(--mu);margin:6px 2px}
 .cv .leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
 .dd{position:relative;display:inline-block;margin:0 0 8px}
-.dd>button{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;border:1px solid var(--bd);background:#1b1710;color:var(--tx);font:inherit;font-weight:600;cursor:pointer}
+.dd>button{display:flex;align-items:center;gap:9px;padding:11px 16px;border-radius:14px;border:1.5px solid var(--gd);background:linear-gradient(180deg,#221b11,#17120b);color:var(--tx);font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 0 0 1px rgba(212,184,106,.18),0 6px 18px rgba(0,0,0,.35)}
+.dd>button .ic{color:var(--gd)}
 .dd>button::after{content:"▾";color:var(--mu);font-size:12px;margin-left:2px}
 .dd .ddl{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:40;min-width:230px;max-height:60vh;overflow:auto;background:#15110b;border:1px solid var(--bd);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.6);padding:6px}
 .dd.open .ddl{display:block}
-.dd .ddl .it{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;white-space:nowrap}
+.dd .ddl .it{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;cursor:pointer;white-space:nowrap;font-size:14.5px}
+.dd .ddl .it .ic{color:var(--gd)}
 .dd .ddl .it:hover,.dd .ddl .it.on{background:#2a2217}
 .dd .ddl .it.on{color:var(--gd)}
 .dd .ddl .sep{height:1px;background:var(--bd);margin:6px 4px}
@@ -313,7 +315,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-18-e";
+const APPV="2026-10-19-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -836,12 +838,10 @@ function vDT(){
   const mn=MK(mk);
   view(`${topbar("Daghandel")}
   ${dropdown("dddt",`${mn.flag} ${esc(mn.n)}`,orderedMkts().map(m=>({html:`${m.flag} ${esc(m.n)}`,on:m.k===mk,attrs:`data-act="dtm" data-k="${m.k}"`})))}<div>
-  <div class="chips" style="margin:8px 0"><span class="mu" style="align-self:center">Strikthet:</span>${[[5,"Alla 5"],[4,"Minst 4"],[3,"Minst 3"]].map(x=>`<span class="chip${x[0]===L?" on":""}" data-act="dtl" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>
-  <div class="mu" style="margin:0 2px 8px">${L>=5?`${C.length} kandidater klarar alla 5 kriterier`:`${single.length} aktier uppfyller minst ${L} av 5 kriterier`} · ${esc(mn.n)} · ${D.liveAt?"live-uppdaterad "+hhmm(D.liveAt):"dagsskanning "+hhmm(D.updated)} <span class="ii" data-i="dt">ⓘ</span></div>
-  ${hint.t&&(L<5||!C.length)?`<div class="stat WAIT"><b>${hint.k==="pre"?"INNAN ÖPPNING":"MARKNADSLÄGE"}</b>${esc(hint.t)}</div>`:""}
+  <div class="chips" style="margin:8px 0;align-items:center"><span class="mu" style="align-self:center">Strikthet:</span>${[[5,"Alla 5"],[4,"Minst 4"],[3,"Minst 3"]].map(x=>`<span class="chip${x[0]===L?" on":""}" data-act="dtl" data-v="${x[0]}">${x[1]}</span>`).join("")} <span class="ii" data-i="dtstat">ⓘ</span></div>
   ${ps?`<div class="mod" data-go="#/daytrade/${enc(pk)}"><div class="mh"><div class="ico">★</div><h2>DIN AKTIE IDAG</h2><span class="go">›</span></div><div><b style="font-size:18px">${esc(ps.d)}</b> <span class="mu">${esc(ps.n)}</span></div><div><b>${ps.px} ${ps.cur}</b> <span class="${cls(ps.chg)}">${sg(ps.chg)}</span>${px?` <span class="sig ${STC[px.st.k]}">${STL[px.st.k]}</span>`:""}</div>${px?`<div class="mu" style="margin-top:4px">${esc(px.st.t)}</div>`:""}</div>`:""}
   ${L>=5?`<div class="mh" style="margin:12px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">KANDIDATER${C.length?" 1–"+C.length:""}</h2></div>
-   ${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="empty" style="padding:18px 10px">Inga aktier klarar alla fem kriterier på den här börsen just nu.<br><span class="lnk" data-act="dtl" data-v="4">Visa minst 4 av 5 ›</span></div>'}
+   ${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="mu" style="margin:0 2px 10px">Inga aktier klarar alla fem kriterier.</div>'}
    ${N.length?`<div class="mh" style="margin:16px 2px 4px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">NÄSTAN KANDIDATER</h2></div><div class="mu" style="margin:0 2px 8px">Klarar alla bedömbara kriterier utom ett (t.ex. 4 av 5), eller – för aktier utan pre-market-data – alla tre bedömbara.</div>${N.map((s,i)=>dcard(s,C.length+i+1,true)).join("")}`:""}`
   :`<div class="mh" style="margin:12px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">MINST ${L} AV 5 KRITERIER</h2></div>${single.length?single.map((s,i)=>dcard(s,i+1,!s.dok)).join(""):'<div class="empty">Inga aktier uppfyller det här på vald börs.</div>'}`}`)
 }
@@ -1046,9 +1046,19 @@ function settingsSheet(){
   <h4 style="margin-top:16px">Mate</h4><span class="chip${mateOff?"":" on"}" data-act="mmute">Popup-kommentarer: ${mateOff?"av":"på"}</span>
   <h4 style="margin-top:16px">Intro</h4><div class="chips"><span class="chip${introOff()?"":" on"}" data-act="introtoggle">Animerad intro: ${introOff()?"av":"på"}</span><span class="chip" data-act="introplay">▶ Visa introt nu</span></div>
   <h4 style="margin-top:16px">Realtidskälla (Finnhub)</h4><p class="mu" style="font-size:13px">Skapa ett gratis konto på finnhub.io och kopiera din API key från Dashboard. Ger realtidsaffärer för amerikanska aktier (data från börsen IEX). Nyckeln sparas bara i den här webbläsaren, och en nyckel kan bara vara ansluten på en enhet åt gången.</p>
-  <label class="fld"><span>Finnhub API-nyckel</span><input id="fhk" type="password" value="${esc(fhKey())}" placeholder="din API key" autocomplete="off"></label><button class="btn sm" id="fhs">Spara realtidsnyckel</button>
+  <label class="fld"><span>Finnhub API-nyckel</span><input id="fhk" type="password" value="${esc(fhKey())}" placeholder="din API key" autocomplete="off"></label><button class="btn sm" id="fht">Testa nyckeln</button><div id="fhr" class="mu" style="font-size:11.5px;margin:4px 0 8px"></div><button class="btn sm" id="fhs">Spara realtidsnyckel</button>
   <h4 style="margin-top:16px">Benzinga-nyckel</h4><p class="mu" style="font-size:13px">Läggs i GitHub (inte i appen): repot → Settings → Secrets and variables → Actions → New repository secret. Namn: <b>BENZINGA_KEY</b>.</p>`,()=>{
     $("#fhs").onclick=()=>{try{localStorage.setItem(FHK,$("#fhk").value.trim())}catch(e){}toast("Realtidsnyckel sparad")};
+    $("#fht").onclick=async()=>{const k=$("#fhk").value.trim(),o=$("#fhr");
+      if(!k){o.innerHTML='<b class="dn">Fältet är tomt.</b>';return}
+      const bad=/[^A-Za-z0-9]/.test(k)?" Innehåller tecken som inte hör hemma i en Finnhub-nyckel (bara bokstäver och siffror förväntas).":"";
+      o.innerHTML=`Nyckeln är ${k.length} tecken${bad}. Testar mot Finnhub…`;
+      try{const r=await fetch("https://finnhub.io/api/v1/quote?symbol=AAPL&token="+encodeURIComponent(k));
+        if(r.status===401)o.innerHTML=`<b class="dn">HTTP 401 – Finnhub avvisar nyckeln.</b> Kontrollera att den är kopierad i sin helhet från finnhub.io → Dashboard → API Keys, och att kontot är aktiverat (bekräftad e-post).${bad}`;
+        else if(r.status===429)o.innerHTML='<b class="dn">HTTP 429 – för många anrop.</b> Nyckeln fungerar men gratisgränsen (60/min) är nådd. Vänta en minut.';
+        else if(!r.ok)o.innerHTML=`<b class="dn">HTTP ${r.status}.</b> Oväntat svar från Finnhub.`;
+        else{const q=await r.json();o.innerHTML=q&&q.c>0?`<b class="up">Fungerar.</b> Apple ${q.c} USD just nu. Spara nyckeln så används den för amerikanska aktier.`:'<b class="dn">Svar utan kurs.</b> Nyckeln kan vara en sandbox-nyckel – använd den vanliga API-nyckeln.'}
+      }catch(e){o.innerHTML='<b class="dn">Nätverksfel.</b> Kunde inte nå finnhub.io – kontrollera uppkopplingen.'}};
     $("#ghs").onclick=()=>{try{localStorage.setItem(GHK,JSON.stringify({repo:$("#ghr").value.trim(),token:$("#ght").value.trim()}))}catch(e){}closeSheet();toast("Sparat")}})
 }
 /* ---------- Import från bank (CSV/Excel-export) ---------- */
@@ -1100,6 +1110,12 @@ function impMatchUI(){
 /* ---------- texter ---------- */
 Object.assign(INFO,{
 dag:()=>["Daghandelsfilter","<p>Aktien är en kandidat bara om <b>alla fem</b> kriterier uppfylls:</p><p>1. Pris över gårdagens high<br>2. Gårdagens stängning över SMA200<br>3. Pris över dagens pre-market high<br>4. Pris över dagens öppningskurs<br>5. Pre-market volym ≥ 50 000</p><p>➖ betyder att kriteriet inte kan bedömas (svenska aktier saknar pre-market, eller marknaden har inte öppnat än).</p>"+F],
+dtstat:()=>{const dt=D.rank.DT||{cand:[],near:[]},mk=Ui.dtm,L=Ui.dtl,mn=MK(mk),hint=usHint();
+  const C=L>=5?dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).length:SL.filter(s=>inMkt(s,mk)&&!s.t.endsWith("-USD")&&s.dtn>=L).length;
+  return["Daghandel – läget just nu","<p><b>"+(L>=5?C+" kandidater klarar alla 5 kriterier":C+" aktier uppfyller minst "+L+" av 5 kriterier")+"</b> på "+esc(mn.n)+". "+(D.liveAt?"Live-uppdaterad "+hhmm(D.liveAt):"Dagsskanning "+hhmm(D.updated))+".</p>"
+   +(hint.t?"<p><b>"+(hint.k==="pre"?"Innan öppning:":"Marknadsläge:")+"</b> "+esc(hint.t)+"</p>":"")
+   +"<p><b>De fem kriterierna:</b> stark pre-market-volym, kurs över gårdagens stängning, kurs över öppningen, över VWAP, och relativ styrka mot index. Strikthetsknapparna styr hur många som måste vara uppfyllda.</p>"
+   +"<p>Daghandelsmodulen är <b>inte validerad</b> i backtestet, och forskningen om privatpersoners daghandel är entydigt negativ. Använd den som bevakning, inte som strategi.</p>"]},
 dt:()=>["Daghandelslistan","<p>Topp 25 av aktierna som klarar <b>alla fem kriterier</b>, från alla börser, rankade på en daghandelspoäng (0–100):</p><p><b>35 %</b> rörelse mot gårdagen (gap, max 10 %) · <b>25 %</b> pre-market-volym · <b>20 %</b> relativ volym · <b>10 %</b> daglig rörlighet (ATR) · <b>10 %</b> nyhetskatalysator, ±5 för nyhetston.</p><p>“Nästan kandidater” saknar bara ett kriterium (eller klarar alla bedömbara, för svenska aktier utan pre-market).</p><p>Listan uppdateras vid varje skanning och – om live-körningen är på – var 15:e minut under börstid. Det är ingen realtidsdata.</p>"+F],
 plan:()=>["Entry, stop och mål","<p><b>Trigger:</b> högsta av pre-market-high och gårdagens high – köp först när kursen stänger över den med ökad volym (≥ 1,2× snittet) och över VWAP.</p><p><b>Stop:</b> under närmaste struktur under entry (VWAP, PM-high, gårdagens high, dagens öppning eller senaste svinglow) minus 0,25× ATR(5 min). Begränsas till max 0,6× daglig ATR och minst 0,15×. Vid nyhetskatalysator senaste dygnet breddas stoppen 25 %.</p><p><b>Mål:</b> 1R och 2R (risk/belöning 1:1 och 1:2).</p><p><b>Flaggor:</b> K = köp (breakout över trigger på volym, eller återtest av VWAP). S = sälj (stop nådd, mål 2 nått, två stängningar under VWAP, eller överköpt RSI med lång överskugga).</p><p><b>Positionsstorlek</b> = (kapital × risk %) ÷ risk per aktie.</p>"+F],
 rot:()=>["Omfördelning mellan innehav","<p>Om ett innehav stagnerat (smalt 20-dagarsintervall, ingen månadsrörelse, under SMA50 eller svag momentumpoäng) medan ett annat innehav är i breakout eller har hög momentumpoäng, föreslår appen att sälja det första och köpa mer av det andra. Tryck på förslaget för att förifylla omfördelningen.</p>"+F],
@@ -1172,7 +1188,7 @@ const curT=()=>decodeURIComponent((location.hash.split("/")[2])||"");
 function unlockAudio(){try{LV.ac=LV.ac||new(window.AudioContext||window.webkitAudioContext)();if(LV.ac.state==="suspended")LV.ac.resume()}catch(e){}}
 /* ======================= v5: REALTID (tickström, live-ljus, händelser) ======================= */
 const FHK="mm_fh";
-const fhKey=()=>{try{return localStorage.getItem(FHK)||""}catch(e){return""}};
+const fhKey=()=>{try{return (localStorage.getItem(FHK)||"").trim()}catch(e){return""}};
 const liveOK=t=>!t.includes(".");
 const LV={ws:null,t:null,mode:"off",x:null,bars:[],events:[],px:null,prev:null,tsLast:0,recv:0,inpos:false,entry:null,fired:{},timer:0,sim:null,retry:0,sound:true,err:"",dirty:false,ac:null};
 function beep(k){try{if(!LV.sound)return;LV.ac=LV.ac||new(window.AudioContext||window.webkitAudioContext)();const a=LV.ac;if(a.state==="suspended")a.resume();const o=a.createOscillator(),g=a.createGain();o.frequency.value=k==="BUY"?880:k==="SELL"?330:600;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.15,a.currentTime);g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+.35);o.start();o.stop(a.currentTime+.4)}catch(e){}}
@@ -1544,12 +1560,13 @@ function orderedMkts(){
 }
 /* Rullgardinsmeny i stället för rader med knappar. items: [{html, attrs, on, sep}] */
 function dropdown(id,label,items){
-  return`<div class="dd" id="${id}"><button type="button" data-act="ddtoggle" data-dd="${id}">${label}</button><div class="ddl">${items.map(it=>it.sep?'<div class="sep"></div>':`<div class="it${it.on?" on":""}" ${it.attrs||""}>${it.html}</div>`).join("")}</div></div>`}
+  return`<div class="dd" id="${id}"><button type="button" data-act="ddtoggle" data-dd="${id}">${ddIc(label)}</button><div class="ddl">${items.map(it=>it.sep?'<div class="sep"></div>':`<div class="it${it.on?" on":""}" ${it.attrs||""}>${ddIc(it.html)}</div>`).join("")}</div></div>`}
 document.addEventListener("click",e=>{
   const t=e.target.closest("[data-act=ddtoggle]");
   $$(".dd.open").forEach(d=>{if(!t||d.id!==t.dataset.dd)d.classList.remove("open")});
   if(t){const d=document.getElementById(t.dataset.dd);if(d)d.classList.toggle("open")}
 },true);
+const ddIc=t=>t.replace(/^(▦|🌍|＋|✨|↕)\s?/,(m)=>`<span class="ic">${m.trim()}</span> `);
 const mchip=(m,sel,attrs)=>`<span class="chip mk${m.k===sel?" on":""}" ${attrs||`data-go="#/desk/${m.k}"`}>${m.flag} ${esc(SHORT[m.k]||m.n)}</span>`;
 const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦",".TW":"🇹🇼",".NS":"🇮🇳",".BO":"🇮🇳",".AX":"🇦🇺",".KS":"🇰🇷",".KQ":"🇰🇷",".SA":"🇧🇷",".SS":"🇨🇳",".SZ":"🇨🇳",".NZ":"🇳🇿"};
 const flagOf=t=>{if(/-USD$/.test(t))return"🪙";for(const k in SUFF)if(t.endsWith(k))return SUFF[k];return"🇺🇸"};
@@ -1591,13 +1608,16 @@ async function refreshQuotes(){
 function quoteStatus(){
   const hh=t=>new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   let t;if(DEMO)t="Demokurser.";
-  else if(!fhKey())t=`Kurser från skanningen ${D.updated?hhmm(D.updated):""} (USA-aktier kan därför ligga efter Nordea under börstid). Lägg in din Finnhub-nyckel under ⚙ för live-kurser.`;
-  else if(FHQ.ok)t=`Live-kurser (Finnhub) ${hh(FHQ.t)} för ${FHQ.n} av ${FHQ.tot} USA-aktier${FHQ.fx?` · USD/SEK ${FHQ.fx.toFixed(4)}`:""}. Övriga aktier: skanningens kurser.`;
-  else if(FHQ.t)t=`Live-kurser kunde inte hämtas (${esc(FHQ.err||"okänt fel")}) – visar skanningens kurser ${D.updated?hhmm(D.updated):""}.`;
+  else if(FHQ.ok)t=`Live-kurser (Finnhub) ${hh(FHQ.t)} för ${FHQ.n} av ${FHQ.tot} USA-aktier${FHQ.fx?` · USD/SEK ${FHQ.fx.toFixed(4)}`:""}. Övriga aktier: ${EQ.n?esc(EQ.src):"skanningens kurser"}.`;
+  else if(EQ.n)t=`Kurser från ${esc(EQ.src)} ${EQ.at?hhmm(EQ.at):""} för ${EQ.n} aktier – uppdateras var 5:e minut under börstid.${fhKey()&&FHQ.t&&!FHQ.ok?" Finnhub-nyckeln avvisas – ta bort den under Inställningar om du inte behöver realtid.":""}`;
+  else if(!fhKey())t=`Kurser från skanningen ${D.updated?hhmm(D.updated):""}. Fördröjda kurser från EODHD hämtas var 5:e minut under börstid när arbetsflödet körts.`;
+  else if(FHQ.t)t=`Realtidskurser från Finnhub kunde inte hämtas (${esc(FHQ.err||"okänt fel")}${/401/.test(FHQ.err||"")?" – nyckeln avvisas, kontrollera den under Inställningar → Realtidskälla":""}) – visar skanningens kurser ${D.updated?hhmm(D.updated):""}.`;
   else t="Hämtar live-kurser…";
   return`<div class="mu" style="margin:6px 2px;font-size:11.5px">${t}</div>`
 }
-function quoteTick(){if(!/^#\/portfolio/.test(location.hash)||Date.now()-FHQ.t<20000)return;refreshQuotes().then(ch=>{if((ch||FHQ.t)&&/^#\/portfolio/.test(location.hash)&&!SH.classList.contains("on")&&!document.querySelector(".dragc,.drag,#app details[open]"))route(true)})}
+function quoteTick(){if(!/^#\/portfolio/.test(location.hash))return;
+  if(Date.now()-EQ.t>300000){loadLive().then(ok=>{if(ok&&/^#\/portfolio/.test(location.hash))route(true)})}
+  if(!fhKey()||Date.now()-FHQ.t<20000)return;refreshQuotes().then(ch=>{if((ch||FHQ.t)&&/^#\/portfolio/.test(location.hash)&&!SH.classList.contains("on")&&!document.querySelector(".dragc,.drag,#app details[open]"))route(true)})}
 setInterval(quoteTick,60000);
 /* ---------- Dra portföljknapparna (håll in en stund) ---------- */
 let CD=null,SUPP=0;
@@ -2654,7 +2674,13 @@ function introReplay(){const el=$("#intro");closeSheet();el.style.display="block
 $("#intro").addEventListener("click",introHide);
 /* ---------- START ---------- */
 function liveUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return null;const repo=location.pathname.split("/")[1];return repo?"https://raw.githubusercontent.com/"+h.split(".")[0]+"/"+repo+"/live/daytrade.json":null}
-async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t]){Object.assign(S[t],j.stocks[t]);scrubLegacy(S[t])}});if(j.dt)D.rank.DT=j.dt;D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
+const EQ={n:0,t:0,src:"",at:""};
+async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t]){Object.assign(S[t],j.stocks[t]);scrubLegacy(S[t])}});
+  // Fördröjda kurser från EODHD för hela universumet – ersätter Finnhub på portföljsidan
+  if(j.quotes){let n=0;Object.keys(j.quotes).forEach(t=>{const q=j.quotes[t],s=S[t];if(!s||!(q.px>0))return;
+    if(q.ts&&s.qt&&q.ts*1000<=s.qt)return;              // behåll en nyare Finnhub-kurs
+    s.px=q.px;s.chg=q.chg;s.qt=q.ts?q.ts*1000:Date.now();s.qsrc="eodhd";n++});
+    EQ.n=n;EQ.t=Date.now();EQ.src=j.quotes_src||"EODHD";EQ.at=j.updated}if(j.dt)D.rank.DT=j.dt;D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
 function newsUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return null;const repo=location.pathname.split("/")[1];return repo?"https://raw.githubusercontent.com/"+h.split(".")[0]+"/"+repo+"/news/news.json":null}
 async function loadNews(){
   const u=newsUrl();if(!u||DEMO)return false;
