@@ -441,9 +441,45 @@ def read_extra():
     except OSError:
         return []
 
+# Wikipedias STOXX 600-tabell saknar aktieklass för nordiska bolag (ASSA.ST i stället för
+# ASSA-B.ST) och använder en del inaktuella tickers. Bolagen finns redan i OMXS/OMXC/OSE/OMXH
+# med rätt stavning, så de "saknade" var dubbletter. Här normaliseras varje ticker mot de
+# kända listorna innan universumet byggs.
+RENAME = {"AKERBP.OL": "AKRBP.OL", "ASMI.AS": "ASM.AS", "BNPP.PA": "BNP.PA", "AMS.VI": "AMS.SW",
+          "ALLFG.MC": "ALM.MC", "BRNW.MI": "BRE.MI", "ARND.DE": "ARL.DE", "ADH.OL": "ADE.OL",
+          "AIRP.PA": "AI.PA", "AMBU.CO": "AMBU-B.CO", "ATOS.PA": "ATO.PA", "BEB.SW": "BEAN.SW"}
+_KNOWN = None
+def known_tickers():
+    """Alla tickers ur de handkurerade listorna (inte Wikipedia-skrapningarna)."""
+    global _KNOWN
+    if _KNOWN is None:
+        _KNOWN = set(OMXS)
+        for k in ("OMXC", "OSE", "OMXH", "DAX", "CAC", "FTSE", "AEX", "SMI", "IBEX", "MIB"):
+            p = PRESETS.get(k) or {}
+            t = p.get("tickers") or []
+            try: _KNOWN |= set(t() if callable(t) else t)
+            except Exception: pass
+    return _KNOWN
+def normalize_ticker(t):
+    """Översätter en osäker ticker till den kända formen om en sådan finns."""
+    if t in RENAME: return RENAME[t]
+    K = known_tickers()
+    if t in K or "." not in t: return t
+    base, suf = t.rsplit(".", 1)
+    # ASSA.ST → ASSA-B.ST, ATCO.ST → ATCO-A.ST (föredra A-aktien när båda finns)
+    for cls in ("A", "B", "C"):
+        c = f"{base}-{cls}.{suf}"
+        if c in K: return c
+    # HMB.ST → HM-B.ST (Wikipedia skriver ibland klassen utan bindestreck)
+    if len(base) > 2 and base[-1] in "ABC":
+        c = f"{base[:-1]}-{base[-1]}.{suf}"
+        if c in K: return c
+    return t
+
 def get_tickers(m):
     src = m["source"]
-    return list(dict.fromkeys(src() if callable(src) else src))
+    raw = src() if callable(src) else src
+    return list(dict.fromkeys(normalize_ticker(t) for t in raw))
 
 # ----------------------------------------------------------------------------------
 # HÄMTNING

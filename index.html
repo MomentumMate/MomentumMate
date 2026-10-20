@@ -20,11 +20,15 @@ a{color:inherit}
 .brand b{color:var(--gd)}
 .back{width:36px;height:36px;border-radius:12px;border:1px solid var(--bd);background:var(--card);color:var(--gd);display:grid;place-items:center;font-size:22px;text-decoration:none;flex:none}
 .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#b8862b,#ffd98a);display:grid;place-items:center;font-weight:700;color:#1a1200;font-size:13px;flex:none}
+.tbtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--bd);background:var(--card);color:var(--tx);display:grid;place-items:center;font-size:17px;flex:none;cursor:pointer;line-height:1}
+.tbtn .ii{margin:0;vertical-align:0;font-size:17px;color:var(--tx);font-style:normal}
 /* moduler */
 .mod{background:linear-gradient(180deg,#14100a,#0b0905);border:1px solid var(--bd);border-radius:22px;padding:20px 16px 14px;margin-bottom:12px;display:block;overflow:hidden;position:relative}
 .mod::before{content:"";position:absolute;top:0;left:0;right:0;height:3.5px;background:linear-gradient(90deg,var(--gd) 0%,#c8953060 75%,transparent 100%);border-radius:22px 22px 0 0;pointer-events:none}
 .mh{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.mh .ico{width:36px;height:36px;border-radius:12px;background:#1b1508;display:grid;place-items:center;color:var(--gd);font-size:18px}
+.mh .ico{width:36px;height:36px;border-radius:12px;background:#1b1508;display:grid;place-items:center;color:var(--gd);font-size:17px;line-height:1}
+.mh .ico svg{width:18px;height:18px}
+.mh .ico.fg{font-size:15px}
 .mh h2{margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1}
 .mh .go{color:var(--mu);font-size:22px;line-height:1}
 .big{font-size:30px;font-weight:700;letter-spacing:-.5px}
@@ -89,9 +93,9 @@ h4[data-i]{cursor:pointer}
 #verbar button{padding:8px 14px;border-radius:10px;border:0;background:var(--gd);color:#1a1408;font:inherit;font-weight:700}
 .ddbar{display:flex;align-items:center;gap:8px;margin:0 0 10px}
 .dd{position:relative;flex:1;min-width:0}
-.dd>button{width:100%;display:flex;align-items:center;gap:10px;padding:13px 16px;border-radius:22px;border:1px solid var(--bd);background:linear-gradient(90deg,var(--gd) 0%,#c89530 55%,#2a2010 92%,#14100a 100%);color:#1a1200;font:inherit;font-size:13px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;cursor:pointer;text-align:left;box-shadow:0 6px 18px rgba(0,0,0,.35)}
-.dd>button .ic{color:#1a1200;display:inline-flex;align-items:center;width:20px;height:20px;flex:none}
-.dd>button .ic svg{width:20px;height:20px}
+.dd>button{width:100%;display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:22px;border:1px solid var(--bd);background:linear-gradient(90deg,var(--gd) 0%,#c89530 55%,#2a2010 92%,#14100a 100%);color:#1a1200;font:inherit;font-size:13px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;cursor:pointer;text-align:left;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.dd>button .ic{color:#1a1200;display:grid;place-items:center;width:36px;height:36px;flex:none;font-size:17px;line-height:1}
+.dd>button .ic svg{width:18px;height:18px;stroke-width:1.8}
 .dd>button .lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dd>button::after{content:"▾";color:var(--gd);font-size:14px;margin-left:4px;flex:none}
 .ddbar .ddr{display:flex;align-items:center;gap:6px;flex:none}
@@ -323,7 +327,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-20-a";
+const APPV="2026-10-20-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -395,16 +399,19 @@ const SV_SRC=/Dagens industri|EFN|Placera|Privata Affärer|Börskollen|Realtid|S
 /* Koppla svenska marknadsnyheter till bolag: en rubrik som nämner "Volvo" eller "Ericsson"
    får den aktiens ticker, och därmed en gul aktieruta. Enbart svenska aktier matchas. */
 let SVN=null;
+const GENERIC=/^(the|nordic|svenska|scandinavian|general|american|united|national|first|global|international|european|new|north|south|west|east|royal|bank|group|energy|capital|financial|health|digital|micro|advanced|applied|public|standard)$/i;
 function svNames(){
   if(SVN)return SVN;SVN=[];
-  SL.forEach(x=>{if(!x.t.endsWith(".ST")||!x.n)return;
-    const w=x.n.replace(/\b(AB|publ|ser\.?|B|A|Class|Holding|Group|International|Sweden)\b/gi," ").trim().split(/\s+/)[0];
-    if(w&&w.length>=4&&!/^(The|Nordic|Svenska|Scandinavian)$/i.test(w))SVN.push({w:w.toLowerCase(),t:x.t,sc:x.sc||0})});
-  SVN.sort((a,b)=>b.w.length-a.w.length);return SVN}
+  SL.forEach(x=>{if(!x.n||x.n===x.t)return;
+    const w=x.n.replace(/\b(AB|publ|ser\.?|B|A|Class|Holding|Holdings|Group|International|Sweden|Inc|Corp|Corporation|Ltd|plc|SA|SE|NV|AG|ASA|Oyj|AS|Co)\b\.?/gi," ").trim().split(/\s+/)[0]||"";
+    const sv=x.t.endsWith(".ST")||x.t.endsWith(".CO")||x.t.endsWith(".OL")||x.t.endsWith(".HE");
+    const min=sv?4:5;                                   // utländska namn kräver längre ord
+    if(w.length>=min&&!GENERIC.test(w))SVN.push({w:w.toLowerCase(),t:x.t,sv,sc:x.sc||0})});
+  SVN.sort((a,b)=>(b.w.length-a.w.length)||(b.sc-a.sc));return SVN}
 function svTag(n){
-  if(n.t||!SV_SRC.test(n.src||""))return n;
-  const h=(n.h||"").toLowerCase();
-  const hit=svNames().find(x=>h.includes(x.w));
+  if(n.t)return n;
+  const h=" "+(n.h||"").toLowerCase()+" ";
+  const hit=svNames().find(x=>h.includes(" "+x.w)||h.includes(" "+x.w+"s"));   // ordgräns, tillåt genitiv
   return hit?Object.assign({},n,{t:hit.t}):n}
 function feed(scope){
   const mom=new Set(),port=new Set();
@@ -469,7 +476,8 @@ function detail(s,mk,extra=""){
 }
 
 /* ---------- VY-RAMVERK ---------- */
-const topbar=(t,back=true)=>`<div class="top">${back?'<a class="back" data-act="back" aria-label="Tillbaka">‹</a>':""}<div class="ttl">${t}</div><span class="av">MM</span></div>`;
+const topbar=(t,back=true,extra="")=>`<div class="top">${back?'<a class="back" data-act="back" aria-label="Tillbaka">‹</a>':""}<div class="ttl">${t}</div>${extra}<span class="av">MM</span></div>`;
+const topBtn=(attrs,inner,label)=>`<span class="tbtn" ${attrs} aria-label="${label||""}">${inner}</span>`;
 const banner=()=>DEMO?`<div class="banner">${OLD?"Gammalt dataformat – kör scanner.py igen (uppdaterad version).":"Demodata – slumpade siffror. Riktig data visas när appen ligger på samma adress som data.json."}</div>`:"";
 let tk=0;
 function stopTicker(){cancelAnimationFrame(tk)}
@@ -510,11 +518,11 @@ function vHome(){
    :`<div class="mu" style="font-size:14px">Lägg in dina innehav i en eller flera portföljer och få dagliga signaler för köp, sälj och omfördelning.</div><div class="chips" style="margin-top:10px"><span class="chip on">+ Skapa portfölj</span></div>`}</div>
   <div class="mod" data-go="#/desk"><div class="mh"><div class="ico">▥</div><h2>BÖRSDESK</h2><span class="go">›</span></div>
    ${top.length?`<div style="margin-top:10px"><small>Dagens starkaste momentum</small>${top.map(s=>`<div class="sr" data-go="#/stock/${enc(s.t)}"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`:""}</div>
-  <div class="mod" data-go="#/daytrade"><div class="mh"><div class="ico">⚡</div><h2>DAGHANDEL</h2><span class="go">›</span></div>
+  <div class="mod" data-go="#/daytrade"><div class="mh"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div><h2>DAGHANDEL</h2><span class="go">›</span></div>
    ${ps?`<div class="stat ${pdx?pdx.st.k:"WAIT"}" style="margin-top:0"><b>★ DIN AKTIE IDAG: ${esc(ps.d)}</b>${pdx?esc(pdx.st.t):ps.px+" "+ps.cur+" "+sg(ps.chg)}</div>`:""}
    ${dtc.length?`<div class="mu">${dtc.length} kandidater klarar alla 5 kriterier${D.liveAt?" · live "+hhmm(D.liveAt):""}</div>${dtc.slice(0,3).map((s,i)=>`<div class="sr" data-go="#/daytrade/${enc(s.t)}"><div class="n">${i+1}</div><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b><span class="tag">DAGHANDEL</span></div><div class="mu">${esc(s.n)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div><div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>`).join("")}`
    :`<div class="mu">0 aktier klarar alla 5 kriterier just nu.</div>${dtn.length?`<div style="margin-top:8px"><small>Närmast (klarar övriga kriterier)</small>${dtn.slice(0,3).map(s=>`<div class="sr" data-go="#/daytrade/${enc(s.t)}"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b><span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/${s.dte}</span></div><div class="mu">${esc(s.n)}</div></div><div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>`).join("")}</div>`:""}`}</div>
-  <div class="mod"><div class="mh"><div class="ico">⌕</div><h2>SÖK</h2></div>
+  <div class="mod"><div class="mh"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div><h2>SÖK</h2></div>
    <div class="srch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="hq" placeholder="Sök aktie eller ticker…" autocomplete="off" autocapitalize="off" enterkeyhint="search"></div><div id="hres"></div></div>`)
 }
 
@@ -534,8 +542,8 @@ function pfHero(p,c,mode){
 function vPortOverview(){
   if(Ui.pfReorder){pfReorderView();return}
   const items=P.ps.map(p=>({p,c:calc(p)})),tot=items.reduce((a,x)=>a+x.c.tot,0),day=items.reduce((a,x)=>a+x.c.day,0);
-  view(`${topbar("Portfölj")}${staleBanner()}
-  ${dropdown("ddpf","Alla portföljer",[{html:"▦ Översikt",on:true,attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`},{html:"✨ Föreslå portfölj",attrs:`data-act="newpf"`}]).concat(P.ps.length>1?[{html:"↕ Ändra ordning",attrs:`data-act="pfreorder"`}]:[]),{icon:"pf",right:`<span class="chip" data-act="pmenu" data-pid="${P.cur||P.ps[0].id}">⋯</span>`})}
+  view(`${topbar("Portfölj",true,topBtn(`data-act="pmenu" data-pid="${P.cur||P.ps[0].id}"`,"⋯","Meny"))}${staleBanner()}
+  ${dropdown("ddpf","Alla portföljer",[{html:"▦ Översikt",on:true,attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`},{html:"✨ Föreslå portfölj",attrs:`data-act="newpf"`}]).concat(P.ps.length>1?[{html:"↕ Ändra ordning",attrs:`data-act="pfreorder"`}]:[]),{icon:"pf"})}
   ${quoteStatus()}
   ${P.ps.length>1?`<div class="mu" style="margin:8px 2px 0">Totalt alla portföljer: <b style="color:var(--tx)">${kr(tot)} kr</b> · <span class="${cls(day)}">${day>=0?"+":"−"}${kr(Math.abs(day))} kr idag</span></div>`:""}
   ${items.map(x=>pfHero(x.p,x.c,"list")).join("")}
@@ -554,8 +562,8 @@ function vPort(id){
   const held=new Set(p.h.map(h=>h.t)),ideas=needAct?(D.rank.ALL?D.rank.ALL.mom:[]).map(t=>S[t]).filter(s=>s&&!held.has(s.t)&&s.sc>=60).slice(0,5):[];
   const hzw={};c.rows.forEach(r=>{const k=r.s?r.s.h:"none";hzw[k]=(hzw[k]||0)+r.w});
   const snap=(P.snap&&P.snap[p.id])||[];
-  view(`${topbar("Portfölj")}
-  ${dropdown("ddpf",esc(p.name),[{html:"▦ Översikt",attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),on:x.id===p.id,attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`}]),{icon:"pf",right:`<span class="chip" data-act="pmenu" data-pid="${p.id}">⋯</span>`})}
+  view(`${topbar("Portfölj",true,topBtn(`data-act="pmenu" data-pid="${p.id}"`,"⋯","Meny"))}
+  ${dropdown("ddpf",esc(p.name),[{html:"▦ Översikt",attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),on:x.id===p.id,attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`}]),{icon:"pf"})}
   ${quoteStatus()}
   ${staleBanner()}${healthPanel(c,p)}
   ${pfHero(p,c,"detail")}
@@ -587,8 +595,8 @@ function mstats(k){const r=D.rank[k];if(!r)return null;const L=r.mom.map(t=>S[t]
 function vDesk(){
   if(Ui.reorder){reorderView();return}
   const ms=orderedMkts(),lf=Object.keys((D.stats&&D.stats.list_fallback)||{});
-  view(`${topbar("Börsdesk")}${lf.length?`<div class="stat SELL" style="margin-top:0"><b>⚠ BOLAGSLISTOR</b>Skannern kunde inte hämta aktielistan för ${lf.map(k=>esc(MK(k).n)).join(", ")} och använde en reservlista – nyligen tillagda bolag kan saknas.</div>`:""}${dropdown("ddmk","Alla marknader",[{html:"🌍 Alla marknader",on:true,attrs:`data-go="#/desk"`},{sep:true}].concat(ms.filter(m=>m.k!=="ALL").map(m=>({html:`${m.flag} ${esc(m.n)}`,attrs:`data-go="#/desk/${m.k}"`}))).concat([{sep:true},{html:"＋ Lägg till börs",attrs:`data-act="addx"`},{html:"↕ Ändra ordning",attrs:`data-act="reorder"`}]),{icon:"globe",right:`<span class="ii" data-i="deskhelp">ⓘ</span>`})}
-  ${ms.map(m=>{const st=mstats(m.k);if(!st)return"";return`<div class="mod" data-go="#/desk/${m.k}"><div class="mh"><div class="ico">${m.flag}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div>
+  view(`${topbar("Börsdesk",true,topBtn(`data-i="deskhelp"`,'<span class="ii">ⓘ</span>',"Info"))}${lf.length?`<div class="stat SELL" style="margin-top:0"><b>⚠ BOLAGSLISTOR</b>Skannern kunde inte hämta aktielistan för ${lf.map(k=>esc(MK(k).n)).join(", ")} och använde en reservlista – nyligen tillagda bolag kan saknas.</div>`:""}${dropdown("ddmk","Alla marknader",[{html:"🌍 Alla marknader",on:true,attrs:`data-go="#/desk"`},{sep:true}].concat(ms.filter(m=>m.k!=="ALL").map(m=>({html:`${m.flag} ${esc(m.n)}`,attrs:`data-go="#/desk/${m.k}"`}))).concat([{sep:true},{html:"＋ Lägg till börs",attrs:`data-act="addx"`},{html:"↕ Ändra ordning",attrs:`data-act="reorder"`}]),{icon:"globe"})}
+  ${ms.map(m=>{const st=mstats(m.k);if(!st)return"";return`<div class="mod" data-go="#/desk/${m.k}"><div class="mh"><div class="ico fg">${m.flag}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div>
    <div class="mu">${st.r.all.length} aktier · snittpoäng topp 25: <b style="color:var(--tx)">${f(st.av,1)}</b> · över SMA200: ${st.tr}% · ${st.dc} daghandel</div>
    ${st.L.slice(0,3).map(s=>`<div class="sr"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`}).join("")}
   <div class="mod" data-act="addx"><div class="mh"><div class="ico">＋</div><h2>LÄGG TILL BÖRS</h2><span class="go">›</span></div><div class="mu">Bevaka fler börser – t.ex. Amsterdam, Helsingfors, Zürich, Madrid, Milano, Krypto – eller egna aktier. <b>Europa</b> samlar alla europeiska börser i en vy.</div></div>`)
@@ -599,7 +607,7 @@ function vMarket(k){
   let body="";
   if(tab==="mom"){let L=st.L;const list=Ui.dt?L.filter(x=>x.dok):L;body=`<div class="chips" style="margin-bottom:8px"><span class="chip${Ui.dt?" on":""}" data-act="dtf">⚡ Endast daghandel</span></div>`+(list.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga daghandelskandidater just nu.</div>')}
   else{const A=r.all.map(t=>S[t]).filter(Boolean),n=Ui.shown[k]||40;body=`<div class="mu" style="margin:0 2px 8px">Alla ${A.length} aktier, sorterade efter momentumpoäng.</div>`+A.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true})).join("")+(A.length>n?`<button class="btn ghost wide" data-act="more" data-k="${k}">Visa fler (${A.length-n})</button>`:"")}
-  view(`${topbar(m.flag+" "+esc(m.n))}${dropdown("ddmk",esc(m.n),[{html:"🌍 Alla marknader",attrs:`data-go="#/desk"`},{sep:true}].concat(orderedMkts().filter(x=>x.k!=="ALL").map(x=>({html:`${x.flag} ${esc(x.n)}`,on:x.k===k,attrs:`data-go="#/desk/${x.k}"`}))),{icon:"globe",right:`<span class="ii" data-i="deskhelp">ⓘ</span>`})}
+  view(`${topbar(m.flag+" "+esc(m.n),true,topBtn(`data-i="deskhelp"`,'<span class="ii">ⓘ</span>',"Info"))}${dropdown("ddmk",esc(m.n),[{html:"🌍 Alla marknader",attrs:`data-go="#/desk"`},{sep:true}].concat(orderedMkts().filter(x=>x.k!=="ALL").map(x=>({html:`${x.flag} ${esc(x.n)}`,on:x.k===k,attrs:`data-go="#/desk/${x.k}"`}))),{icon:"globe"})}
   <div class="sumx"><div class="sx-l" data-i="score"><div class="mu">Snittpoäng topp 25 · ${esc(m.n)} <span class="ii">ⓘ</span></div><div><span class="big">${f(st.av,1)}</span><span class="pill ${cls(st.cg)}">${sg(st.cg)} idag</span></div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${st.dc}</span> <span class="mu">daghandelskandidater</span></div></div>
    <div class="sx-r" data-i="trend"><div class="ring" style="--p:${st.tr}"><b>${st.tr}%</b></div><div class="mu" style="margin-top:4px">Trendstyrka <span class="ii">ⓘ</span></div></div></div>
   ${lw?`<div class="stat SELL"><b>⚠ LISTAN KAN VARA INKOMPLETT</b>Skannern kunde inte hämta bolagslistan för den här marknaden live och använde ${li?esc(li.src):"en reservlista"}. Nyligen tillagda bolag kan saknas. Slå upp saknade aktier eller lägg dem i Min bevakning.</div>`:""}
@@ -612,7 +620,7 @@ function vMarket(k){
 /* ---------- NYHETER / SÖK / AKTIE ---------- */
 function vNews(arg){
   if(arg)Ui.news="all";const sc=Ui.news,items=feed(sc).slice(0,80),lab={all:"Alla",sv:"Sverige",mom:"Momentum",port:"Min portfölj",mkt:"Marknaden"};
-  view(`${topbar("Nyheter",false)}${dropdown("ddnw",sc==="all"?"Alla nyheter":lab[sc],Object.keys(lab).map(k=>({html:(k==="all"?"▤ ":"")+lab[k],on:k===sc,attrs:`data-act="news" data-v="${k}"`})),{icon:"news"})}${D.newsAt?`<div class="mu" style="margin:6px 2px 0;font-size:11.5px">Nyhetsflödet uppdaterades ${hhmm(D.newsAt)} · för ${ago(Math.floor(Date.parse(D.newsAt)/1000))} sedan</div>`:""}<div style="margin-top:10px">${items.length?items.map(nitem).join(""):`<div class="empty">${sc==="port"?"Inga nyheter för dina innehav ännu.":newsDiag()}</div>`}</div><div class="mu" style="text-align:center;padding:8px">Klicka på en nyhet för att läsa den hos källan.</div>`);if(arg)setTimeout(()=>{const el=document.getElementById("n-"+arg);if(el){el.scrollIntoView({block:"center"});el.classList.add("hl")}},90)
+  view(`${topbar("Nyheter",true)}${dropdown("ddnw",sc==="all"?"Alla nyheter":lab[sc],Object.keys(lab).map(k=>({html:(k==="all"?"▤ ":"")+lab[k],on:k===sc,attrs:`data-act="news" data-v="${k}"`})),{icon:"news"})}${D.newsAt?`<div class="mu" style="margin:6px 2px 0;font-size:11.5px">Nyhetsflödet uppdaterades ${hhmm(D.newsAt)} · för ${ago(Math.floor(Date.parse(D.newsAt)/1000))} sedan</div>`:""}<div style="margin-top:10px">${items.length?items.map(nitem).join(""):`<div class="empty">${sc==="port"?"Inga nyheter för dina innehav ännu.":newsDiag()}</div>`}</div><div class="mu" style="text-align:center;padding:8px">Klicka på en nyhet för att läsa den hos källan.</div>`);if(arg)setTimeout(()=>{const el=document.getElementById("n-"+arg);if(el){el.scrollIntoView({block:"center"});el.classList.add("hl")}},90)
 }
 function vSearch(q){
   view(`${topbar("Sök",false)}<div class="srch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="sq" value="${esc(q)}" placeholder="Sök aktie eller ticker…" autocomplete="off" autocapitalize="off" enterkeyhint="search"></div><div id="sres" style="margin-top:8px">${q?resHtml(q,30):'<div class="mu" style="padding:12px 2px">Skriv ett namn eller en ticker, t.ex. “Volvo” eller “NVDA”. Tryck + för att lägga till aktien i en portfölj.</div>'}</div>`);
@@ -863,9 +871,9 @@ function vDT(){
   if(L>=5){C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,25);N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,Math.max(0,25-C.length))}
   else single=SL.filter(s=>inMkt(s,mk)&&!s.t.endsWith("-USD")&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||b.dts-a.dts).slice(0,25);
   const mn=MK(mk);
-  view(`${topbar("Daghandel")}
-  ${dropdown("dddt",esc(mn.n),orderedMkts().map(m=>({html:`${m.flag} ${esc(m.n)}`,on:m.k===mk,attrs:`data-act="dtm" data-k="${m.k}"`})),{icon:"bolt",right:`<span class="ii" data-i="dtstat">ⓘ</span>`})}<div>
-  <div class="chips" style="margin:8px 0;align-items:center"><span class="mu" style="align-self:center">Strikthet:</span>${[[5,"Alla 5"],[4,"Minst 4"],[3,"Minst 3"]].map(x=>`<span class="chip${x[0]===L?" on":""}" data-act="dtl" data-v="${x[0]}">${x[1]}</span>`).join("")} <span class="ii" data-i="dtstat">ⓘ</span></div>
+  view(`${topbar("Daghandel",true,topBtn(`data-i="dtstat"`,'<span class="ii">ⓘ</span>',"Info"))}
+  ${dropdown("dddt",esc(mn.n),orderedMkts().map(m=>({html:`${m.flag} ${esc(m.n)}`,on:m.k===mk,attrs:`data-act="dtm" data-k="${m.k}"`})),{icon:"bolt"})}<div>
+  <div class="chips" style="margin:8px 0;align-items:center"><span class="mu" style="align-self:center">Strikthet:</span>${[[5,"Alla 5"],[4,"Minst 4"],[3,"Minst 3"]].map(x=>`<span class="chip${x[0]===L?" on":""}" data-act="dtl" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>
   ${ps?`<div class="mod" data-go="#/daytrade/${enc(pk)}"><div class="mh"><div class="ico">★</div><h2>DIN AKTIE IDAG</h2><span class="go">›</span></div><div><b style="font-size:18px">${esc(ps.d)}</b> <span class="mu">${esc(ps.n)}</span></div><div><b>${ps.px} ${ps.cur}</b> <span class="${cls(ps.chg)}">${sg(ps.chg)}</span>${px?` <span class="sig ${STC[px.st.k]}">${STL[px.st.k]}</span>`:""}</div>${px?`<div class="mu" style="margin-top:4px">${esc(px.st.t)}</div>`:""}</div>`:""}
   ${L>=5?`<div class="mh" style="margin:12px 2px 8px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">KANDIDATER${C.length?" 1–"+C.length:""}</h2></div>
    ${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="mu" style="margin:0 2px 10px">Inga aktier klarar alla fem kriterier.</div>'}
@@ -912,7 +920,8 @@ function rotation(rows){
   return out.sort((x,y)=>y.score-x.score).slice(0,3)
 }
 /* ---------- Mate ---------- */
-const MM_OFF="mm_mate_off";let mateOff=false;try{mateOff=localStorage.getItem(MM_OFF)==="1"}catch(e){}
+/* Mate visar inte längre popups av sig själv – bara när du trycker på ikonen. Slå på under Inställningar om du vill ha dem. */
+const MM_OFF="mm_mate_off";let mateOff=true;try{mateOff=localStorage.getItem(MM_OFF)!=="0"}catch(e){}
 const mshown=new Set();let mcount=0,mtimer=0,mhide=0;
 const nmS=s=>`<b>${esc(s?s.d:"?")}</b>`;
 function insights(){
@@ -1590,7 +1599,7 @@ function orderedMkts(){
 const DDIC={
   pf:'<span class="ic">▦</span>',
   globe:'<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg></span>',
-  bolt:'<span class="ic">⚡</span>',
+  bolt:'<span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>',
   news:'<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7"/></svg></span>'};
 function dropdown(id,label,items,o){o=o||{};
   return`<div class="ddbar"><div class="dd" id="${id}"><button type="button" data-act="ddtoggle" data-dd="${id}">${DDIC[o.icon]||""}<span class="lbl">${label}</span></button><div class="ddl">${items.map(it=>it.sep?'<div class="sep"></div>':`<div class="it${it.on?" on":""}" ${it.attrs||""}>${ddIc(it.html)}</div>`).join("")}</div></div>${o.right?`<div class="ddr">${o.right}</div>`:""}</div>`}
