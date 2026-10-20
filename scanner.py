@@ -518,6 +518,7 @@ EODHD_STAT = {"ok": 0, "miss": 0, "err": 0, "fallback": 0}
 # Yahoo-suffix → EODHD-börskod. Saknas suffixet är aktien amerikansk (.US).
 EODHD_EXCH = {".ST": "ST", ".CO": "CO", ".OL": "OL", ".HE": "HE", ".DE": "XETRA", ".PA": "PA",
               ".L": "LSE", ".IL": "LSE", ".AS": "AS", ".SW": "SW", ".MC": "MC", ".MI": "MI",
+              ".BR": "BR", ".LS": "LS", ".IR": "IR", ".WA": "WAR", ".VI": "VI", ".AT": "AT",
               ".TO": "TO", ".AX": "AU", ".T": "TSE", ".HK": "HK", ".KS": "KO", ".NS": "NSE", ".TW": "TW"}
 
 def eodhd_symbol(t):
@@ -760,24 +761,28 @@ def load_names():
     """Fyller NAMES {yahoo-ticker: bolagsnamn} från EODHD:s börslistor, med cache."""
     global NAMES
     cached = _CACHE.get("_names") or {}
-    if cached.get("ts") and (dt.date.today() - dt.date.fromisoformat(cached["ts"])).days < 14 and cached.get("m"):
+    if cached.get("v") == 2 and cached.get("ts") and (dt.date.today() - dt.date.fromisoformat(cached["ts"])).days < 14 and cached.get("m"):
         NAMES = cached["m"]; return
     if not EODHD_KEY: NAMES = cached.get("m") or {}; return
     out = dict(cached.get("m") or {})
-    inv = {v: k for k, v in EODHD_EXCH.items()}       # EODHD-börskod → Yahoo-suffix
+    # EODHD-börskod → alla Yahoo-suffix som pekar dit (LSE → .L och .IL)
+    inv = {}
+    for suf, ex in EODHD_EXCH.items(): inv.setdefault(ex, []).append(suf)
     for ex in ["US"] + sorted(set(EODHD_EXCH.values())):
         try:
             j = eodhd_get(f"exchange-symbol-list/{ex}")
             if not j: continue
-            suf = "" if ex == "US" else inv.get(ex, "")
+            sufs = [""] if ex == "US" else inv.get(ex, [])
             for row in j:
                 code, name = (row.get("Code") or "").strip(), (row.get("Name") or "").strip()
-                if code and name: out[code + suf] = name
+                if not code or not name: continue
+                for suf in sufs: out[code + suf] = name
+                if ex == "US" and "-" in code: out[code.replace("-", ".")] = name   # CWEN-A ↔ CWEN.A
         except Exception as e:
             print(f"  namnlista {ex}: {str(e)[:50]}")
     if out:
         NAMES = out
-        _CACHE["_names"] = {"ts": _today(), "m": out}
+        _CACHE["_names"] = {"v": 2, "ts": _today(), "m": out}
         try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
         except Exception: pass
         print(f"  Namnkatalog: {len(out)} bolag från EODHD")
