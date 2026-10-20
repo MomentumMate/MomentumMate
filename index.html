@@ -333,7 +333,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-20-d";
+const APPV="2026-10-20-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -585,9 +585,9 @@ function vPort(id){
   ${staleBanner()}${healthPanel(c,p)}
   ${pfHero(p,c,"detail")}
   ${propHTML(p,c,sigs,rot,ideas)}
-  ${archiveHTML(p)}
-  <div class="mh" style="margin:14px 0 8px;padding:0 16px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2><span class="rfb" data-act="pick" data-pid="${p.id}" title="Lägg till aktie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="pchev" style="visibility:hidden">▾</span></div>
-  ${c.rows.length?`<div class="srt" style="padding:0 16px"><span class="mu">Sortera:</span>${[["size","Storlek"],["name","A–Ö"],["ret","Förändring"],["day","Idag"]].map(x=>`<span class="chip mk${Ui.psort===x[0]?" on":""}" data-act="psort" data-v="${x[0]}">${x[1]}</span>`).join("")}<span class="pchev" style="margin-left:auto;cursor:pointer" data-act="psexp" data-pid="${p.id}" title="${p.h.every(h=>open.has("h:"+h.t))?"Fäll ihop alla":"Fäll ut alla"}">${p.h.every(h=>open.has("h:"+h.t))?"▴":"▾"}</span></div>`:""}
+  <div class="mh" style="margin:14px 0 8px;padding:0 16px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2>${(p.archive||[]).length?`<span class="pmh" data-act="archtoggle" data-pid="${p.id}" style="display:flex;align-items:center;gap:6px;cursor:pointer"><span style="font-size:13px;letter-spacing:1.8px;color:var(--gd);font-weight:700">ARKIV</span><span class="pchev" id="archchev">${Ui.archOpen?"▴":"▾"}</span></span>`:""}</div>
+  ${Ui.archOpen?archiveHTML(p):""}
+  ${c.rows.length?`<div class="srt" style="padding:0 16px"><span class="mu">Sortera:</span>${[["size","Storlek"],["name","A–Ö"],["ret","Förändring"],["day","Idag"]].map(x=>`<span class="chip mk${Ui.psort===x[0]?" on":""}" data-act="psort" data-v="${x[0]}">${x[1]}</span>`).join("")}<span class="chip mk" data-act="pick" data-pid="${p.id}" title="Lägg till aktie">＋</span><span class="pchev" style="margin-left:auto;cursor:pointer" data-act="psexp" data-pid="${p.id}" title="${p.h.every(h=>open.has("h:"+h.t))?"Fäll ihop alla":"Fäll ut alla"}">${p.h.every(h=>open.has("h:"+h.t))?"▴":"▾"}</span></div>`:`<div class="srt" style="padding:0 16px"><span class="chip mk" data-act="pick" data-pid="${p.id}">＋ Lägg till aktie</span></div>`}
   ${c.rows.length?sortRows(c.rows).map(r=>holdCard(r,p)).join(""):'<div class="empty">Inga innehav ännu. Tryck på “+ Lägg till aktie”.</div>'}
   ${p.tx.length?`<h4 style="margin:18px 2px 6px">Senaste transaktioner</h4>${p.tx.slice(0,8).map(x=>`<div class="k mu" style="padding:3px 2px">${esc(x.d)} · ${x.k==="buy"?"Köp":"Sälj"} ${f(x.q,x.q%1?2:0)} ${esc((S[x.t]||{d:x.t}).d)} @ ${f(x.px)}</div>`).join("")}`:""}`)
 }
@@ -809,6 +809,7 @@ function act(a,d){
     case"planapply":planApplySheet(d.pid,+d.i);break;
     case"gostock":Ui.back={h:location.hash,y:window.scrollY,label:"Förslag & signaler"};location.hash="#/stock/"+encodeURIComponent(d.t);break;
     case"goback":{const b=Ui.back;Ui.back=null;if(b){location.hash=b.h;setTimeout(()=>window.scrollTo(0,b.y),180)}else history.back();break}
+    case"archtoggle":Ui.archOpen=!Ui.archOpen;route(true);break;
     case"archclear":{const p=getP(d.pid);if(p&&confirm("Rensa hela arkivet för den här portföljen?")){p.archive=[];save();route(true)}break}
     case"plandel":{const p=getP(d.pid);if(p&&confirm("Ta bort förslaget från portföljen?")){delete p.plan;save();route(true)}break}
     case"chart":Ui.back={h:location.hash,y:window.scrollY,label:"Tillbaka"};location.hash="#/chart/"+encodeURIComponent(d.t);break;
@@ -2638,7 +2639,7 @@ function cashLine(p,c){
     <span class="lnk" data-act="cash" data-pid="${p.id}">Ändra</span></div>`}
 function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
-  return`<details class="nwd" style="margin-top:12px"><summary>📁 Arkiv – genomförda förslag (${A.length})</summary>${A.map(a=>`<div class="sr"><div class="m"><div><b>${esc(a.done)}</b> · <span class="fg">${flagOf(a.t)}</span>${S[a.t]?`<b class="tlk" data-act="gostock" data-t="${esc(a.t)}">${esc(S[a.t].d)}</b>`:`<b>${esc(a.t)}</b>`}<span class="pla ${a.a==="SÄLJ"?"S":"B"}">${a.a} ${f(a.q,a.q%1?2:0)} st</span></div><div class="mu">${esc(a.n)} · kurs ${f(a.px)} ${esc(a.ccy||"")} · ≈ ${kr(a.amt)} kr</div><div class="mu" style="white-space:normal">Förslag givet ${esc(a.given||"–")}${a.title?" – "+esc(a.title):""} · utfört ${esc(a.done)}</div>${a.why?`<div class="mu" style="white-space:normal;font-size:11.5px">${esc(a.why)}</div>`:""}</div></div>`).join("")}<div class="acts"><span class="lnk" data-act="archclear" data-pid="${p.id}">Rensa arkivet</span></div></details>`
+  return`<div class="mod" style="margin:0 0 10px"><div class="mu" style="font-size:11.5px;margin-bottom:6px">Genomförda förslag (${A.length})</div>${A.map(a=>`<div class="sr"><div class="m"><div><b>${esc(a.done)}</b> · <span class="fg">${flagOf(a.t)}</span>${S[a.t]?`<b class="tlk" data-act="gostock" data-t="${esc(a.t)}">${esc(S[a.t].d)}</b>`:`<b>${esc(a.t)}</b>`}<span class="pla ${a.a==="SÄLJ"?"S":"B"}">${a.a} ${f(a.q,a.q%1?2:0)} st</span></div><div class="mu">${esc(a.n)} · kurs ${f(a.px)} ${esc(a.ccy||"")} · ≈ ${kr(a.amt)} kr</div><div class="mu" style="white-space:normal">Förslag givet ${esc(a.given||"–")}${a.title?" – "+esc(a.title):""} · utfört ${esc(a.done)}</div>${a.why?`<div class="mu" style="white-space:normal;font-size:11.5px">${esc(a.why)}</div>`:""}</div></div>`).join("")}<div class="acts"><span class="lnk" data-act="archclear" data-pid="${p.id}">Rensa arkivet</span></div></div>`
 }
 function execSheet(p,it,o){
   o=o||{};const px=planPx(it),tw=p.twin&&getP(p.twin);
