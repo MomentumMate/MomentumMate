@@ -447,7 +447,10 @@ def read_extra():
 # kända listorna innan universumet byggs.
 RENAME = {"AKERBP.OL": "AKRBP.OL", "ASMI.AS": "ASM.AS", "BNPP.PA": "BNP.PA", "AMS.VI": "AMS.SW",
           "ALLFG.MC": "ALM.MC", "BRNW.MI": "BRE.MI", "ARND.DE": "ARL.DE", "ADH.OL": "ADE.OL",
-          "AIRP.PA": "AI.PA", "AMBU.CO": "AMBU-B.CO", "ATOS.PA": "ATO.PA", "BEB.SW": "BEAN.SW"}
+          "AIRP.PA": "AI.PA", "AMBU.CO": "AMBU-B.CO", "ATOS.PA": "ATO.PA", "BEB.SW": "BEAN.SW",
+          "BT.A": "BT-A.L", "CAGR.PA": "ACA.PA", "CAPP.PA": "CAP.PA", "CARR.PA": "CA.PA", "DANO.PA": "BN.PA",
+          "ESLX.PA": "EL.PA", "FERR.MI": "RACE.MI", "ENX.AS": "ENX.AS", "DSM.SW": "DSFIR.AS", "CASP.ST": "CAST.ST",
+          "FALK.CO": "FLS.CO", "EFGI.PA": "EFI.PA", "CCH.SW": "CCH.L", "CTS.DE": "CTEC.L"}
 _KNOWN = None
 def known_tickers():
     """Alla tickers ur de handkurerade listorna (inte Wikipedia-skrapningarna)."""
@@ -840,11 +843,27 @@ def eodhd_info(t):
     except Exception:
         return {}
 
+INFO_KEEP = ("longName", "shortName", "sector", "industry", "country", "longBusinessSummary",
+             "fullTimeEmployees", "marketCap", "currency", "exchange", "quoteType")
+def info_cache_get(t):
+    c = (_CACHE.get("_info") or {}).get(t)
+    return dict(c["d"]) if c and c.get("d") else None
+def info_cache_put(t, info):
+    if not info or not (info.get("longName") or info.get("shortName")): return
+    _CACHE.setdefault("_info", {})[t] = {"ts": _today(), "d": {k: info.get(k) for k in INFO_KEEP if info.get(k) is not None}}
+def info_cache_save():
+    try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
+    except Exception: pass
 def get_info(t, tries=2, wait=2):
-    """Bolagsinfo: EODHD först (ingen strypning), Yahoo som reserv."""
+    """Bolagsinfo: EODHD först (ingen strypning), Yahoo som reserv. Det som hämtas sparas
+    i cachen så att beskrivning, sektor och land finns kvar även när aktien inte är bland
+    de 850 som hämtas i en viss körning."""
     i = eodhd_info(t)
-    if i.get("longName"): return i
-    try: return retry(lambda: yf.Ticker(t).info or {}, tries=tries, wait=wait)
+    if i.get("longName"): info_cache_put(t, i); return i
+    try:
+        i = retry(lambda: yf.Ticker(t).info or {}, tries=tries, wait=wait)
+        if i: info_cache_put(t, i)
+        return i
     except Exception: return {}
 
 def _ts(s):
@@ -1137,6 +1156,9 @@ def rel_liquidity(recs):
             r["sc"] = round(max(0.0, r["sc"] - cut), 1); r["liq"] = round(ratio, 2); n += 1
         else:
             r["liq"] = round(ratio, 2)
+    info_cache_save()
+    _nn = sorted(t for t, r in recs.items() if not r.get("n") or r["n"] == t)
+    if _nn: print(f"NAMN SAKNAS för {len(_nn)} aktier: {', '.join(_nn)}")
     print(f"Likviditet: {n} aktier fick avdrag mot medianen på sin egen börs ({len(med)} börser)")
     return recs
 
@@ -1366,7 +1388,8 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
 
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
-            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"), "ed": (earn_date(info) if info else None),
+            "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
+            "abx": bool(info.get("longBusinessSummary")), "ed": (earn_date(info) if info else None),
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
             "inf": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
@@ -1783,8 +1806,13 @@ def main():
                 return m + (10 if float(c.iloc[-1]) > s200 else -10) + (5 if s50 > s200 else -5)
             except Exception:
                 return -9e9
-        keep = set(sorted(cand, key=pre, reverse=True)[:INFO_CAP])
+        # Aktier som redan har cachad bolagsinfo behöver inte hämtas igen – prioritera de
+        # som saknar den, så att alla får beskrivning inom några körningar.
+        cached = set((_CACHE.get("_info") or {}).keys())
+        order = sorted(cand, key=lambda t: (t in cached, -pre(t)))
+        keep = set(order[:INFO_CAP])
         keep |= {t for t in cand if "OWNED" in uni.get(t, [])}      # egna innehav alltid med
+        print(f"  bolagsinfo i cache: {len(cached & set(cand))} av {len(cand)} – hämtar {len(keep - cached)} nya")
         skipped = len(cand) - len(keep)
         cand = [t for t in cand if t in keep]
         print(f"  nyckeltal hämtas för {len(cand)} aktier med bäst teknik ({skipped} svagare hoppas över)")
@@ -1810,9 +1838,10 @@ def main():
         try:
             m0 = mk_by[uni[t][0]]
             if m0.get("mixed"):
-                cc = norm_ccy(info.get(t, {}).get("currency")) or m0["ccy"]
+                cc = norm_ccy((info.get(t) or info_cache_get(t) or {}).get("currency")) or m0["ccy"]
                 m0 = dict(m0, ccy=cc, cur=CUR_SYM.get(cc, cc))
-            r = build(t, daily[t], intr_of(intra, t), info.get(t, {}), news.get(t, []), m0)
+            inf0 = info.get(t) or info_cache_get(t) or {}
+            r = build(t, daily[t], intr_of(intra, t), inf0, news.get(t, []), m0)
             if r:
                 r["m"] = uni[t]; recs[t] = r
             else:
@@ -1862,6 +1891,7 @@ def main():
             x = make_dtx(t, intra[t], recs[t])
             if x: dtx[t] = x
     out = {"v": 2, "updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
+           "noname": sorted(t for t, r in recs.items() if not r.get("n") or r["n"] == t),
            "source": {"prices": "EODHD + Yahoo" if EODHD_KEY else "Yahoo",
                       "eodhd": dict(EODHD_STAT) if EODHD_KEY else None,
                       "coverage": {"got": COV["got"], "want": COV["want"]} if "COV" in dir() else None},
