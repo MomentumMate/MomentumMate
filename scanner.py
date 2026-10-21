@@ -757,13 +757,23 @@ def session(t):
     return "Europe/Stockholm", 540
 
 NAMES = {}
+# Bolag vars kod hos EODHD skiljer sig från Yahoos, eller som handlas över disk. Läggs alltid
+# ovanpå katalogen, oavsett om den hämtades nu eller kom ur cachen.
+MANUAL_NAMES = {"ROG.SW": "Roche Holding", "HELN.SW": "Helvetia Holding", "BALN.SW": "Baloise Holding",
+                "SMDS.L": "DS Smith", "PHNX.L": "Phoenix Group", "EVR.L": "Evraz", "DLG.L": "Direct Line",
+                "ICP.L": "Intermediate Capital", "INDV.L": "Indivior", "ROL.L": "Rotork", "SXS.L": "Spectris",
+                "TPG.L": "TP ICAP", "HYMTF": "Hyundai Motor (OTC)", "KYOCY": "Kyocera (ADR)", "AZRE": "Azure Power",
+                "CAJ": "Canon (ADR)", "ERJ": "Embraer (ADR)", "RH": "RH (Restoration Hardware)", "CWEN-A": "Clearway Energy A",
+                "SYDB.CO": "Sydbank", "TOP.CO": "Topdanmark", "SCHA.OL": "Schibsted A", "ADE.OL": "Adevinta",
+                "MOR.DE": "MorphoSys", "ARL.DE": "Aareal Bank", "SOW.DE": "Software AG", "VAR1.DE": "Varta",
+                "NEOEN.PA": "Neoen", "FLTR.IR": "Flutter Entertainment", "AHT.L": "Ashtead Group"}
 def load_names():
     """Fyller NAMES {yahoo-ticker: bolagsnamn} från EODHD:s börslistor, med cache."""
     global NAMES
     cached = _CACHE.get("_names") or {}
     if cached.get("v") == 2 and cached.get("ts") and (dt.date.today() - dt.date.fromisoformat(cached["ts"])).days < 14 and cached.get("m"):
-        NAMES = cached["m"]; return
-    if not EODHD_KEY: NAMES = cached.get("m") or {}; return
+        NAMES = dict(cached["m"]); NAMES.update(MANUAL_NAMES); return
+    if not EODHD_KEY: NAMES = dict(cached.get("m") or {}); NAMES.update(MANUAL_NAMES); return
     out = dict(cached.get("m") or {})
     # EODHD-börskod → alla Yahoo-suffix som pekar dit (LSE → .L och .IL)
     inv = {}
@@ -780,15 +790,7 @@ def load_names():
                 if ex == "US" and "-" in code: out[code.replace("-", ".")] = name   # CWEN-A ↔ CWEN.A
         except Exception as e:
             print(f"  namnlista {ex}: {str(e)[:50]}")
-    # Bolag vars kod hos EODHD skiljer sig från Yahoos, eller som handlas över disk
-    out.update({"ROG.SW": "Roche Holding", "HELN.SW": "Helvetia Holding", "BALN.SW": "Baloise Holding",
-                "SMDS.L": "DS Smith", "PHNX.L": "Phoenix Group", "EVR.L": "Evraz", "DLG.L": "Direct Line",
-                "ICP.L": "Intermediate Capital", "INDV.L": "Indivior", "ROL.L": "Rotork", "SXS.L": "Spectris",
-                "TPG.L": "TP ICAP", "HYMTF": "Hyundai Motor (OTC)", "KYOCY": "Kyocera (ADR)", "AZRE": "Azure Power",
-                "CAJ": "Canon (ADR)", "ERJ": "Embraer (ADR)", "RH": "RH (Restoration Hardware)", "CWEN-A": "Clearway Energy A",
-                "SYDB.CO": "Sydbank", "TOP.CO": "Topdanmark", "SCHA.OL": "Schibsted A", "ADE.OL": "Adevinta",
-                "MOR.DE": "MorphoSys", "ARL.DE": "Aareal Bank", "SOW.DE": "Software AG", "VAR1.DE": "Varta",
-                "NEOEN.PA": "Neoen", "FLTR.IR": "Flutter Entertainment", "AHT.L": "Ashtead Group"})
+    out.update(MANUAL_NAMES)
     if out:
         NAMES = out
         _CACHE["_names"] = {"v": 2, "ts": _today(), "m": out}

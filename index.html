@@ -71,7 +71,9 @@ a{color:inherit}
 .bar{height:4px;background:var(--bd)}.bar i{display:block;height:100%;background:linear-gradient(90deg,#8a5a12,#ffd166)}
 .tag{background:linear-gradient(135deg,#d4a537,#ffd166);color:#1a1200;font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;margin-left:6px}
 .d{display:none;padding:0 12px 12px;border-top:1px solid var(--bd)}.c.o .d{display:block}
-.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.g div{background:#17130b;border-radius:8px;padding:6px 8px}.g b{display:block;font-size:14px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}.g3 div{background:#17130b;border:1px solid var(--bd);border-radius:12px;padding:10px 8px;text-align:center}.g3 small{display:block;color:var(--mu);font-size:11px}.g3 b{display:block;font-size:20px;margin-top:2px}
+.cvin{margin:10px 0 4px}.cvin svg{width:100%;display:block;background:#0f0c08;border-radius:14px;border:1px solid var(--bd)}.g div{background:#17130b;border-radius:8px;padding:6px 8px}.g b{display:block;font-size:14px}
 h4{margin:12px 0 4px;font-size:12px;color:var(--ac);text-transform:uppercase;letter-spacing:.5px}
 h4[data-i]{cursor:pointer}
 .k{font-size:13px;padding:2px 0}
@@ -333,7 +335,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-21-a";
+const APPV="2026-10-21-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -456,7 +458,7 @@ const coName=s=>(!s.n||s.n===s.t||s.n===s.d)?'<span style="font-style:italic;opa
    signal överst i utfällt läge – och sedan exakt samma avsnitt som på övriga sidor. */
 function card(s,i,o={}){
   const sc=s.sc,h=o.hold,p=o.p,key=h?"h:"+s.t:s.t;
-  const sub=`RSI ${s.rsi} · vol ${s.vx}×`;
+  const rk0=rankOf(s.t);const sub=`plats ${rk0||"–"} · 12-1 ${typeof s.m121==="number"?sg(s.m121,0):"–"} · ${s.a200?"över":"under"} SMA200`;
   const left=h?`<div class="n w">${f(h.w,0)}%</div>`:`<div class="n">${i}</div>`;
   const right=h?`<div class="p"><b>${kr(h.val)} kr</b><div class="${cls(h.ret)}">${sg(h.ret,1)}</div><div class="mu" style="font-size:11.5px;white-space:nowrap">${f(h.px)} ${esc(s.cur)} <span class="${cls(s.chg)}">${sg(s.chg,2)}</span></div></div>`
                 :`<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div>`;
@@ -466,25 +468,35 @@ function card(s,i,o={}){
    <h4 data-i="psig">Signal: ${SIGL[h.sig.k]} <span class="ii">ⓘ</span></h4>${h.sig.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}${h.rule?urgHTML(h.rule.k):""}
    <div class="acts"><button class="btn sm" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp mer</button><button class="btn sm ghost" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`:"";
   return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
-  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b><span class="gb" data-act="chart" data-t="${esc(s.t)}" aria-label="Graf">📈</span>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div><div class="mu">${sub}</div></div>
+  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div><div class="mu">${sub}</div></div>
   ${spark(s.sp)}${right}</div>
-  <div class="al2">${chips}${hz(s.h)}${s.al.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}${s.al.length>2?`<span class="ab">+${s.al.length-2}</span>`:""}</div>
+  <div class="al2">${chips}${(()=>{const fl2=(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k));return fl2.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")+(fl2.length>2?`<span class="ab">+${fl2.length-2}</span>`:"")})()}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,"",holdBlock)}</div>`
 }
+/* Aktiesidan – samma överallt. Byggd om 2026-10-21 för kärnmodellen: tre tal avgör allt
+   (plats, 12-1, läge mot SMA200), grafen visar var stopp, köpzon och mål ligger. Teknik-raden,
+   placeringshorisont och daghandelsfilter togs bort – de hörde till den gamla signalmotorn. */
+function daysAbove200(s){const sp=s.sp||[];if(!s.a200)return 0;let n=0;for(let i=sp.length-1;i>=0;i--){if(sp[i]>0)n++;else break}return Math.min(n,45)}
 function detail(s,mk,extra="",pre=""){
-  const crit=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
-  const n=s.dt.filter(x=>x===true).length,na=s.dt.some(x=>x==null);
-  return`<div class="d">${aboutHTML(s)}${pre}<div class="g"><div><small>Momentumpoäng</small><b>${s.sc}</b></div><div><small>52L</small><b>${f52(s,"lo")}</b></div><div><small>52H</small><b>${f52(s,"hi")}</b></div>${s&&typeof s.fs==="number"?`<div><small>Piotroski F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s&&typeof s.m121==="number"?`<div><small>Momentum 12-1</small><b class="${cls(s.m121)}">${sg(s.m121,1)}</b></div>`:""}${s&&s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}${s.strc&&s.strc.k?`<div><small>Struktur</small><b class="${s.strc.k==="upp"?"up":s.strc.k==="ned"?"dn":""}">${{upp:"Högre toppar & bottnar",ned:"Lägre toppar & bottnar",sidled:"Sidled",kil:"Smalnande",vidgande:"Vidgande"}[s.strc.k]||s.strc.k}</b></div>`:""}${typeof s.obv==="number"?`<div><small>Volymbalans</small><b class="${s.obv<-1?"dn":s.obv>0?"up":""}">${f(s.obv,1)}</b></div>`:""}${typeof s.athg==="number"?`<div><small>Under toppen</small><b class="${s.athg>25?"dn":""}">${f(s.athg,0)} %</b></div>`:""}${typeof s.ltop==="number"&&s.ltop>0?`<div><small>Lägre toppar</small><b class="${s.ltop>=4?"dn":""}">${s.ltop} v</b></div>`:""}${s&&s.ed?`<div><small>Rapportdag</small><b>${esc(s.ed)}</b></div>`:""}
-  <div><small>Vinst-tillv.</small><b>${s.eg==null?"–":s.eg+"%"}</b></div><div><small>Omsätt.-tillv.</small><b>${s.rg==null?"–":s.rg+"%"}</b></div><div><small>P/E</small><b>${s.pe??"–"}</b></div></div>
-  <h4>Teknik</h4><div class="k">${s.a200?"✅":"❌"} Över SMA200 · ${s.a50?"✅":"❌"} Över SMA50 · RSI ${s.rsi} · volym ${s.vx}× snitt · MACD ${s.macd>0?"upp":"ner"}</div>${s.sh?`<div class="mu">⚠ Kort kurshistorik (${s.nb} handelsdagar) – SMA200 saknas.</div>`:""}
-  <h4 data-i="hz">Placeringshorisont <span class="ii">ⓘ</span></h4><div class="k">${hz(s.h)} <span class="mu">${esc(s.hr)}</span></div>
-  <h4 data-i="signaler">Signaler <span class="ii">ⓘ</span></h4>${s.al.length?s.al.map(a=>`<div class="k">${ic(a.k)} ${esc(a.t)}</div>`).join(""):'<div class="mu">Inga aktiva signaler</div>'}
-  <h4 data-i="nyck">Nyckeltal <span class="ii">ⓘ</span></h4>
-  <div class="k">P/E ${s.pe??"–"} · P/B ${s.pb??"–"} · direktavkastning ${s.dy??"–"} %</div>
-  <div class="mu" style="font-size:11.5px">Visas som information. De styr varken poäng eller förslag.</div>
-  <h4 data-i="dag">Daghandelsfilter (${n}/5) <span class="ii">ⓘ</span></h4>${crit.map((c,j)=>`<div class="k">${s.dt[j]==null?"➖":s.dt[j]?"✅":"⬜"} ${c}</div>`).join("")}${na?'<div class="mu">➖ = kan inte bedömas (ingen pre-market-data för börsen, eller före öppning).</div>':""}
+  const rk=rankOf(s.t),tot=rankMap().n,R=rulesOf0({rules:{}}),tp=tradePlan(s,R);
+  const flags=(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k));
+  const st=s.strc&&s.strc.k,stl={upp:"Högre toppar & bottnar",ned:"Lägre toppar & bottnar",sidled:"Sidled",kil:"Smalnande",vidgande:"Vidgande"}[st];
+  return`<div class="d">${aboutHTML(s)}${pre}
+  <div class="cvin" data-cv="${esc(s.t)}"><div class="empty" style="padding:30px 0">Laddar graf…</div></div>
+  <div class="g3"><div><small>Plats</small><b class="${rk&&rk<=10?"up":""}">${rk||"–"}<span class="mu" style="font-size:11px"> / ${tot}</span></b></div><div><small>12-1-momentum</small><b class="${cls(s.m121)}">${typeof s.m121==="number"?sg(s.m121,0):"–"}</b></div><div><small>Mot SMA200</small><b class="${s.a200?"up":"dn"}">${s.sh?"kort historik":s.a200?"över":"under"}</b></div></div>
+  ${tp?`<div class="mu" style="font-size:12px;margin:6px 0 2px"><b style="color:var(--tx)">Handelsplan:</b> köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)} · stopp <b class="dn">${f(tp.stop,2)}</b> · mål <b class="up">${f(tp.t1,2)}</b> · R:R <b class="${tp.rr<2?"dn":""}">${f(tp.rr,1)}:1</b> <span class="lnk" data-act="plansheet" data-t="${esc(s.t)}">detaljer ›</span></div>`:""}
+  <div class="g" style="margin-top:8px"><div><small>Momentumpoäng</small><b>${s.sc}</b></div>${stl?`<div><small>Struktur</small><b class="${st==="upp"?"up":st==="ned"?"dn":""}" style="font-size:12.5px">${stl}</b></div>`:""}${s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}<div><small>52 veckor</small><b style="font-size:12.5px">${f52(s,"lo")} – ${f52(s,"hi")}</b></div>${typeof s.fs==="number"?`<div><small>F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s.ed?`<div><small>Rapport</small><b>${esc(s.ed)}</b></div>`:""}</div>
+  ${flags.length?`<div class="al" style="margin:6px 0">${flags.map(a=>`<span class="ab ${a.k}" title="${esc(a.t)}">${ic(a.k)}${shortA(a)}</span>`).join("")}</div>${flags.map(a=>`<div class="k mu" style="font-size:12px">${ic(a.k)} ${esc(a.t)}</div>`).join("")}`:""}
   <details class="nwd"><summary>Nyheter (${(D.news[s.t]||[]).length})</summary>${newsList(s.t)}</details>
-  <div class="acts"><button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>${extra||`<button class="btn sm ghost" data-go="#/stock/${encodeURIComponent(s.t)}">Öppna sida</button>`}</div></div>`
+  <div class="acts"><button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>${extra||`<button class="btn sm ghost" data-go="#/stock/${encodeURIComponent(s.t)}">Öppna sida</button>`}<button class="btn sm ghost" data-go="#/chart/${encodeURIComponent(s.t)}">Stor graf</button></div></div>`
+}
+/* Fyll grafplatserna i utfällda kort när de blir synliga */
+async function fillCharts(root){
+  const els=[...(root||document).querySelectorAll(".c.o .cvin[data-cv], .cvin[data-cv].now")];
+  for(const el of els){if(el.dataset.done)continue;el.dataset.done="1";const t=el.dataset.cv,s=S[t];if(!s)continue;
+    try{const h=await loadHist(t);const out=cvSvg(s,h,"6m",{candle:true,vol:false,sma:true,sr:true,plan:true,swing:true});
+      el.innerHTML=out?out.svg:'<div class="mu" style="padding:10px 0">Graf saknas – kurshistoriken byggs av skanningen.</div>';el.classList.add("cv")}
+    catch(e){el.innerHTML='<div class="mu">Grafen kunde inte ritas.</div>'}}
 }
 
 /* ---------- VY-RAMVERK ---------- */
@@ -494,7 +506,7 @@ const banner=()=>DEMO?`<div class="banner">${OLD?"Gammalt dataformat – kör sc
 let tk=0;
 function stopTicker(){cancelAnimationFrame(tk)}
 function startTicker(){stopTicker();const el=$("#tkin");if(!el)return;const h=el.scrollHeight/2;if(h<20)return;let y=0;const step=()=>{y+=.3;if(y>=h)y=0;el.style.transform=`translateY(${-y}px)`;tk=requestAnimationFrame(step)};tk=requestAnimationFrame(step)}
-function view(html){stopTicker();$("#app").innerHTML=html;startTicker()}
+function view(html){stopTicker();$("#app").innerHTML=html;startTicker();setTimeout(()=>fillCharts(),30)}
 function setNav(a){$$("#nav a").forEach(x=>x.classList.toggle("on",x.dataset.n===a))}
 function route(keep){
   if(!D)return;const y=window.scrollY;
@@ -602,7 +614,7 @@ function mstats(k){const r=D.rank[k];if(!r)return null;const L=r.mom.map(t=>S[t]
 function vDesk(){
   if(Ui.reorder){reorderView();return}
   const ms=orderedMkts(),lf=Object.keys((D.stats&&D.stats.list_fallback)||{});
-  view(`${topbar("Börsdesk",true,topBtn(`data-i="deskhelp"`,'<span class="ii">ⓘ</span>',"Info"))}${lf.length?`<div class="stat SELL" style="margin-top:0"><b>⚠ BOLAGSLISTOR</b>Skannern kunde inte hämta aktielistan för ${lf.map(k=>esc(MK(k).n)).join(", ")} och använde en reservlista – nyligen tillagda bolag kan saknas.</div>`:""}${dropdown("ddmk","Alla marknader",[{html:"🌍 Alla marknader",on:true,attrs:`data-go="#/desk"`},{sep:true}].concat(ms.filter(m=>m.k!=="ALL").map(m=>({html:`${m.flag} ${esc(m.n)}`,attrs:`data-go="#/desk/${m.k}"`}))).concat([{sep:true},{html:"＋ Lägg till börs",attrs:`data-act="addx"`},{html:"↕ Ändra ordning",attrs:`data-act="reorder"`}]),{icon:"globe"})}
+  view(`${topbar("Börsdesk",true,topBtn(`data-act="deskinfo"`,'<span class="ii">ⓘ</span>',"Info"))}${lf.length?`<div class="stat SELL" style="margin-top:0"><b>⚠ BOLAGSLISTOR</b>Skannern kunde inte hämta aktielistan för ${lf.map(k=>esc(MK(k).n)).join(", ")} och använde en reservlista – nyligen tillagda bolag kan saknas.</div>`:""}${dropdown("ddmk","Alla marknader",[{html:"🌍 Alla marknader",on:true,attrs:`data-go="#/desk"`},{sep:true}].concat(ms.filter(m=>m.k!=="ALL").map(m=>({html:`${m.flag} ${esc(m.n)}`,attrs:`data-go="#/desk/${m.k}"`}))).concat([{sep:true},{html:"＋ Lägg till börs",attrs:`data-act="addx"`},{html:"↕ Ändra ordning",attrs:`data-act="reorder"`}]),{icon:"globe"})}
   ${ms.map(m=>{const st=mstats(m.k);if(!st)return"";return`<div class="mod" data-go="#/desk/${m.k}"><div class="mh"><div class="ico fg">${m.flag}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div>
    <div class="mu">${st.r.all.length} aktier · snittpoäng topp 25: <b style="color:var(--tx)">${f(st.av,1)}</b> · över SMA200: ${st.tr}% · ${st.dc} daghandel</div>
    ${st.L.slice(0,3).map(s=>`<div class="sr"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`}).join("")}
@@ -614,13 +626,13 @@ function vMarket(k){
   let body="";
   if(tab==="mom"){let L=st.L;const list=Ui.dt?L.filter(x=>x.dok):L;body=`<div class="chips" style="margin-bottom:8px"><span class="chip${Ui.dt?" on":""}" data-act="dtf">⚡ Endast daghandel</span></div>`+(list.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga daghandelskandidater just nu.</div>')}
   else{const A=r.all.map(t=>S[t]).filter(Boolean),n=Ui.shown[k]||40;body=`<div class="mu" style="margin:0 2px 8px">Alla ${A.length} aktier, sorterade efter momentumpoäng.</div>`+A.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true})).join("")+(A.length>n?`<button class="btn ghost wide" data-act="more" data-k="${k}">Visa fler (${A.length-n})</button>`:"")}
-  view(`${topbar(m.flag+" "+esc(m.n),true,topBtn(`data-i="deskhelp"`,'<span class="ii">ⓘ</span>',"Info"))}${dropdown("ddmk",esc(m.n),[{html:"🌍 Alla marknader",attrs:`data-go="#/desk"`},{sep:true}].concat(orderedMkts().filter(x=>x.k!=="ALL").map(x=>({html:`${x.flag} ${esc(x.n)}`,on:x.k===k,attrs:`data-go="#/desk/${x.k}"`}))),{icon:"globe"})}
+  view(`${topbar(m.flag+" "+esc(m.n),true,topBtn(`data-act="deskinfo"`,'<span class="ii">ⓘ</span>',"Info"))}${dropdown("ddmk",esc(m.n),[{html:"🌍 Alla marknader",attrs:`data-go="#/desk"`},{sep:true}].concat(orderedMkts().filter(x=>x.k!=="ALL").map(x=>({html:`${x.flag} ${esc(x.n)}`,on:x.k===k,attrs:`data-go="#/desk/${x.k}"`}))),{icon:"globe"})}
   <div class="sumx"><div class="sx-l" data-i="score"><div class="mu">Snittpoäng topp 25 · ${esc(m.n)} <span class="ii">ⓘ</span></div><div><span class="big">${f(st.av,1)}</span><span class="pill ${cls(st.cg)}">${sg(st.cg)} idag</span></div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${st.dc}</span> <span class="mu">daghandelskandidater</span></div></div>
    <div class="sx-r" data-i="trend"><div class="ring" style="--p:${st.tr}"><b>${st.tr}%</b></div><div class="mu" style="margin-top:4px">Trendstyrka <span class="ii">ⓘ</span></div></div></div>
   ${lw?`<div class="stat SELL"><b>⚠ LISTAN KAN VARA INKOMPLETT</b>Skannern kunde inte hämta bolagslistan för den här marknaden live och använde ${li?esc(li.src):"en reservlista"}. Nyligen tillagda bolag kan saknas. Slå upp saknade aktier eller lägg dem i Min bevakning.</div>`:""}
   ${lc?`<div class="stat WAIT"><b>ÄNDRING I MARKNADSLISTAN ${esc(lc.ts)}</b>${lc.added.length?"Nya: "+lc.added.map(esc).join(", "):""}${lc.added.length&&lc.removed.length?" · ":""}${lc.removed.length?"Borttagna: "+lc.removed.map(esc).join(", "):""}</div>`:""}
   ${li&&!lw?`<div class="mu" style="margin:0 2px 6px;font-size:11.5px">Aktielista: ${esc(li.src)} · ${esc(li.ts)} · ${li.n} aktier</div>`:""}
-  ${lg?`<div class="mu" style="margin:0 2px 8px">Hel börs i lätt läge: ${lg.scanned} aktier skannade, ${lg.liquid} tillräckligt likvida. De ${lg.deep} med starkast tekniska poäng får full analys. Övriga hittar du via Sök → Slå upp.</div>`:""}
+  ${lg?`<div class="mu" style="margin:0 2px 8px;font-size:11.5px">Lätt läge: ${lg.deep} av ${lg.scanned} aktier har full analys.</div>`:""}
   <div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum 25</button><button class="${tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="all">Alla</button></div>${body}${dr.length?`<details class="nwd" style="margin-top:10px"><summary>Saknas i analysen (${dr.length})</summary><div class="mu" style="margin:4px 0 8px">Yahoo saknade kursdata för dessa vid senaste skanningen, eller så har de för kort historik. De kan vara avnoterade, ha bytt ticker eller tillfälligt saknas hos Yahoo.</div>${dr.slice(0,80).map(x=>`<div class="k"><b>${esc(x[0])}</b> <span class="mu">– ${esc(x[1])}</span> <span class="lnk" data-act="lookup" data-q="${esc(x[0].replace(/\.[A-Z]{1,3}$/,""))}">Slå upp ›</span></div>`).join("")}</details>`:""}`)
 }
 
@@ -639,9 +651,8 @@ function vStock(t){
   open.add(s.t);const inP=[];P.ps.forEach(p=>{const h=p.h.find(x=>x.t===t);if(h)inP.push(p.name+": "+f(h.q,h.q%1?2:0)+" st @ "+f(h.c))});
   view(`${topbar(fl(s)+" "+esc(s.d))}${edWarn(s)}<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="plansheet" data-t="${esc(s.t)}">🎯 Handelsplan</span></div>${Ui.back?`<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="goback">↩ Tillbaka till ${esc(Ui.back.label)}</span></div>`:""}<div class="mod"><div class="mu">${esc(s.n)} · ${s.m.map(k=>esc(MK(k).n)).join(", ")}</div>
   <div><span class="big">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}">${sg(s.chg)}</span></div>
-  <div class="al">${hz(s.h)}${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}</div>${s.al.length?alerts(s):""}
-  <div class="chips" style="margin-top:8px"><span class="chip" data-act="chart" data-t="${esc(s.t)}">📈 Graf</span></div>
-  <div style="margin-top:10px">${spark(s.sp,300,60).replace('class="sp"','style="width:100%;height:60px"')}<div class="mu" style="text-align:right">Senaste 45 handelsdagarna</div></div>
+  <div class="al">${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}</div>
+
   ${inP.length?`<div class="mu" style="margin-top:8px">I portfölj → ${inP.map(esc).join(" · ")}</div>`:""}</div>
   <div class="c o" style="border:0;background:none">${detail(s,s.m[0],"")}</div>`)
 }
@@ -656,7 +667,7 @@ const INFO={
 score:()=>["Snittpoäng","<p>Medelvärdet av momentumpoängen (0–100) för de "+H.n+" aktierna i topplistan. Nu: <b>"+f(H.av,1)+"</b>.</p><p>Poängen väger <b>teknik 60 %</b> (avkastning 1 och 3 mån, SMA50/200, MACD, volym), <b>fundamentals 25 %</b> (vinst- och omsättningstillväxt, marginal) och <b>nyheter 15 %</b>.</p><p>Högt tal = starkt momentum brett i toppen. Lågt tal = även de bästa aktierna är svaga.</p><p>Pillen visar medelrörelsen sedan gårdagens stängning: <b>"+sg(H.cg)+"</b>.</p>"+F],
 graf:()=>["Poängkurvan","<p>Grafen är <b>inte en kurs över tid</b>. Varje punkt är en aktie i rankingen, från plats 25 längst till vänster till <b>plats 1 längst till höger</b> (den ljusa punkten).</p><p><b>Brant mot slutet:</b> få aktier sticker ut. <b>Jämn kurva:</b> momentumet är brett och många ligger nära toppen.</p>"],
 trend:()=>["Trendstyrka","<p>Andelen av aktierna på listan som ligger över sitt <b>200-dagars glidande medelvärde (SMA200)</b>: <b>"+H.tr+" %</b> ("+H.ab+" av "+H.n+").</p><p><b>Över 80 %:</b> uppgången vilar på en stabil långsiktig trend. <b>Under 50 %:</b> många rusar kortsiktigt men ligger under sin långa trend – en studs snarare än en etablerad uppgång, högre risk.</p>"+F],
-signaler:()=>["Signaler","<p>Appen flaggar automatiskt när något av följande inträffar:</p><p>📈 <b>SMA50-brott:</b> priset korsar 50-dagars medelvärde upp eller ner – tidigt tecken på trendskifte.</p><p>⚡ <b>RSI:</b> under 30 (översåld, möjlig studs) eller över 70 (överköpt, möjlig rekyl).</p><p>📐 <b>Fibonacci:</b> priset ligger nära en retracement-nivå (23,6/38,2/50/61,8/78,6 %) av senaste halvårets rörelse – vanliga stöd/motstånd.</p>"+F],
+signaler:()=>["Flaggor","<p>Tre slags flaggor, alla information – ingen styr rankningen:</p><p>📉 <b>Försämring:</b> volymbalansen faller, flera veckor med lägre toppar, snabbt växande avstånd till toppen, eller hög poäng med svag senaste tid. Backtestet visade att försäljning på dessa kostade 3–11 procentenheter – därför är de flaggor, inte regler.</p><p>⟷ <b>Struktur:</b> lägre toppar och bottnar (nedtrend), smalnande intervall (utbrott väntas) eller vidgande svängar.</p><p>〓 <b>Vid nivå:</b> kursen ligger inom tre procent av ett stöd eller motstånd med minst två träffar.</p><p>De tidigare flaggorna för SMA50, RSI och Fibonacci togs bort 2026-10-21 – de hörde till den gamla signalmotorn.</p>"+F],
 dag:()=>["Daghandelsfilter","<p>Aktien är en kandidat bara om <b>alla fem</b> kriterier uppfylls:</p><p>1. Pris över gårdagens high<br>2. Gårdagens stängning över SMA200<br>3. Pris över dagens pre-market high<br>4. Pris över dagens öppningskurs<br>5. Pre-market volym ≥ 50 000</p><p>➖ betyder att kriteriet inte kan bedömas (t.ex. svenska aktier saknar pre-market, eller marknaden har inte öppnat än). Dagens kandidater: <b>"+(H.dc||0)+"</b>.</p>"+F],
 hz:()=>["Placeringshorisont","<p>Varje aktie får en flagga för vilken tidshorisont som passar bäst just nu, enligt fasta regler i skannern:</p><p><b>1–3 mån:</b> starkt kortsiktigt momentum (stark 1–3 mån-avkastning, över SMA50, MACD uppåt).</p><p><b>3–6 mån:</b> etablerad uppåttrend över SMA50 och SMA200.</p><p><b>6–12 mån:</b> trenden håller och vinst/omsättning växer.</p><p><b>1–2 år:</b> långsiktig trend intakt över SMA200.</p><p><b>Avvakta:</b> ingen tydlig setup just nu.</p>"+F],
 profile:()=>["Antal innehav och stopp efter portföljstorlek","<p>Backtestet kördes på fem portföljstorlekar från 50 000 till 7 miljoner kronor.</p><p><b>Under cirka 160 000 kr:</b> 5 innehav med 25 % stopp gav 20–21 % per år mot 10 % för 20 innehav. Orsaken är Nordeas minimicourtage på 29 kr – vid små poster äter det upp avkastningen, så färre och större poster vinner.</p><p><b>Över 160 000 kr:</b> 20 innehav med 15 % stopp ger bäst riskjusterad avkastning (Sharpe 0,78–0,79) och mildast nedgång (−30 %). Fem innehav ger tre till fem procentenheter mer i avkastning men tio procentenheter djupare nedgång.</p><p><b>Ett innehav är förödande:</b> −6,4 % per år över elva år, sju förlustår och 74,6 % nedgång, trots att enskilda år gav +87 %.</p><p>Slumpvariationen mellan körningar var 2–3 procentenheter – mindre skillnader betyder inget. Gränsen vid 160 000 kr kommer av att minimicourtaget slutar dominera vid 32 222 kr per affär, gånger fem innehav.</p>"],
@@ -671,6 +682,10 @@ nyck:()=>["Nyckeltal","<p>P/E, P/B och direktavkastning visas som information om
 psig:()=>["Portföljsignaler","<p>Varje innehav granskas dagligen av regelmotorn:</p><p><b>SÄLJ:</b> minst två varningar (t.ex. under SMA200, under SMA50 med negativ MACD, RSI &gt; 78, låg momentumpoäng, kraftigt tapp, stor förlust eller överköpt efter stor vinst).</p><p><b>OMFÖRDELA:</b> innehavet väger över 30 % av portföljen.</p><p><b>BEVAKA:</b> en varningssignal.</p><p><b>KÖP MER:</b> minst tre positiva signaler (hög momentumpoäng, trend, Fibonacci i upptrend, översåld i upptrend, växande vinst).</p><p><b>BEHÅLL:</b> inga tydliga signaler.</p>"+F]
 };
 function infoSheet(k){const r=INFO[k]();sheet(`<h3>${r[0]}</h3>${r[1]}`)}
+/* Flikat informationsblad per sida: tabs = [[nyckel i INFO, fliketikett], …] */
+function infoTabs(title,tabs,cur){
+  cur=cur||tabs[0][0];const r=INFO[cur]();
+  sheet(`<h3>${esc(title)}</h3><div class="tabs" style="margin:0 0 10px">${tabs.map(t=>`<button type="button" class="${t[0]===cur?"on":""}" data-act="infotab" data-title="${esc(title)}" data-tabs="${esc(JSON.stringify(tabs))}" data-k="${t[0]}">${esc(t[1])}</button>`).join("")}</div><h4 style="margin:4px 0 6px">${r[0]}</h4>${r[1]}`)}
 function pickSheet(pid){
   sheet(`<h3>Lägg till aktie</h3><div class="srch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="pq" placeholder="Sök aktie eller ticker…" autocomplete="off" autocapitalize="off"></div><div id="pres" style="margin-top:6px"></div><div class="mu" style="padding:12px 2px">Hittar du inte aktien? <span class="lnk" data-act="manual" data-pid="${pid}">Lägg in manuellt ›</span></div>`,()=>{
     const i=$("#pq");i.oninput=()=>{const r=search(i.value,12);$("#pres").innerHTML=i.value.trim()?(r.length?r.map(s=>`<div class="sr" data-act="add" data-t="${esc(s.t)}" data-pid="${pid}"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b></div><div class="mu">${esc(s.n)}</div></div><div class="p"><b>${s.px} ${s.cur}</b></div></div>`).join(""):noHitCard(i.value)):""};setTimeout(()=>i.focus(),100)})
@@ -790,12 +805,16 @@ function act(a,d){
     case"cvlay":CV.lay[d.k]=!CV.lay[d.k];chartView(CV.t);break;
     case"cash":cashSheet(d.pid);break;
     case"rebdone":{const p=getP(d.pid);if(p&&p.reb){p.reb.last=todayISO();save();route(true);toast("Ombalansering noterad")}break}
-    case"proprefresh":refreshSheet(d.pid);break;
+    case"proprefresh":{const p=getP(d.pid);if(!p)break;Ui.pcol[d.pid]=false;try{localStorage.setItem("mm_pcol",JSON.stringify(Ui.pcol))}catch(e){}refreshAll(d.pid,p.cashHint||0,!!p.cashIncl);break}
+    case"propcash":refreshSheet(d.pid);break;
     case"rulesedit":rulesSheet(d.pid);break;
     case"rulesell":{const p=getP(d.pid);if(!p)break;const a=rulesOf(calc(p)).find(x=>x.r.h.t===d.t);if(!a){toast("Signalen gäller inte längre");route(true);break}
       const h=a.r.h,s0=S[h.t];execSheet(p,{t:h.t,a:"SÄLJ",q:a.q,px:a.r.px,ccy:s0?s0.ccy:h.ccy,n:h.n,why:a.why},{given:todayISO(),title:"Regelsignal: "+RLAB[a.k],after:(pp,q,pr)=>{if(a.k==="VINST")tpStage(pp,h.t,pr)}});break}
     case"rulebuy":{const p=getP(d.pid),s0=S[d.t];if(!p||!s0)break;execSheet(p,{t:d.t,a:"KÖP",q:+d.q,px:s0.px,ccy:s0.ccy,n:s0.n,why:"Ersättare enligt regelsignal (poäng "+s0.sc+", RSI "+s0.rsi+")"},{given:todayISO(),title:"Ersättningsköp"});break}
-    case"propinfo":infoSheet("disc");break;
+    case"propinfo":infoTabs("Portfölj",[["psig","Signaler"],["valid","Regler"],["disc","Förslag"],["profile","Storlek"],["costmode","Kostnad"]]);break;
+    case"infotab":{const tabs=JSON.parse(d.tabs);infoTabs(d.title,tabs,d.k);break}
+    case"deskinfo":infoTabs("Börsdesk",[["deskhelp","Rankning"],["signaler","Flaggor"],["sr","Grafen"],["nyck","Nyckeltal"]]);break;
+    case"dtinfo":infoTabs("Daghandel",[["dtstat","Läget nu"],["dag","Kriterier"],["plan","Handelsplan"]]);break;
     case"proptoggle":{if(d&&d.pid==null)break;const mod=a_el(d.pid);if(!mod)break;const body=mod.querySelector(".pbody"),ch=mod.querySelector(".pchev"),nowCol=!body.hidden;body.hidden=nowCol;ch.textContent=nowCol?"▾":"▴";Ui.pcol[d.pid]=nowCol;try{localStorage.setItem("mm_pcol",JSON.stringify(Ui.pcol))}catch(e){}break}
     case"psexp":{const p=getP(d.pid);if(p){const all=p.h.every(h=>open.has("h:"+h.t));p.h.forEach(h=>all?open.delete("h:"+h.t):open.add("h:"+h.t));route(true)}break}
     case"pfreorder":Ui.pfReorder=true;route();break;
@@ -832,7 +851,7 @@ document.addEventListener("click",e=>{
   const i=e.target.closest("[data-i]");if(i&&INFO[i.dataset.i]){infoSheet(i.dataset.i);return}
   if(e.target.classList.contains("bk")){closeSheet();return}
   if(e.target.closest("#sh .pn"))return;
-  const r=e.target.closest(".c .r");if(r){const c=r.parentElement;c.classList.toggle("o");const t=c.dataset.t;c.classList.contains("o")?open.add(t):open.delete(t)}
+  const r=e.target.closest(".c .r");if(r){const c=r.parentElement;c.classList.toggle("o");const t=c.dataset.t;c.classList.contains("o")?open.add(t):open.delete(t);if(c.classList.contains("o"))fillCharts(c)}
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="hq"){const q=e.target.value;$("#hres").innerHTML=q.trim()?resHtml(q,6)+(search(q,7).length>6?`<div class="sr" data-go="#/search/${encodeURIComponent(q)}"><div class="m"><b style="color:var(--gd)">Visa alla träffar ›</b></div></div>`:""):""}
@@ -868,7 +887,7 @@ function usHint(){
 function dcard(s,i,near){
   const need=CRIT.filter((c,j)=>s.dt[j]===false),wait=CRIT.filter((c,j)=>s.dt[j]==null),x=D.dtx&&D.dtx[s.t],m=MK(s.m[0]);
   return`<div class="c${open.has("d:"+s.t)?" o":""}${i<=3&&!near?" t3":""}" data-t="d:${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b><span class="gb" data-act="chart" data-t="${esc(s.t)}" aria-label="Graf">📈</span>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
+  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
   ${spark(intraCloses(s.t)||s.sp)}<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>
   <div class="al2"><span class="mu">${m.flag} ${esc(m.n)}</span>${x?`<span class="sig ${STC[x.st.k]}">${STL[x.st.k]}</span>`:""}${need.length?`<span class="ab">Saknar: ${esc(need[0])}${need.length>1?" +"+(need.length-1):""}</span>`:""}${!need.length&&wait.length?`<span class="ab">Ej bedömbart: ${esc(wait[0])}${wait.length>1?" +"+(wait.length-1):""}</span>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,s.dts||0)}%"></i></div>${detail(s,s.m[0],`<button class="btn sm" data-go="#/daytrade/${enc(s.t)}">Handla idag ›</button>`)}</div>`
@@ -879,7 +898,7 @@ function vDT(){
   if(L>=5){C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,25);N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,Math.max(0,25-C.length))}
   else single=SL.filter(s=>inMkt(s,mk)&&!s.t.endsWith("-USD")&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||b.dts-a.dts).slice(0,25);
   const mn=MK(mk);
-  view(`${topbar("Daghandel",true,topBtn(`data-i="dtstat"`,'<span class="ii">ⓘ</span>',"Info"))}
+  view(`${topbar("Daghandel",true,topBtn(`data-act="dtinfo"`,'<span class="ii">ⓘ</span>',"Info"))}
   ${dropdown("dddt",esc(mn.n),orderedMkts().map(m=>({html:`${m.flag} ${esc(m.n)}`,on:m.k===mk,attrs:`data-act="dtm" data-k="${m.k}"`})),{icon:"bolt"})}<div>
   <div class="chips" style="margin:8px 0;align-items:center"><span class="mu" style="align-self:center">Strikthet:</span>${[[5,"Alla 5"],[4,"Minst 4"],[3,"Minst 3"]].map(x=>`<span class="chip${x[0]===L?" on":""}" data-act="dtl" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>
   ${ps?`<div class="mod" data-go="#/daytrade/${enc(pk)}"><div class="mh"><div class="ico">★</div><h2>DIN AKTIE IDAG</h2><span class="go">›</span></div><div><b style="font-size:18px">${esc(ps.d)}</b> <span class="mu">${esc(ps.n)}</span></div><div><b>${ps.px} ${ps.cur}</b> <span class="${cls(ps.chg)}">${sg(ps.chg)}</span>${px?` <span class="sig ${STC[px.st.k]}">${STL[px.st.k]}</span>`:""}</div>${px?`<div class="mu" style="margin-top:4px">${esc(px.st.t)}</div>`:""}</div>`:""}
@@ -913,7 +932,7 @@ function vDTx(t){
    ${(s.sent||0)<0?'<div class="stat SELL" style="margin-top:8px"><b>VARNING</b>Negativ nyhetsbild – högre risk. Överväg att hoppa över eller minska position.</div>':""}</div>
   <div class="mod"><div class="mh"><div class="ico">⚑</div><h2>FLAGGOR IDAG</h2></div>${(x.flags||[]).length?x.flags.map(f=>`<div class="fl"><em class="${f.k==="BUY"?"B":"S"}">${f.k==="BUY"?"K":"S"}</em><div><b>${hmf.format(new Date(x.bars[f.i][0]*1000))}</b> ${f.k==="BUY"?"Köp":"Sälj"} @ ${x.bars[f.i][4].toFixed(2)} – ${esc(f.t)}</div></div>`).join(""):'<div class="mu">Inga signaler hittills idag.</div>'}</div>
   <div class="mod"><div class="mh"><div class="ico">▤</div><h2>NYHETER</h2></div>${newsList(t)}</div>
-  <div class="mu" style="text-align:center;padding:4px 10px 10px">${D.liveAt?"Live-data uppdaterad "+hhmm(D.liveAt)+" (kan vara fördröjd).":"Data från senaste skanningen."} Detta är en modell för utbildning, inte rådgivning. Lägg order i din banks handelsplattform.</div>`);liveAttach(t)
+  <div class="mu" style="text-align:center;padding:4px 10px 10px;font-size:11.5px">${D.liveAt?"Live "+hhmm(D.liveAt):"Senaste skanning"} · modell, ingen rådgivning</div>`);liveAttach(t)
 }
 /* ---------- Rotation mellan innehav ---------- */
 /* Rotationsförslagen (stagnation → breakout) byggde på samma omätta heuristik som den gamla
@@ -1712,7 +1731,7 @@ function histChart(r,rng,up,lv){
 }
 const TZS={".ST":"Europe/Stockholm",".CO":"Europe/Copenhagen",".OL":"Europe/Oslo",".DE":"Europe/Berlin",".PA":"Europe/Paris",".L":"Europe/London",".AS":"Europe/Amsterdam",".HE":"Europe/Helsinki",".SW":"Europe/Zurich",".MC":"Europe/Madrid",".MI":"Europe/Rome"};
 function tzOf(t){if(/-USD$/.test(t))return undefined;for(const k in TZS)if(t.endsWith(k))return TZS[k];return"America/New_York"}
-function histFmt(ts,rng){if(!ts)return"";const d=new Date(ts*1000),tz=tzOf(HCUR.t);
+function histFmt(ts,rng,t){if(!ts)return"";const d=new Date(ts*1000),tz=tzOf(t||HCUR.t||"");
   try{return(rng==="1d"||rng==="1w")?d.toLocaleString("sv-SE",{timeZone:tz,month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("sv-SE",{timeZone:tz,year:"numeric",month:"short",day:"numeric"})}catch(e){return""}}
 /* ====== HELSIDESGRAF ======
    Ljusstakar (när OHLC finns i historiken, annars linje), volym, SMA50/200, stöd- och
@@ -1738,19 +1757,19 @@ function chartView(t,rng){
   </div>`);
   drawCV();
 }
-async function drawCV(){
-  const t=CV.t,s=S[t],h=await loadHist(t);if(CV.t!==t||!$("#cvbody"))return;
-  const r=histSlice(h,s,CV.rng);
-  if(!r){$("#cvbody").innerHTML='<div class="empty">Ingen kurshistorik för det här intervallet än.</div>';return}
-  const n=r.p.length,W=360,Hp=230,Hv=CV.lay.vol?46:0,pt=12,pb=22,H=Hp+Hv+pb;
+/* Ritar handelsgrafen som SVG-sträng. Används både av helsidesvyn och inline i varje aktiekort. */
+function cvSvg(s,h,rng,lay,R){
+  const r=histSlice(h,s,rng);if(!r)return null;
+  lay=lay||CV.lay;
+  const n=r.p.length,W=360,Hp=230,Hv=lay.vol?46:0,pt=12,pb=22,H=Hp+Hv+pb;
   // OHLC för samma fönster, om den finns (bara för dagsintervall)
   const full=h&&h["2y"]&&h.o&&h.o.length===h["2y"].p.length;
-  const daily=["1m","3m","6m","1y","2y"].includes(CV.rng)&&full;
+  const daily=["1m","3m","6m","1y","2y"].includes(rng)&&full;
   const off=daily?h["2y"].p.length-n:0;
   const O=daily?h.o.slice(off):null,HI=daily?h.hi.slice(off):null,LO=daily?h.lo.slice(off):null,V=daily?h.v.slice(off):null;
-  const candle=CV.lay.candle&&daily&&n<=260;
-  const lv=CV.lay.sr?((s.sr||[]).filter(z=>z&&z.lvl>0)):[];
-  const tp=CV.lay.plan?tradePlan(s,rulesOf0({rules:{}})):null;
+  const candle=lay.candle&&daily&&n<=260;
+  const lv=lay.sr?((s.sr||[]).filter(z=>z&&z.lvl>0)):[];
+  const tp=lay.plan?tradePlan(s,R||rulesOf0({rules:{}})):null;
   // skala: kurs + nivåer + planlinjer i närheten
   let vals=r.p.slice();if(candle)vals=vals.concat(HI,LO);
   vals=vals.concat(lv.filter(z=>Math.abs(z.dist)<=25).map(z=>z.lvl));
@@ -1768,7 +1787,7 @@ async function drawCV(){
     g+=L(tp.stop,"#e2a07a","Stopp")+L(tp.t1,"#f0d070","Mål 1");
     if(tp.eLo>=mn&&tp.eHi<=mx)g+=`<rect class="cfade" x="6" y="${Y(tp.eHi)}" width="${W-12}" height="${Math.max(2,Y(tp.eLo)-Y(tp.eHi))}" fill="#9ad4a0" opacity=".18"/><text class="cfade" x="${W-9}" y="${Y(tp.eHi)-3}" fill="#9ad4a0" font-size="8.5" text-anchor="end">Köpzon</text>`}
   // SMA
-  if(CV.lay.sma&&daily){const base=h["2y"].p,s50=smaSeries(base,50).slice(off),s200=smaSeries(base,200).slice(off);
+  if(lay.sma&&daily){const base=h["2y"].p,s50=smaSeries(base,50).slice(off),s200=smaSeries(base,200).slice(off);
     const path=(arr,col)=>{let d="",st=false;arr.forEach((v,i)=>{if(v==null||v<mn||v>mx){st=false;return}d+=(st?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" ";st=true});return d?`<path class="cfade" d="${d}" fill="none" stroke="${col}" stroke-width="1.2" opacity=".85"/>`:""};
     g+=path(s50,"#8fb4ff")+path(s200,"#c9a85a")}
   // kurs: ljusstakar eller linje
@@ -1778,15 +1797,22 @@ async function drawCV(){
   else{let d="";r.p.forEach((v,i)=>{d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" "});
     const up=r.p[n-1]>=r.p[0];g+=`<path class="cpath" d="${d}" fill="none" stroke="${up?"#3fb67a":"#e86b5c"}" stroke-width="1.8"/>`}
   // svängpunkter
-  if(CV.lay.swing&&n>=20){const sw=swings(r.p,5);
+  if(lay.swing&&n>=20){const sw=swings(r.p,5);
     sw.hi.slice(-6).forEach(i=>{g+=`<circle class="cfade" cx="${X(i)}" cy="${Y(r.p[i])-5}" r="2.4" fill="#e86b5c"/>`});
     sw.lo.slice(-6).forEach(i=>{g+=`<circle class="cfade" cx="${X(i)}" cy="${Y(r.p[i])+5}" r="2.4" fill="#3fb67a"/>`})}
   // volym
-  if(CV.lay.vol&&daily&&V){const vm=Math.max(...V)||1,y0=Hp+Hv+4;
+  if(lay.vol&&daily&&V){const vm=Math.max(...V)||1,y0=Hp+Hv+4;
     for(let i=0;i<n;i++){const hgt=V[i]/vm*(Hv-6),up=i?r.p[i]>=r.p[i-1]:true;g+=`<rect class="cfade" x="${X(i)-Math.max(1,(W-12)/n*0.35)}" y="${y0-hgt}" width="${Math.max(1.5,(W-12)/n*0.7)}" height="${hgt}" fill="${up?"#3fb67a":"#e86b5c"}" opacity=".5"/>`}}
   // hårkors
   g+=`<line id="cvcl" x1="0" x2="0" y1="${pt}" y2="${Hp}" stroke="#d4b86a" stroke-width="1" stroke-dasharray="2 2" style="display:none"/><circle id="cvdot" r="3.5" fill="#d4b86a" style="display:none"/>`;
-  $("#cvbody").innerHTML=`<svg id="cvsvg" viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],CV.rng):""}</span><span>${r.t?histFmt(r.t[n-1],CV.rng):"nu"}</span></div>`;
+  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],rng,s.t):""}</span><span>${r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
+}
+async function drawCV(){
+  const t=CV.t,s=S[t],h=await loadHist(t);if(CV.t!==t||!$("#cvbody"))return;
+  const out=cvSvg(s,h,CV.rng,CV.lay);
+  if(!out){$("#cvbody").innerHTML='<div class="empty">Ingen kurshistorik för det här intervallet än.</div>';return}
+  const{r,n,X,Y,O,HI,LO,candle,tp,daily}=out;
+  $("#cvbody").innerHTML=out.svg.replace("<svg ",'<svg id="cvsvg" ');
   const a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
   $("#cvhead").innerHTML=`<span class="big" id="cvpr">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu" id="cvdt">${r.t?histFmt(r.t[n-1],CV.rng):""}</span>${srHTML(s)}`;
   const st=s.strc&&s.strc.k,stl={upp:"Högre toppar och bottnar – upptrend",ned:"Lägre toppar och bottnar – nedtrend",sidled:"Sidled",kil:"Smalnande intervall",vidgande:"Vidgande svängar"}[st];
@@ -1879,8 +1905,7 @@ function planStaleHTML(p){
     const age=pl.made?Math.round((Date.now()-pl.made)/36e5):null;
     return`<div class="stat BAD" style="margin:0 0 8px"><b>⚠ FÖRSLAGET ÄR INAKTUELLT</b>
      Det räknades på skanningen ${hhmm(pl.scan)} UTC${age!=null?` (${age<48?age+" timmar":Math.round(age/24)+" dagar"} sedan)`:""}. En nyare skanning finns: ${hhmm(D.updated)} UTC. Kurser och signaler nedan gäller alltså inte längre.
-     <div class="acts"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Räkna om på dagens data</button></div>
-     <span class="mu" style="font-size:11px">Rubriken “Förslag &amp; signaler” fäller bara ut panelen – den räknar inte om. Det gör bara 🔄.</span></div>`}
+     <span class="mu" style="font-size:11px">Tryck på den röda knappen i rubriken – den hämtar färska data, räknar om förslag och signaler och fäller ut panelen.</span></div>`}
   const st=planStale(p);if(!st)return"";
   return`<div class="stat WAIT" style="margin:0 0 8px"><b>⏱ KURSERNA HAR RÖRT SIG</b>
    Förslaget räknades på kurserna när det skapades. ${st.n} av ${st.tot} rader har rört sig minst 1 % sedan dess.
@@ -1944,7 +1969,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const act=items.filter(i=>i.a!=="BEHÅLL"),tot0=(pl&&pl.total)||act.length,done=Math.max(0,tot0-act.length),sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
   const stale=!!(pl&&pl.scan&&D.updated&&D.updated>pl.scan);
   return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7"/></svg></div><h2 class="nowrap">FÖRSLAG &amp; SIGNALER</h2><span class="rfb${stale?" stale":""}" data-act="proprefresh" data-pid="${p.id}" title="${stale?"Inaktuellt – uppdatera":"Uppdatera förslag och signaler"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></span><span class="pchev">${col?"▾":"▴"}</span></div>
-   <div class="psum mu" style="margin:-2px 0 6px;font-size:12px"><span>${stale?'<b class="dn">Inaktuellt – tryck på den röda knappen.</b> ':""}Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr((pl.cash||0)+sS-sB)} kr`:""}${pl?`<br><b style="color:var(--tx)">${done}/${tot0} genomförda</b>`:""}</span></div>
+   <div class="psum mu" style="margin:-2px 0 6px;font-size:12px"><span>${stale?'<b class="dn">Inaktuellt – tryck på den röda knappen så uppdateras allt.</b> ':""}Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr((pl.cash||0)+sS-sB)} kr`:""}${pl?`<br><b style="color:var(--tx)">${done}/${tot0} genomförda</b>`:""}</span></div>
    <div class="pbody"${col?" hidden":""}>
    ${rulesLine(p,c)}
    ${pl?`<div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
@@ -2057,7 +2082,7 @@ function rebSheet(pid){const p=getP(pid);if(!p)return;const cur=(p.reb&&p.reb.fr
   <button class="btn wide" id="rfgo">Spara</button>`,()=>{
     $("#rfgo").onclick=()=>{const f=$("#rf").value;if(!f)delete p.reb;else p.reb={freq:f,last:(p.reb&&p.reb.last)||todayISO()};save();closeSheet();route(true);toast(f?"Påminnelse sparad":"Påminnelse avstängd")}})}
 const VALID=`<div class="mu" style="font-size:11.5px;margin:0 0 8px">🔬 Reglerna nedan är <span class="lnk" data-i="valid">validerade i backtest</span></div>`;
-function rulesLine(p,c){return twinWarn(p)+planStaleHTML(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+corrLine(p,c):"")+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="acts" style="margin:0 0 6px"><button class="btn sm" data-act="proprefresh" data-pid="${p.id}">🔄 Uppdatera förslag & signaler</button></div>`}
+function rulesLine(p,c){return twinWarn(p)+planStaleHTML(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+corrLine(p,c):"")+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="mu" style="font-size:11.5px;margin:0 0 8px">Belopp att fördela: <b style="color:var(--tx)">${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b> · <span class="lnk" data-act="propcash" data-pid="${p.id}">ändra</span></div>`}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3>
@@ -2129,7 +2154,7 @@ async function refreshAll(pid,cash,incl){
   await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{})]);regimeCheck();
   const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
   [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl})});
-  save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
+  p.cashIncl=!!incl;save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
 }
 function refreshSheet(pid){
   const p=getP(pid);if(!p)return;const ag=D.updated?Math.round((Date.now()-Date.parse(D.updated))/3600000):null;
