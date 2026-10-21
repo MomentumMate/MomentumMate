@@ -31,12 +31,12 @@ NEWS_KEEP = 6
 # TICKERLISTOR
 # ----------------------------------------------------------------------------------
 OMXS_MID = [  # OMX Stockholm Mid Cap och större Small Cap – nordisk motsvarighet till S&P 400/600.
-    "LAGR-B.ST","BUFAB.ST","NOLA-B.ST","THULE.ST","VITR.ST","BIOT.ST","AAK.ST","ADDT-B.ST","BEIJ-B.ST","CTT.ST",
+    "LAGR-B.ST","BUFAB.ST","NOLA-B.ST","THULE.ST","VITR.ST","AAK.ST","ADDT-B.ST","BEIJ-B.ST","CTT.ST",
     "FAG.ST","GARO.ST","HEM.ST","INSTAL.ST","LIAB.ST","MEKO.ST","MYCR.ST","NCAB.ST","NETEL.ST","NIBE-B.ST",
     "OEM-B.ST","PACT.ST","RVRC.ST","SECT-B.ST","SYSR.ST","TROAX.ST","VIMIAN.ST","XVIVO.ST","BICO.ST","CIBUS.ST",
-    "COOR.ST","DOM.ST","EOLU-B.ST","FNOX.ST","HOFI.ST","HTRO.ST","IVSO.ST","JOMA.ST","KAR.ST","LIME.ST",
-    "MCOV-B.ST","MIPS.ST","MMGR-B.ST","MTRS.ST","NEWA-B.ST","NOBI.ST","NP3.ST","PDX.ST","PENG-B.ST","PLAZ-B.ST",
-    "QLINEA.ST","RAY-B.ST","SAGA-B.ST","SDIP-B.ST","SEZI.ST","SOBI.ST","STOR-B.ST","SVOL-B.ST","TETY.ST","VNV.ST"]
+    "COOR.ST","DOM.ST","EOLU-B.ST","HOFI.ST","HTRO.ST","IVSO.ST","JOMA.ST","KAR.ST","LIME.ST",
+    "MCOV-B.ST","MIPS.ST","MMGR-B.ST","MTRS.ST","NEWA-B.ST","NOBI.ST","NP3.ST","PDX.ST","PLAZ-B.ST",
+    "QLINEA.ST","RAY-B.ST","SAGA-B.ST","SDIP-B.ST","SEZI.ST","SOBI.ST","STOR-B.ST","SVOL-B.ST","VNV.ST"]
 OMXS = ["VOLV-B.ST","ERIC-B.ST","HM-B.ST","ABB.ST","ATCO-A.ST","ATCO-B.ST","SEB-A.ST","SWED-A.ST","SHB-A.ST","INVE-B.ST",
         "SAND.ST","ASSA-B.ST","EVO.ST","SINCH.ST","NIBE-B.ST","HEXA-B.ST","ALFA.ST","ESSITY-B.ST","BOL.ST","SKA-B.ST",
         "TELIA.ST","SAAB-B.ST","GETI-B.ST","EPI-A.ST","KINV-B.ST","LIFCO-B.ST","ELUX-B.ST","SCA-B.ST","SSAB-A.ST","SKF-B.ST",
@@ -780,6 +780,15 @@ def load_names():
                 if ex == "US" and "-" in code: out[code.replace("-", ".")] = name   # CWEN-A ↔ CWEN.A
         except Exception as e:
             print(f"  namnlista {ex}: {str(e)[:50]}")
+    # Bolag vars kod hos EODHD skiljer sig från Yahoos, eller som handlas över disk
+    out.update({"ROG.SW": "Roche Holding", "HELN.SW": "Helvetia Holding", "BALN.SW": "Baloise Holding",
+                "SMDS.L": "DS Smith", "PHNX.L": "Phoenix Group", "EVR.L": "Evraz", "DLG.L": "Direct Line",
+                "ICP.L": "Intermediate Capital", "INDV.L": "Indivior", "ROL.L": "Rotork", "SXS.L": "Spectris",
+                "TPG.L": "TP ICAP", "HYMTF": "Hyundai Motor (OTC)", "KYOCY": "Kyocera (ADR)", "AZRE": "Azure Power",
+                "CAJ": "Canon (ADR)", "ERJ": "Embraer (ADR)", "RH": "RH (Restoration Hardware)", "CWEN-A": "Clearway Energy A",
+                "SYDB.CO": "Sydbank", "TOP.CO": "Topdanmark", "SCHA.OL": "Schibsted A", "ADE.OL": "Adevinta",
+                "MOR.DE": "MorphoSys", "ARL.DE": "Aareal Bank", "SOW.DE": "Software AG", "VAR1.DE": "Varta",
+                "NEOEN.PA": "Neoen", "FLTR.IR": "Flutter Entertainment", "AHT.L": "Ashtead Group"})
     if out:
         NAMES = out
         _CACHE["_names"] = {"v": 2, "ts": _today(), "m": out}
