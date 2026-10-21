@@ -335,14 +335,14 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-21-b";
+const APPV="2026-10-21-c";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
 function migrateTP(){
   // Stänger av vinstmålet en gång i befintliga portföljer, med notering om varför.
   try{
-    if(localStorage.getItem("mm_tpmig2"))return;
+    if(localStorage.getItem("mm_tpmig2"))throw "done";
     let n=0;
     (P.ps||[]).forEach(p=>{if(!p.rules)return;
       if(p.rules.tp>0){p._tpOld=p.rules.tp;p.rules.tp=0;n++}
@@ -353,11 +353,11 @@ function migrateTP(){
   // 2026-10-21: kärnmodellen blir standard. Befintliga portföljer får kärnans regler, men den
   // gamla modellen finns kvar som "satellit" under Regler.
   try{
-    if(localStorage.getItem("mm_coremig"))return;
     let n=0;(P.ps||[]).forEach(p=>{if(!p.rules){p.rules=Object.assign({},RULE_DEF);return}
-      if(p.rules.mode)return;p._rulesOld=Object.assign({},p.rules);p.rules=Object.assign({},RULE_DEF,{cap:p.rules.cap||10,bandIn:p.rules.bandIn||10});n++});
-    localStorage.setItem("mm_coremig","1");
-    if(n){save();setTimeout(()=>toast(`Kärnmodellen är nu standard i ${n} ${n===1?"portfölj":"portföljer"} – 23 % mot 16 % i backtestet. Gamla reglerna finns kvar som "Satellit" under ⋯ → Regler.`),2600)}
+      if(p.rules.mode)return;                          // redan migrerad eller satt av användaren
+      p._rulesOld=Object.assign({},p.rules);p.rules=Object.assign({},RULE_DEF,{cap:p.rules.cap||10,bandIn:p.rules.bandIn||10});
+      delete p.plan;n++});                              // det sparade förslaget bygger på gamla regler
+    if(n){save();setTimeout(()=>toast(`Kärnmodellen är nu standard i ${n} ${n===1?"portfölj":"portföljer"} – 23 % mot 16 % i backtestet. Tryck på den röda knappen för nya förslag.`),2600)}
   }catch(e){}
 }
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -2016,7 +2016,7 @@ function confirmDays(h,k,bad){
   if(c.d===day)return c.n||1;
   h.cf[k]={d:day,n:(c.n||0)+1};PKD=true;return h.cf[k].n}
 function ruleSignals(p,c){
-  const R=Object.assign({},RULE_DEF,p.rules||{});const out=[];
+  const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=p.rules&&p.rules.mode==="core"?R.stop:0}const out=[];
   c.rows.forEach(r=>{
     const h=r.h,px=r.px,F=r.F,s=r.s;if(!(px>0)||!(h.q>0))return;
     const base=h.c,pk=Math.max(h.pk||base,px),stopBase=R.trail?Math.max(base,pk):base,stopPx=stopBase*(1-R.stop/100);let a=null;
