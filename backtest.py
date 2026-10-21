@@ -387,13 +387,19 @@ def run(close, vol, cfg, vix=None):
             if cfg.get("min_hold", 0) and held_days < cfg["min_hold"]:
                 continue                                        # inga säljregler de första N dagarna
             if core_mode:
-                # Kärnan: sälj bara om 12-1 < 0 eller kurs < SMA200, och bara vid månadsskifte
-                if not month_end: continue
+                # Kärnan: sälj bara om 12-1 < 0 eller kurs < SMA200.
+                # core="month": prövas vid månadsskifte. core="daily": prövas varje dag, men villkoret
+                # måste gälla confirm_days dagar i rad – ett dagsfall räcker inte.
                 ci = close.columns.get_loc(t)
                 m121 = (close.iat[max(0, i - 21), ci] / close.iat[max(0, i - 252), ci] - 1) if i >= 252 else 1.0
                 s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
-                if m121 <= 0: why = "12-1 negativt"
-                elif s200 == s200 and px < s200: why = "under SMA200"
+                bad = "12-1 negativt" if m121 <= 0 else ("under SMA200" if (s200 == s200 and px < s200) else None)
+                if core_mode == "month":
+                    if month_end and bad: why = bad
+                else:
+                    if bad: h["cbad"] = h.get("cbad", 0) + 1
+                    else: h["cbad"] = 0
+                    if h["cbad"] >= cfg.get("confirm_days", 5): why = bad
                 if why:
                     cash += h["sh"] * px - fee(h["sh"] * px, t, "sell"); hold_days.append(held_days); trades.append((why, t, d)); del hold[t]
                 continue
@@ -500,12 +506,23 @@ def run(close, vol, cfg, vix=None):
                         if px == px:
                             cash += hold[t]["sh"] * px - fee(hold[t]["sh"] * px, t, "sell"); hold_days.append(i - hold[t]["i"]); trades.append(("band", t, d))
                         del hold[t]
+                # Öka vid stöd: innehav som just nu testar ett stöd får 1,5× vikt i den här ombalanseringen
+                if cfg.get("add_at_support") and hold:
+                    for t in hold:
+                        ci = close.columns.get_loc(t); px = p.get(t)
+                        if px != px or i < 130: hold[t]["w"] = 1.0; continue
+                        win = close.iloc[i - 130:i + 1, ci].dropna().values.tolist()
+                        lows = [win[k] for k in range(5, len(win) - 5) if win[k] == min(win[k - 5:k + 6])]
+                        near = any(abs(px / q - 1) <= 0.03 for q in lows if sum(1 for z in lows if abs(z / q - 1) <= 0.02) >= 2)
+                        s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
+                        hold[t]["w"] = 1.5 if (near and s200 == s200 and px > s200) else 1.0
                 # återställ vikterna till lika stora (trimma vinnare, fyll på eftersläntrare)
                 if cfg.get("reweight") and hold:
-                    tot = value(i); target = tot / cfg["n"]
+                    tot = value(i); wsum = sum(h.get("w", 1.0) for h in hold.values()) or 1
                     for t, h in list(hold.items()):
                         px = p.get(t)
                         if px != px or px <= 0: continue
+                        target = tot * h.get("w", 1.0) / max(cfg["n"], wsum) if cfg.get("add_at_support") else tot / cfg["n"]
                         cur = h["sh"] * px
                         if cur > target * (1 + cfg.get("rw_band", 0.25)):
                             sell = (cur - target) / px
@@ -707,9 +724,12 @@ def main():
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         VAR = {
             "0. Satellit (dagens): band 10/30, stopp 15, dagligen":   dict(B),
-            "A. Kärna: 12-1>0 & >SMA200, prövas månadsvis, inget stopp": dict(B, core=True, band_out=100000, stop=0, reb="Q"),
-            "B. Kärna + minsta innehavstid 60 d":                       dict(B, core=True, band_out=100000, stop=0, min_hold=60),
-            "C. Kärna + band 50 vid kvartal (sälj eftersläntrare)":     dict(B, core=True, band_out=50, stop=0),
+            "A. Kärna: 12-1>0 & >SMA200, prövas månadsvis":             dict(B, core="month", band_out=100000, stop=0),
+            "A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad":          dict(B, core="daily", confirm_days=5, band_out=100000, stop=0),
+            "B. Kärna daglig + minsta innehavstid 60 d":                 dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, min_hold=60),
+            "C. Kärna daglig + band 50 vid kvartal":                      dict(B, core="daily", confirm_days=5, band_out=50, stop=0),
+            "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, add_at_support=True),
+            "K. Satellit + ÖKA vid stöd":                                dict(B, add_at_support=True),
             "--- brusfilter på satelliten ---":                          None,
             "D. Stopp 3×ATR i stället för 15 %":                        dict(B, stop_atr=3.0),
             "E. Stopp 4×ATR":                                           dict(B, stop_atr=4.0),
