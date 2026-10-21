@@ -393,7 +393,8 @@ def run(close, vol, cfg, vix=None):
                 ci = close.columns.get_loc(t)
                 m121 = (close.iat[max(0, i - 21), ci] / close.iat[max(0, i - 252), ci] - 1) if i >= 252 else 1.0
                 s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
-                bad = "12-1 negativt" if m121 <= 0 else ("under SMA200" if (s200 == s200 and px < s200) else None)
+                buf = 1 - cfg.get("sma_buf", 0) / 100.0
+                bad = "12-1 negativt" if m121 <= 0 else ("under SMA200" if (s200 == s200 and px < s200 * buf) else None)
                 if core_mode == "month":
                     if month_end and bad: why = bad
                 else:
@@ -646,7 +647,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            buy_obv=0, buy_ath=0, buy_lower=0,
            mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5,
            stop_mode='pct', sr_win=130, sr_min_touch=2, sr_buf_atr=0.4, mom_win='12-1',
-           core=False, min_hold=0, confirm_days=1, stop_atr=0,
+           core=False, min_hold=0, confirm_days=1, stop_atr=0, sma_buf=0,
            tp=0, tp_sell=50,
            w_mom=0.65, w_trend=0.35, w_vol=0.0, heat=False, pos_cap=0, buy_rsi=0)
 
@@ -726,6 +727,11 @@ def main():
             "0. Satellit (dagens): band 10/30, stopp 15, dagligen":   dict(B),
             "A. Kärna: 12-1>0 & >SMA200, prövas månadsvis":             dict(B, core="month", band_out=100000, stop=0),
             "A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad":          dict(B, core="daily", confirm_days=5, band_out=100000, stop=0),
+            "A3. Kärna daglig, 10 dagar i rad":                          dict(B, core="daily", confirm_days=10, band_out=100000, stop=0),
+            "A4. Kärna daglig, 20 dagar i rad":                          dict(B, core="daily", confirm_days=20, band_out=100000, stop=0),
+            "A5. Kärna daglig, 5 d, buffert 3 % under SMA200":           dict(B, core="daily", confirm_days=5, sma_buf=3, band_out=100000, stop=0),
+            "A6. Kärna daglig, 5 d, buffert 5 % under SMA200":           dict(B, core="daily", confirm_days=5, sma_buf=5, band_out=100000, stop=0),
+            "A7. Kärna daglig, 10 d, buffert 3 %":                       dict(B, core="daily", confirm_days=10, sma_buf=3, band_out=100000, stop=0),
             "B. Kärna daglig + minsta innehavstid 60 d":                 dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, min_hold=60),
             "C. Kärna daglig + band 50 vid kvartal":                      dict(B, core="daily", confirm_days=5, band_out=50, stop=0),
             "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, add_at_support=True),
