@@ -755,6 +755,42 @@ def main():
                       f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
             except Exception as ex:
                 print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        # --- håller kärnan i olika perioder och marknader? ---
+        print(f"\n   === UPPDELAT: dagens modell mot kärna (daglig, 5 d) mot kärna + 5-dagarsfilter på satellit (Sharpe) ===")
+        def group(cols):
+            us, nordic, eur = [], [], []
+            for t in cols:
+                if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): nordic.append(t)
+                elif "." in t: eur.append(t)
+                else: us.append(t)
+            return {"USA": us, "Norden": nordic, "Europa": eur}
+        grp = group(list(close.columns)); idx = close.index; mid = idx[len(idx) // 2]
+        segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
+        SUB = {"dagens": VAR["0. Satellit (dagens): band 10/30, stopp 15, dagligen"],
+               "kärna": VAR["A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad"],
+               "satellit+5d": VAR["F. Stopp 15 % men kräver 5 dagar i rad under"]}
+        wins = {k: 0 for k in SUB}; split = {}
+        print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>13}" for k in SUB) + "   vinnare")
+        for segn, (s0, s1) in segs.items():
+            for un, cols in [("Alla", list(close.columns))] + list(grp.items()):
+                cols = [c for c in cols if c in close.columns]
+                if len(cols) < 40: continue
+                sub = close.loc[s0:s1, cols]; subv = vol.loc[s0:s1, cols]
+                if len(sub) < 500: continue
+                y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
+                if y2 < 1.5: continue
+                row = {}
+                for k, over in SUB.items():
+                    cfg = dict(DEF); cfg.update(over)
+                    try: e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, y2, hd); row[k] = (st["Sharpe"], st["CAGR_%"])
+                    except Exception: row[k] = None
+                good = {k: v[0] for k, v in row.items() if v is not None}
+                if not good: continue
+                w = max(good, key=good.get); wins[w] += 1; split[f"{segn} / {un}"] = row
+                print(f"   {segn + ' / ' + un:<28}{len(cols):>7}" + "".join(f"{(row[k][0] if row[k] else float('nan')):>6.2f} {(row[k][1] if row[k] else float('nan')):>5.1f}%" for k in SUB) + f"   {w}")
+        print(f"   Antal delprov vunna: " + ", ".join(f"{k} {v}" for k, v in wins.items()))
+        res["_uppdelat"] = split; res["_vinster"] = wins
+
         ok = {k: v for k, v in res.items() if not k.startswith("_") and "CAGR_%" in v}
         ref = ok.get("0. Satellit (dagens): band 10/30, stopp 15, dagligen", {})
         print(f"\n   Dagens modell: {ref.get('CAGR_%')} %, Sharpe {ref.get('Sharpe')}, innehav {ref.get('innehavstid_dagar')} d")
