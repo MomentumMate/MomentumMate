@@ -216,6 +216,8 @@ def decay_panels(close, vol, cfg):
     return out
 
 def exit_panels(close, cfg):
+    if cfg.get("stop_atr", 0) > 0 and not cfg.get("exit_atr"): cfg = dict(cfg, exit_atr=99)   # bara för att få ATR-panelen
+    if cfg.get("core") and not cfg.get("exit_sma200"): cfg = dict(cfg, exit_sma200=True, _core_sma=True)
     """Nivåer för de utgångar som inte är ett fast procentstopp."""
     out = {}
     if cfg.get("exit_sma50"):
@@ -371,6 +373,8 @@ def run(close, vol, cfg, vix=None):
                 h["sr_stop"] = max(lvl, floor_pct)
 
         # --- dagliga stopp (gäller mellan ombalanseringarna) ---
+        core_mode = cfg.get("core")          # kärnlager: absoluta hållvillkor, prövade månadsvis
+        month_end = (i + 1 >= len(dates)) or (dates[i + 1].month != d.month)
         for t in list(hold):
             px = p.get(t)
             if px != px:   # NaN
@@ -379,16 +383,40 @@ def run(close, vol, cfg, vix=None):
             h["peak"] = max(h["peak"], px)
             base = h["peak"] if cfg["trail"] else h["px"]
             why = None
+            held_days = i - h["i"]
+            if cfg.get("min_hold", 0) and held_days < cfg["min_hold"]:
+                continue                                        # inga säljregler de första N dagarna
+            if core_mode:
+                # Kärnan: sälj bara om 12-1 < 0 eller kurs < SMA200, och bara vid månadsskifte
+                if not month_end: continue
+                ci = close.columns.get_loc(t)
+                m121 = (close.iat[max(0, i - 21), ci] / close.iat[max(0, i - 252), ci] - 1) if i >= 252 else 1.0
+                s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
+                if m121 <= 0: why = "12-1 negativt"
+                elif s200 == s200 and px < s200: why = "under SMA200"
+                if why:
+                    cash += h["sh"] * px - fee(h["sh"] * px, t, "sell"); hold_days.append(held_days); trades.append((why, t, d)); del hold[t]
+                continue
             if cfg.get("stop_mode") == "support" and h.get("sr_stop"):
                 if px <= h["sr_stop"]: why = "stopp vid stöd"
-            elif cfg["stop"] > 0 and px <= base * (1 - cfg["stop"] / 100): why = "stop"
+            elif cfg.get("stop_atr", 0) > 0:
+                a = EX["atr"].iat[i, close.columns.get_loc(t)] if "atr" in EX else np.nan
+                lvl = base - cfg["stop_atr"] * a if a == a else base * (1 - cfg["stop"] / 100)
+                if px <= lvl:
+                    h["below"] = h.get("below", 0) + 1
+                    if h["below"] >= cfg.get("confirm_days", 1): why = "stop"
+                else: h["below"] = 0
+            elif cfg["stop"] > 0 and px <= base * (1 - cfg["stop"] / 100):
+                h["below"] = h.get("below", 0) + 1
+                if h["below"] >= cfg.get("confirm_days", 1): why = "stop"
+            elif cfg["stop"] > 0: h["below"] = 0
             if why is None and "sma50" in EX:
                 lv = EX["sma50"].iat[i, close.columns.get_loc(t)]
                 if lv == lv and px < lv: why = "sma50"
             if why is None and "sma200" in EX:
                 lv = EX["sma200"].iat[i, close.columns.get_loc(t)]
                 if lv == lv and px < lv: why = "sma200"
-            if why is None and "atr" in EX:
+            if why is None and "atr" in EX and cfg.get("exit_atr"):
                 a = EX["atr"].iat[i, close.columns.get_loc(t)]
                 if a == a and px <= h["peak"] - cfg["exit_atr"] * a: why = "atr"
             ci = close.columns.get_loc(t)
@@ -581,7 +609,7 @@ def stats(e, trades, years, hold_days=None):
             "innehavstid_dagar": (round(float(np.median(hold_days)) * 1.4) if hold_days else None),
             "längsta_innehav_dagar": (round(max(hold_days) * 1.4) if hold_days else None),
             "utgångar": {k: sum(1 for t in trades if t[0] == k)
-                         for k in ("stop", "stopp vid stöd", "sma50", "sma200", "atr", "svag poäng", "band") 
+                         for k in ("stop", "stopp vid stöd", "sma50", "sma200", "atr", "svag poäng", "band", "12-1 negativt", "under SMA200") 
                          if any(t[0] == k for t in trades)}}
 
 def benchmark(close, years, start_i=210):
@@ -601,6 +629,7 @@ DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=Tru
            buy_obv=0, buy_ath=0, buy_lower=0,
            mkt='all', cost_filter=False, cost_adj=False, slope=0.0, refill=True, refill_days=1, refill_jitter=False, seed=0, cand_width=2.5,
            stop_mode='pct', sr_win=130, sr_min_touch=2, sr_buf_atr=0.4, mom_win='12-1',
+           core=False, min_hold=0, confirm_days=1, stop_atr=0,
            tp=0, tp_sell=50,
            w_mom=0.65, w_trend=0.35, w_vol=0.0, heat=False, pos_cap=0, buy_rsi=0)
 
@@ -625,6 +654,7 @@ def main():
     ap.add_argument("--score", action="store_true", help="är appens poängmodell bättre än backtestets enklare?")
     ap.add_argument("--srstop", action="store_true", help="stopp strax under närmaste stöd mot fast procent")
     ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
+    ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -669,6 +699,50 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Kärnlager: håll ledarna genom normala rekyler utan att tappa avkastning ----------
+    if a.core:
+        B = dict(voladj=False, n=20, band_out=30, reweight=True, reb="Q", refill_days=21, stop=15,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True,
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        VAR = {
+            "0. Satellit (dagens): band 10/30, stopp 15, dagligen":   dict(B),
+            "A. Kärna: 12-1>0 & >SMA200, prövas månadsvis, inget stopp": dict(B, core=True, band_out=100000, stop=0, reb="Q"),
+            "B. Kärna + minsta innehavstid 60 d":                       dict(B, core=True, band_out=100000, stop=0, min_hold=60),
+            "C. Kärna + band 50 vid kvartal (sälj eftersläntrare)":     dict(B, core=True, band_out=50, stop=0),
+            "--- brusfilter på satelliten ---":                          None,
+            "D. Stopp 3×ATR i stället för 15 %":                        dict(B, stop_atr=3.0),
+            "E. Stopp 4×ATR":                                           dict(B, stop_atr=4.0),
+            "F. Stopp 15 % men kräver 5 dagar i rad under":             dict(B, confirm_days=5),
+            "G. Stopp 15 % + minsta innehavstid 60 d":                  dict(B, min_hold=60),
+            "H. Stopp 15 %, 5 dagar i rad, minst 60 d":                 dict(B, confirm_days=5, min_hold=60),
+            "I. Utan stopp (bara band 10/30)":                           dict(B, stop=0),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Kärnlager och brusfilter, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: kan vi hålla starka aktier genom normala rekyler utan att tappa avkastning?")
+        print(f"   Kärnan säljer bara när 12-1 blivit negativt eller kursen ligger under SMA200 – vid månadsskifte.\n")
+        print(f"   {'likaviktat snitt av universumet':<58}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
+                res[nm] = st
+                print(f"   {nm:<58}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
+        ok = {k: v for k, v in res.items() if not k.startswith("_") and "CAGR_%" in v}
+        ref = ok.get("0. Satellit (dagens): band 10/30, stopp 15, dagligen", {})
+        print(f"\n   Dagens modell: {ref.get('CAGR_%')} %, Sharpe {ref.get('Sharpe')}, innehav {ref.get('innehavstid_dagar')} d")
+        print(f"   Målet för kärnan: innehavstid över 200 dagar och avkastning inom 1 pe från dagens. Nedgången blir djupare – det är priset.")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "kärnlager",
+               "portfölj_sek": a.port, "år": round(yrs, 1), "referens": ref.get("CAGR_%"), "varianter": res, "varning": "Survivorship bias."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Momentumfönster: väger gammal uppgång lika tungt som ny? ----------
     if a.momwin:
