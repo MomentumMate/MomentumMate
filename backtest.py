@@ -775,7 +775,7 @@ def main():
             except Exception as ex:
                 print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
         # --- håller kärnan i olika perioder och marknader? ---
-        print(f"\n   === UPPDELAT: dagens modell mot kärna (daglig, 5 d) mot kärna + 5-dagarsfilter på satellit (Sharpe) ===")
+        print(f"\n   === UPPDELAT: dagens modell mot kärna mot kärna + rotation 25 % / 10 % (Sharpe och CAGR per delprov) ===")
         def group(cols):
             us, nordic, eur = [], [], []
             for t in cols:
@@ -787,7 +787,8 @@ def main():
         segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
         SUB = {"dagens": VAR["0. Satellit (dagens): band 10/30, stopp 15, dagligen"],
                "kärna": VAR["A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad"],
-               "satellit+5d": VAR["F. Stopp 15 % men kräver 5 dagar i rad under"]}
+               "rotation25": VAR["R2. Kärna + rotation: sälj sämsta 25 % vid kvartal"],
+               "rotation10": VAR["R1. Kärna + rotation: sälj sämsta 10 % vid kvartal"]}
         wins = {k: 0 for k in SUB}; split = {}
         print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>13}" for k in SUB) + "   vinnare")
         for segn, (s0, s1) in segs.items():
