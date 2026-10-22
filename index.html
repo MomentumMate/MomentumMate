@@ -84,6 +84,11 @@ h4[data-i]{cursor:pointer}
 .ab.decay{color:#e2a07a;border-color:#6b3a28;background:#2a1a14}
 .ab.level{color:#8fd3b0;border-color:#2f5a44;background:#132419}
 .ab.struct{color:#c9b8e8;border-color:#4a3d66;background:#1c1726}
+.fc{font-size:10px;font-weight:700;letter-spacing:.6px;padding:2px 7px;border-radius:6px;border:1px solid var(--bd);color:var(--gd);background:#1b1710;white-space:nowrap}
+.fc.up{color:var(--up);border-color:#2f5a44;background:#132419}.fc.dn{color:var(--dn);border-color:#6b3a28;background:#2a1a14}
+.sig.HOLD{background:#2a2410;color:var(--gd)}
+.tarrow{width:44px;height:26px;flex:none;display:grid;place-items:center;font-size:22px;font-weight:700}
+.srt{margin:0 0 14px}
 .cv{padding:0 10px 90px}
 .cv .ctl{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .cv .ctl .chip{font-size:11.5px}
@@ -284,7 +289,19 @@ const HZ={"1-3":["1–3 mån","#ffd166"],"3-6":["3–6 mån","#e8b64a"],"6-12":[
 const hz=h=>{const x=HZ[h]||HZ.none;return `<span class="hz" style="color:${x[1]};border-color:${x[1]}66">${x[0]}</span>`};
 const SIGL={SELL:"SÄLJ",TRIM:"MINSKA",WATCH:"BEHÅLL",BUY:"ÖKA",HOLD:"BEHÅLL",NA:"–"};
 const ic=k=>({sma50:"📈 ",rsi:"⚡ ",fib:"📐 ",decay:"📉 ",level:"〓 ",struct:"⟷ "}[k]||"• ");
-const shortA=a=>({sma50:a.t.includes("upp")?"SMA50 ↑":"SMA50 ↓",rsi:a.t.includes("över")?"RSI hög":"RSI låg",fib:"Fibonacci",decay:a.s||"Tappar kraft",level:a.s||"Vid nivå",struct:a.s||"Struktur"}[a.k]||a.t);
+/* Flaggor i kortets sidhuvud: ett ord i versaler, färg efter betydelse. Grönt = stöd/stigande,
+   gult = neutralt, rött = svaghet. Ikonerna togs bort 2026-10-22. */
+function flagChip(a){
+  const s=a.s||"",t=a.t||"";let txt,cls="";
+  if(a.k==="level"){const m=s.match(/([\d.,]+)\s*$/);const lvl=m?m[1]:"";if(/stöd/i.test(s)){txt="STÖD "+lvl;cls="up"}else{txt="MOTSTÅND "+lvl;cls="dn"}}
+  else if(a.k==="struct"){txt=/vidgande/i.test(s)?"VIDGANDE":/smaln/i.test(s)?"SMALNANDE":"STRUKTUR";cls=""}
+  else if(/volymbalans/i.test(s)){txt="VOLYMBALANS";cls=/faller/i.test(s)?"dn":"up"}
+  else if(/under toppen/i.test(s)){txt=s.replace(/under toppen/i,"under ATH").toUpperCase();cls="dn"}
+  else if(/lägre toppar/i.test(s)){txt="LÄGRE TOPPAR";cls="dn"}
+  else if(/svag/i.test(s)){txt="SVAG";cls="dn"}
+  else {txt=(s||t).toUpperCase().slice(0,18);cls="dn"}
+  return`<span class="fc ${cls}" title="${esc(t)}">${esc(txt)}</span>`}
+const shortA=a=>({decay:a.s||"Tappar kraft",level:a.s||"Vid nivå",struct:a.s||"Struktur"}[a.k]||a.t);
 
 /* ---------- DATA ---------- */
 let D=null,S={},SL=[],DEMO=false,OLD=false,H={};
@@ -335,7 +352,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-21-c";
+const APPV="2026-10-22-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -450,6 +467,8 @@ const srow=s=>`<div class="sr" data-go="#/stock/${encodeURIComponent(s.t)}"><div
 /* ---------- SMÅ KOMPONENTER ---------- */
 function spark(a,w=64,h=26){if(!a||a.length<2)return`<svg class="sp" viewBox="0 0 ${w} ${h}"></svg>`;const mn=Math.min(...a),mx=Math.max(...a),r=(mx-mn)||1;const pts=a.map((v,i)=>(i/(a.length-1)*(w-2)+1).toFixed(1)+","+(h-2-(v-mn)/r*(h-4)).toFixed(1)).join(" ");return`<svg class="sp" viewBox="0 0 ${w} ${h}"><polyline points="${pts}" fill="none" stroke="${a[a.length-1]>=a[0]?"#e8b64a":"#f0846f"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
 function heroSvg(L){const n=L.length;if(n<2)return"";const r=[...L].reverse(),mn=Math.min(...r.map(x=>x.sc))-2,mx=Math.max(...r.map(x=>x.sc))+2;const Q=r.map((x,i)=>[i/(n-1)*290+5,46-(x.sc-mn)/(mx-mn)*38]);let d="M"+Q[0];for(let i=1;i<n;i++){const m=(Q[i-1][0]+Q[i][0])/2;d+=`C${m},${Q[i-1][1]} ${m},${Q[i][1]} ${Q[i]}`}return`<svg viewBox="0 0 300 54" preserveAspectRatio="none"><defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#8a5a12"/><stop offset="1" stop-color="#ffd166"/></linearGradient></defs><path d="${d}" fill="none" stroke="url(#gg)" stroke-width="3" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${Q[n-1][0]}" cy="${Q[n-1][1]}" r="5" fill="#ffe7a8"/></svg>`}
+const trendArrow=s=>{const k=s.strc&&s.strc.k;const up=k==="upp"||(!k&&s.a200&&(s.m121||0)>0),dn=k==="ned"||(!k&&!s.a200);
+  return`<div class="tarrow ${up?"up":dn?"dn":""}" style="color:${up?"var(--up)":dn?"var(--dn)":"var(--gd)"}" title="Långsiktig trend: ${up?"stigande":dn?"fallande":"sidledes"}">${up?"↗":dn?"↘":"→"}</div>`};
 const alerts=s=>s.al&&s.al.length?`<div class="al">${s.al.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}${s.al.length>2?`<span class="ab">+${s.al.length-2}</span>`:""}</div>`:"";
 
 const coName=s=>(!s.n||s.n===s.t||s.n===s.d)?'<span style="font-style:italic;opacity:.7">Namn saknas från Yahoo</span>':esc(s.n);
@@ -463,40 +482,59 @@ function card(s,i,o={}){
   const right=h?`<div class="p"><b>${kr(h.val)} kr</b><div class="${cls(h.ret)}">${sg(h.ret,1)}</div><div class="mu" style="font-size:11.5px;white-space:nowrap">${f(h.px)} ${esc(s.cur)} <span class="${cls(s.chg)}">${sg(s.chg,2)}</span></div></div>`
                 :`<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div>`;
   const chips=h?`<span class="sig ${h.sig.k}">${SIGL[h.sig.k]}</span>${h.hl?`<span class="sig SELL">⚠ ${esc(h.hl.short)}</span>`:""}`:"";
-  const holdBlock=h?`<div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>
+  const holdBlock=null;const _unused=h?`<div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>
    ${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}
    <h4 data-i="psig">Signal: ${SIGL[h.sig.k]} <span class="ii">ⓘ</span></h4>${h.sig.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}${h.rule?urgHTML(h.rule.k):""}
    <div class="acts"><button class="btn sm" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp mer</button><button class="btn sm ghost" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`:"";
+  const preObj=h?{sig:h.sig,rule:h.rule,html:`<h4>Innehav</h4><div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}`,
+    acts:`<div class="acts"><button class="btn" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp</button><button class="btn dn" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`}:null;
   return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
-  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div><div class="mu">${sub}</div></div>
-  ${spark(s.sp)}${right}</div>
-  <div class="al2">${chips}${(()=>{const fl2=(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k));return fl2.slice(0,2).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")+(fl2.length>2?`<span class="ab">+${fl2.length-2}</span>`:"")})()}</div>
-  <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,"",holdBlock)}</div>`
+  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div></div>
+  ${trendArrow(s)}${right}</div>
+  <div class="al2">${chips}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(flagChip).join("")}</div>
+  <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,h?"":`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`,preObj)}</div>`
 }
 /* Aktiesidan – samma överallt. Byggd om 2026-10-21 för kärnmodellen: tre tal avgör allt
    (plats, 12-1, läge mot SMA200), grafen visar var stopp, köpzon och mål ligger. Teknik-raden,
    placeringshorisont och daghandelsfilter togs bort – de hörde till den gamla signalmotorn. */
 function daysAbove200(s){const sp=s.sp||[];if(!s.a200)return 0;let n=0;for(let i=sp.length-1;i>=0;i--){if(sp[i]>0)n++;else break}return Math.min(n,45)}
 function detail(s,mk,extra="",pre=""){
-  const rk=rankOf(s.t),tot=rankMap().n,R=rulesOf0({rules:{}}),tp=tradePlan(s,R);
-  const flags=(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k));
+  const rk=rankOf(s.t),tot=rankMap().n,R=rulesOf0({rules:{}}),tp=tradePlan(s,R),key=s.t;
   const st=s.strc&&s.strc.k,stl={upp:"Högre toppar & bottnar",ned:"Lägre toppar & bottnar",sidled:"Sidled",kil:"Smalnande",vidgande:"Vidgande"}[st];
-  return`<div class="d">${aboutHTML(s)}${pre}
-  <div class="cvin" data-cv="${esc(s.t)}"><div class="empty" style="padding:30px 0">Laddar graf…</div></div>
-  <div class="g3"><div><small>Plats</small><b class="${rk&&rk<=10?"up":""}">${rk||"–"}<span class="mu" style="font-size:11px"> / ${tot}</span></b></div><div><small>12-1-momentum</small><b class="${cls(s.m121)}">${typeof s.m121==="number"?sg(s.m121,0):"–"}</b></div><div><small>Mot SMA200</small><b class="${s.a200?"up":"dn"}">${s.sh?"kort historik":s.a200?"över":"under"}</b></div></div>
-  ${tp?`<div class="mu" style="font-size:12px;margin:6px 0 2px"><b style="color:var(--tx)">Handelsplan:</b> köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)} · stopp <b class="dn">${f(tp.stop,2)}</b> · mål <b class="up">${f(tp.t1,2)}</b> · R:R <b class="${tp.rr<2?"dn":""}">${f(tp.rr,1)}:1</b> <span class="lnk" data-act="plansheet" data-t="${esc(s.t)}">detaljer ›</span></div>`:""}
-  <div class="g" style="margin-top:8px"><div><small>Momentumpoäng</small><b>${s.sc}</b></div>${stl?`<div><small>Struktur</small><b class="${st==="upp"?"up":st==="ned"?"dn":""}" style="font-size:12.5px">${stl}</b></div>`:""}${s.vol?`<div><small>Volatilitet</small><b>${f(s.vol,0)} %</b></div>`:""}<div><small>52 veckor</small><b style="font-size:12.5px">${f52(s,"lo")} – ${f52(s,"hi")}</b></div>${typeof s.fs==="number"?`<div><small>F-score</small><b class="${s.fs>=7?"up":s.fs<=3?"dn":""}">${s.fs}/${s.fsn}</b></div>`:""}${s.ed?`<div><small>Rapport</small><b>${esc(s.ed)}</b></div>`:""}</div>
-  ${flags.length?`<div class="al" style="margin:6px 0">${flags.map(a=>`<span class="ab ${a.k}" title="${esc(a.t)}">${ic(a.k)}${shortA(a)}</span>`).join("")}</div>${flags.map(a=>`<div class="k mu" style="font-size:12px">${ic(a.k)} ${esc(a.t)}</div>`).join("")}`:""}
+  const s50=sma(s.sp,20);  // 20-dagars ur sparkline som närmevärde för SMA50-riktning
+  const box=(lab,val,cls)=>`<div><small>${lab}</small><b class="${cls||""}">${val}</b></div>`;
+  const sigk=(pre&&pre.sig)?pre.sig:null;
+  return`<div class="d">${aboutHTML(s).replace("🏢 ","")}
+  <div class="cvwrap" data-cv="${esc(s.t)}"><div class="cvhead mu" style="min-height:36px"></div>
+   <div class="ctl" style="display:flex;gap:4px;margin:4px 0">${HR.map(x=>`<span class="chip" style="font-size:10.5px;padding:4px 7px" data-act="cvr" data-t="${esc(s.t)}" data-r="${x[1]}">${x[0]}</span>`).join("")}</div>
+   <div class="cvin"><div class="empty" style="padding:30px 0">Laddar graf…</div></div>
+   <div class="lay" style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px">${[["candle","Ljusstakar"],["vol","Volym"],["sma","SMA 50/200"],["sr","Stöd/motstånd"],["plan","Handelsplan"],["swing","Svängpunkter"]].map(([k,n])=>`<span class="chip off" style="font-size:10.5px;padding:4px 8px" data-act="cvl" data-t="${esc(s.t)}" data-k="${k}">${n}</span>`).join("")}</div></div>
+  <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px">${tp?box("Köpzon",`${f(tp.eLo,1)}–${f(tp.eHi,1)}`,"up")+box("Entry",f(tp.entry,2),"up")+box("Mål",f(tp.t1,2),"up")+box("Stopp",f(tp.stop,2),"dn"):""}
+   ${box("12-1",typeof s.m121==="number"?sg(s.m121,0):"–",cls(s.m121))}${box("SMA200",s.sh?"–":s.a200?"över":"under",s.a200?"up":"dn")}${box("SMA50",s.a50?"över":"under",s.a50?"up":"dn")}${box("Plats",rk||"–",rk&&rk<=10?"up":"")}
+   ${stl?box("Struktur",stl,st==="upp"?"up":st==="ned"?"dn":""):""}${box("52L",f52(s,"lo"))}${box("52H",f52(s,"hi"))}${box("Poäng",s.sc)}${s.vol?box("Volatilitet",f(s.vol,0)+" %"):""}</div>
+  <div class="acts" style="margin:4px 0 10px"><button class="btn sm" data-act="plansheet" data-t="${esc(s.t)}">🎯 Handelsplan</button></div>
+  ${sigk?`<h4>Signal: <span class="sig ${sigk.k}" style="font-size:12px">${SIGL[sigk.k]}</span></h4>${sigk.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}${pre.rule?urgHTML(pre.rule.k):""}`:""}
+  ${pre&&pre.html?pre.html:""}
+  ${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).map(a=>`<div class="k mu" style="font-size:12px">${esc(a.t)}</div>`).join("")}
   <details class="nwd"><summary>Nyheter (${(D.news[s.t]||[]).length})</summary>${newsList(s.t)}</details>
-  <div class="acts"><button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>${extra||`<button class="btn sm ghost" data-go="#/stock/${encodeURIComponent(s.t)}">Öppna sida</button>`}<button class="btn sm ghost" data-go="#/chart/${encodeURIComponent(s.t)}">Stor graf</button></div></div>`
+  ${pre&&pre.acts?pre.acts:(extra?`<div class="acts">${extra}</div>`:"")}</div>`
 }
-/* Fyll grafplatserna i utfällda kort när de blir synliga */
+/* Graf i kortet: egen tidsperiod och egna lager per aktie. Alla lager av som standard. */
+const CVS={};
+function cvState(t){return CVS[t]=CVS[t]||{rng:"6m",lay:{candle:false,vol:false,sma:false,sr:false,plan:false,swing:false}}}
 async function fillCharts(root){
-  const els=[...(root||document).querySelectorAll(".c.o .cvin[data-cv], .cvin[data-cv].now")];
-  for(const el of els){if(el.dataset.done)continue;el.dataset.done="1";const t=el.dataset.cv,s=S[t];if(!s)continue;
-    try{const h=await loadHist(t);const out=cvSvg(s,h,"6m",{candle:true,vol:false,sma:true,sr:true,plan:true,swing:true});
-      el.innerHTML=out?out.svg:'<div class="mu" style="padding:10px 0">Graf saknas – kurshistoriken byggs av skanningen.</div>';el.classList.add("cv")}
-    catch(e){el.innerHTML='<div class="mu">Grafen kunde inte ritas.</div>'}}
+  const els=[...(root||document).querySelectorAll(".c.o .cvwrap[data-cv], .cvwrap[data-cv].now")];
+  for(const el of els){const t=el.dataset.cv,s=S[t];if(!s)continue;const st=cvState(t);
+    if(el.dataset.done===st.rng+JSON.stringify(st.lay))continue;el.dataset.done=st.rng+JSON.stringify(st.lay);
+    el.querySelectorAll("[data-act=cvr]").forEach(c=>c.classList.toggle("on",c.dataset.r===st.rng));
+    el.querySelectorAll("[data-act=cvl]").forEach(c=>{c.classList.toggle("on",!!st.lay[c.dataset.k]);c.classList.toggle("off",!st.lay[c.dataset.k])});
+    const box=el.querySelector(".cvin"),head=el.querySelector(".cvhead");
+    try{const h=await loadHist(t);const out=cvSvg(s,h,st.rng,st.lay);
+      if(!out){box.innerHTML='<div class="mu" style="padding:10px 0">Graf saknas – kurshistoriken byggs av skanningen.</div>';continue}
+      box.innerHTML=out.svg;box.classList.add("cv");
+      const r=out.r,n=out.n,a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
+      head.innerHTML=`<span class="big" style="font-size:22px">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu">${r.t?histFmt(r.t[n-1],st.rng,t):""}</span>`}
+    catch(e){box.innerHTML='<div class="mu">Grafen kunde inte ritas.</div>'}}
 }
 
 /* ---------- VY-RAMVERK ---------- */
@@ -654,7 +692,7 @@ function vStock(t){
   <div class="al">${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}</div>
 
   ${inP.length?`<div class="mu" style="margin-top:8px">I portfölj → ${inP.map(esc).join(" · ")}</div>`:""}</div>
-  <div class="c o" style="border:0;background:none">${detail(s,s.m[0],"")}</div>`)
+  <div class="c o" style="border:0;background:none">${detail(s,s.m[0],`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`)}</div>`)
 }
 
 /* ---------- SHEETS ---------- */
@@ -802,6 +840,8 @@ function act(a,d){
     case"feesheet":feeSheet();break;
     case"sigsheet":sigSheet();break;
     case"cvrng":CV.rng=d.r;chartView(CV.t,d.r);break;
+    case"cvr":cvState(d.t).rng=d.r;fillCharts();break;
+    case"cvl":{const st=cvState(d.t);st.lay[d.k]=!st.lay[d.k];fillCharts();break}
     case"cvlay":CV.lay[d.k]=!CV.lay[d.k];chartView(CV.t);break;
     case"cash":cashSheet(d.pid);break;
     case"rebdone":{const p=getP(d.pid);if(p&&p.reb){p.reb.last=todayISO();save();route(true);toast("Ombalansering noterad")}break}
@@ -824,6 +864,7 @@ function act(a,d){
     case"gostock":Ui.back={h:location.hash,y:window.scrollY,label:"Förslag & signaler"};location.hash="#/stock/"+encodeURIComponent(d.t);break;
     case"goback":{const b=Ui.back;Ui.back=null;if(b){location.hash=b.h;setTimeout(()=>window.scrollTo(0,b.y),180)}else history.back();break}
     case"archtoggle":Ui.archOpen=!Ui.archOpen;route(true);break;
+    case"psec":Ui.psec=Ui.psec||{};Ui.psec[d.k]=!Ui.psec[d.k];route(true);break;
     case"archclear":{const p=getP(d.pid);if(p&&confirm("Rensa hela arkivet för den här portföljen?")){p.archive=[];save();route(true)}break}
     case"plandel":{const p=getP(d.pid);if(p&&confirm("Ta bort förslaget från portföljen?")){delete p.plan;save();route(true)}break}
     case"chart":Ui.back={h:location.hash,y:window.scrollY,label:"Tillbaka"};location.hash="#/chart/"+encodeURIComponent(d.t);break;
@@ -1570,7 +1611,7 @@ function aboutHTML(s){
   if(s.emp)f.push("ca "+kr(s.emp)+" anställda");
   if(s.mc&&s.ccy!=="GBX"){const c={SEK:"kr",USD:"$",EUR:"€",DKK:"kr",NOK:"kr",CHF:"CHF"}[s.ccy]||"";f.push("börsvärde ca "+(s.mc>=1e9?kr(s.mc/1e9)+" mdr":kr(s.mc/1e6)+" mn")+(c?" "+c:""))}
   const body=txt?esc(txt):(s.ab?esc(s.ab)+' <span class="mu">(Yahoo, engelska)</span>':'<span class="mu" style="font-style:italic">Beskrivning saknas ännu – hämtas vid en kommande skanning.</span>');
-  return`<div class="about">${f.length?`<div class="mu fc">🏢 ${f.map(esc).join(" · ")}</div>`:""}${body?`<div class="abt">${body}</div>`:""}</div>`
+  return`<div class="about">${f.length?`<div class="mu" style="font-size:11.5px;line-height:1.35">${f.map(esc).join(" · ")}</div>`:""}${body?`<div class="abt">${body}</div>`:""}</div>`
 }
 
 /* ======================= v7: MIN BEVAKNING + DIREKT ANALYS ======================= */
@@ -1899,33 +1940,7 @@ function planStale(p){
     const d=(s.px/it.px-1)*100;
     if(Math.abs(d)>=1){n++;if(Math.abs(d)>Math.abs(worst)){worst=d;ex={t:it.t,then:it.px,now:s.px,d}}}});
   return n?{n,tot:pl.items.length,worst,ex}:null}
-function planStaleHTML(p){
-  const pl=p.plan;
-  if(pl&&pl.scan&&D.updated&&D.updated>pl.scan){
-    const age=pl.made?Math.round((Date.now()-pl.made)/36e5):null;
-    return`<div class="stat BAD" style="margin:0 0 8px"><b>⚠ FÖRSLAGET ÄR INAKTUELLT</b>
-     Det räknades på skanningen ${hhmm(pl.scan)} UTC${age!=null?` (${age<48?age+" timmar":Math.round(age/24)+" dagar"} sedan)`:""}. En nyare skanning finns: ${hhmm(D.updated)} UTC. Kurser och signaler nedan gäller alltså inte längre.
-     <span class="mu" style="font-size:11px">Tryck på den röda knappen i rubriken – den hämtar färska data, räknar om förslag och signaler och fäller ut panelen.</span></div>`}
-  const st=planStale(p);if(!st)return"";
-  return`<div class="stat WAIT" style="margin:0 0 8px"><b>⏱ KURSERNA HAR RÖRT SIG</b>
-   Förslaget räknades på kurserna när det skapades. ${st.n} av ${st.tot} rader har rört sig minst 1 % sedan dess.
-   ${st.ex?`${esc(st.ex.t)}: ${f(st.ex.then,2)} → ${f(st.ex.now,2)} (${sg(st.ex.d,1)} %).`:""}
-   <br>Tryck <b>🔄 Uppdatera förslag & signaler</b> innan du handlar, så räknas allt om på dagens kurser.</div>`}
-function planHTML(p){
-  const pl=p.plan;if(!pl||!pl.items||!pl.items.length)return"";
-  const act=pl.items.filter(i=>i.a!=="BEHÅLL"),done=act.filter(i=>i.done).length,sum=a=>pl.items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
-  const row=(it,i)=>{const s=S[it.t],nm=s?s.n:(it.n||it.t),cls2=it.a==="SÄLJ"?"S":it.a==="KÖP"?"B":"H",flag=`<span class="fg">${flagOf(it.t)}</span>`;
-    return`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${flag}<b>${esc(s?s.d:it.t)}</b><span class="pla ${cls2}">${it.a}${it.q?" "+it.q+" st":""}</span></div><div class="mu">${esc(nm)}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}</div>
-     <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>`}</div></div>`};
-  const sec=(a,lab)=>{const arr=pl.items.map((it,i)=>[it,i]).filter(x=>x[0].a===a);return arr.length?`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab}</h2></div>${arr.map(x=>row(x[0],x[1])).join("")}`:""};
-  return`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">📝</div><h2>FÖRSLAG</h2><span class="mu">${done}/${act.length} klara</span></div>
-   <div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>
-   ${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
-   <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr(sS-sB)} kr</b></div></div>
-   <details class="nwd" open><summary>Åtgärder (${pl.items.length})</summary>${sec("SÄLJ","SÄLJ / MINSKA")}${sec("KÖP","KÖP / ÖKA")}${sec("BEHÅLL","BEHÅLL")}</details>
-   <div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div>
-   <div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div></div>`
-}
+function planStaleHTML(p){return""}   // den röda knappen i rubriken är enda påminnelsen
 const a_el=pid=>{const h=document.querySelector(`.pmh[data-pid="${pid}"]`);return h&&h.closest(".mod")};
 function propHTML(p,c,sigs,rot,ideas){
   try{sigRecord(p,c)}catch(e){}
@@ -1938,7 +1953,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const G={sell:[],buy:[],watch:[],hold:[]},Rcap=(p.rules&&p.rules.cap)||15,secW={};c.rows.forEach(r=>{const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
   const bctx=r=>({held:!!r,w:r?r.w:null,cap:Rcap,secW,tot:c.tot}),pushG=(g,html,pri)=>{if(g==="buy")G.buy.push({pri:pri||0,html});else G[g].push(html)};
   const RA=rulesOf(c).filter(a=>!planHas[a.r.h.t]),RP=replSuggest(p,c,RA),ruleT=new Set(RA.map(a=>a.r.h.t));
-  items.forEach((it,i)=>{const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":"hold";const r=rowBy[it.t],x=rotFor[it.t];
+  items.forEach((it,i)=>{const r=rowBy[it.t],x=rotFor[it.t];const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":(r&&r.sig.k==="BUY"?"buy":"hold");
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
     const pri=g==="buy"?(it.pri!=null?+it.pri:(S[it.t]?buyPri(S[it.t],bctx(r)):0)):0;
     pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${it.a}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:normal">${esc(it.why)}</div>`:""}${g==="buy"&&pri?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r)}${extra}</div>
@@ -1964,18 +1979,20 @@ function propHTML(p,c,sigs,rot,ideas){
   const mixTxt=()=>{const m={};(pl?pl.items.filter(i=>i.a==="KÖP"):[]).forEach(i=>{const s0=S[i.t];const k=s0?MK(s0.m[0]).n:"?";m[k]=(m[k]||0)+1});
     const e=Object.entries(m).sort((a,b)=>b[1]-a[1]);
     return e.length?` Marknader: ${e.map(x=>esc(x[0])+" "+x[1]).join(" · ")}.`:""};
-  const sec=(g,lab)=>{if(!G[g].length)return"";const rows=g==="buy"?G.buy.slice().sort((a,b)=>b.pri-a.pri).map((x,i)=>x.html.replace("@@RANK@@",`<span class="rk">#${i+1}</span>`)):G[g];return`<div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">${lab} (${G[g].length})</h2></div>${g==="buy"?`<div class="mu" style="font-size:11.5px;margin:0 0 4px">Prioritetsordning: #1 först (momentumpoäng, värdesignaler, RSI, vikt och spridning).${mixTxt()}${costSum()}</div>`:""}${rows.join("")}`};
+  Ui.psec=Ui.psec||{};
+  const sec=(g,lab,col)=>{if(!G[g].length)return"";const rows=g==="buy"?G.buy.slice().sort((a,b)=>b.pri-a.pri).map((x,i)=>x.html.replace("@@RANK@@",`<span class="rk">#${i+1}</span>`)):G[g];const key=p.id+":"+g,openS=!!Ui.psec[key];
+    return`<div class="mh pmh" data-act="psec" data-k="${key}" style="margin:12px 0 4px;cursor:pointer"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:${col};flex:1">${lab} (${G[g].length})</h2><span class="pchev">${openS?"▴":"▾"}</span></div>${openS?(g==="buy"?`<div class="mu" style="font-size:11.5px;margin:0 0 4px">Prioritetsordning: #1 först.${mixTxt()}${costSum()}</div>`:"")+rows.join(""):""}`};
   const col=Ui.pcol[p.id]===true;
   const act=items.filter(i=>i.a!=="BEHÅLL"),tot0=(pl&&pl.total)||act.length,done=Math.max(0,tot0-act.length),sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
-  const stale=!!(pl&&pl.scan&&D.updated&&D.updated>pl.scan);
+  const stale=!!(pl&&((pl.scan&&D.updated&&D.updated>pl.scan)||planStale(p)));
   return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7"/></svg></div><h2 class="nowrap">FÖRSLAG &amp; SIGNALER</h2><span class="rfb${stale?" stale":""}" data-act="proprefresh" data-pid="${p.id}" title="${stale?"Inaktuellt – uppdatera":"Uppdatera förslag och signaler"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></span><span class="pchev">${col?"▾":"▴"}</span></div>
-   <div class="psum mu" style="margin:-2px 0 6px;font-size:12px"><span>${stale?'<b class="dn">Inaktuellt – tryck på den röda knappen så uppdateras allt.</b> ':""}Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr((pl.cash||0)+sS-sB)} kr`:""}${pl?`<br><b style="color:var(--tx)">${done}/${tot0} genomförda</b>`:""}</span></div>
+   <div class="psum mu" style="margin:-2px 0 6px;font-size:12px"><span>Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr((pl.cash||0)+sS-sB)} kr`:""}${pl?`<br><b style="color:var(--tx)">${done}/${tot0} genomförda</b>`:""}</span></div>
    <div class="pbody"${col?" hidden":""}>
    ${rulesLine(p,c)}
-   ${pl?`<div><b>${esc(pl.title||"Förslag")}</b>${pl.date?` <span class="mu">· ${esc(pl.date)}</span>`:""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px">${esc(pl.note)}</div>`:""}
+   ${pl?`<div class="mu" style="font-size:11.5px">${esc(pl.title||"Förslag")}${pl.made?" · "+hhmm(new Date(pl.made).toISOString()):""}</div>${pl.note?`<div class="mu" style="margin:4px 0 6px;font-size:11.5px">${esc(pl.note)}</div>`:""}
    ${(()=>{const d=Math.floor((Date.now()-Date.parse(pl.date||""))/864e5);if(!(d>=0))return"";const old=d>=3;return`<div class="${old?"stat WAIT":"mu"}" style="${old?"":"margin:0 0 6px;font-size:12px"}">${old?`<b>FÖRSLAGET ÄR ${d} DAGAR GAMMALT</b>`:""}${old?"Kurser och signaler har ändrats sedan dess. Antal och urval uppdateras inte av sig själva – ta fram ett nytt förslag via ⋯ → 📋 Analys för chatt om du vill uppdatera det.":(d===0?"Förslaget gjordes i dag.":"Förslaget är "+d+" dag"+(d>1?"ar":"")+" gammalt. Belopp och appens signaler uppdateras löpande.")}</div>`})()}
-   <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr((pl.cash||0)+sS-sB)} kr</b></div></div>`:`<div class="mu" style="margin-bottom:4px">Appens signaler för dina innehav. Fler detaljer och förslag med antal får du genom att importera ett förslag.</div>`}
-   ${sec("sell","SÄLJ / MINSKA")}${sec("buy","KÖP / ÖKA – I PRIORITETSORDNING")}${sec("watch","BEVAKA")}${sec("hold","BEHÅLL")}
+   <div class="kv"><div><small>Sälj</small><b class="dn">≈ ${kr(sS)} kr</b></div><div><small>Köp</small><b class="up">≈ ${kr(sB)} kr</b></div><div><small>Kassa efter</small><b>≈ ${kr((pl.cash||0)+sS-sB)} kr</b></div></div>`:""}
+   ${sec("sell","SÄLJ / MINSKA","var(--dn)")}${sec("buy","KÖP / ÖKA","var(--up)")}${sec("hold","BEHÅLL","var(--gd)")}
    ${ideas.length?`<details class="nwd"><summary>Idéer att undersöka (${ideas.length})</summary><div class="mu" style="margin-bottom:6px">Hög momentumpoäng, du äger dem inte.</div><div class="chips">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></details>`:""}
    ${pl?`<div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div><div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div>`:""}</div></div>`
 }
@@ -2082,7 +2099,9 @@ function rebSheet(pid){const p=getP(pid);if(!p)return;const cur=(p.reb&&p.reb.fr
   <button class="btn wide" id="rfgo">Spara</button>`,()=>{
     $("#rfgo").onclick=()=>{const f=$("#rf").value;if(!f)delete p.reb;else p.reb={freq:f,last:(p.reb&&p.reb.last)||todayISO()};save();closeSheet();route(true);toast(f?"Påminnelse sparad":"Påminnelse avstängd")}})}
 const VALID=`<div class="mu" style="font-size:11.5px;margin:0 0 8px">🔬 Reglerna nedan är <span class="lnk" data-i="valid">validerade i backtest</span></div>`;
-function rulesLine(p,c){return twinWarn(p)+planStaleHTML(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+corrLine(p,c):"")+rebLine(p)+VALID+`<div class="mu" style="margin:2px 0 8px;font-size:11.5px">${p.rules?`🎯 Regler: ${esc(rulesTxt(p.rules))} · <span class="lnk" data-act="rulesedit" data-pid="${p.id}">Ändra</span>`:`Inga strategiregler satta – <span class="lnk" data-act="rulesedit" data-pid="${p.id}">sätt regler</span>`}</div><div class="mu" style="font-size:11.5px;margin:0 0 8px">Belopp att fördela: <b style="color:var(--tx)">${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b> · <span class="lnk" data-act="propcash" data-pid="${p.id}">ändra</span></div>`}
+function rulesLine(p,c){const k=c&&clusters(p,c),big=k&&k.groups.filter(g=>g.w>=25);
+  return twinWarn(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+(big&&big.length?corrLine(p,c):""):"")+rebLine(p)
+  +`<div class="kv" style="margin:0 0 10px"><div><small>Belopp att fördela</small><b>${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b><span class="lnk" data-act="propcash" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Regler</small><b style="font-size:13px">${p.rules&&p.rules.mode==="sat"?"Satellit":"Kärna"}</b><span class="lnk" data-act="rulesedit" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Senaste skanning</small><b style="font-size:13px">${D.updated?hhmm(D.updated)+" UTC":"–"}</b></div></div>`}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3>
@@ -2127,6 +2146,10 @@ function autoPlan(p,o){
   RA.forEach(a=>{const h=a.r.h,s0=S[h.t];proceeds+=a.amt;items.push({t:h.t,a:"SÄLJ",q:a.q,why:a.why,tp:a.k==="VINST",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:a.r.px,done:false})});
   if(free){const seen=new Set();rotation(c.rows).forEach(x=>{const r=x.a,h=r.h;if(sold.has(h.t)||seen.has(h.t))return;seen.add(h.t);sold.add(h.t);const s0=S[h.t];proceeds+=h.q*r.px*r.F;
     items.push({t:h.t,a:"SÄLJ",q:h.q,why:"Fri omfördelning: "+x.wa.join("; ")+". Sälj hela innehavet och flytta till starkare aktier.",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})})}
+  const prof=profileFor(c.tot),want=p.targetN||(prof?prof.n:20);
+  const live=c.rows.filter(r=>!sold.has(r.h.t)&&r.s);
+  if(live.length>want){live.slice().sort((a,b)=>(rankOf(a.h.t)||1e9)-(rankOf(b.h.t)||1e9)).slice(want).forEach(r=>{const h=r.h,s0=r.s;sold.add(h.t);proceeds+=h.q*r.px*r.F;
+    items.push({t:h.t,a:"SÄLJ",q:h.q,why:`Över målantalet ${want} innehav (nu ${live.length}): lägst rankad, plats ${rankOf(h.t)||"–"}. Backtestet höll aldrig fler än ${want}.`,n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})})}
   const budget=free?proceeds:amt+(incl?proceeds:0),tot0=c.tot+(free?0:amt),capF=R.cap>0?R.cap/100:1;
   const secW={};c.rows.forEach(r=>{if(sold.has(r.h.t))return;const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
   const held=new Set(p.h.map(h=>h.t)),avoid=s=>reg.avoid.has(s.sec),cands=[];
@@ -2145,7 +2168,7 @@ function autoPlan(p,o){
     items.push({t:h.t,a:"BEHÅLL",q:0,why:(s?`Appen: ${SIGL[r.sig.k]} (poäng ${s.sc}, RSI ${s.rsi}${s.rsi>R.maxRsi?" – överköpt, köp inte mer":""}). `:"")+`Stopp ≈ ${f(base*(1-R.stop/100))} ${u}, nästa vinstmål ≈ ${f(h.c*(1+R.tp*((h.tps||0)+1)/100))} ${u}.`,n:h.n||"",ccy:s?s.ccy:h.ccy,px:r.px,done:false})});
   const hh=t=>{try{return new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
   const mode=free?`Fri omfördelning: ingen summa angiven, så köpen finansieras av försäljningar (≈ ${kr(proceeds)} kr) och summorna kan bli större.`:`Belopp att fördela: ${kr(amt)} kr${incl?` + försäljningsintäkter ${kr(proceeds)} kr`:` (försäljningsintäkter ≈ ${kr(proceeds)} kr ligger utanför och blir kassa)`}. Köpen summerar till ≈ ${kr(spent)} kr${pool>1000?`; ${kr(pool)} kr gick inte att placera inom taket ${R.cap} % per aktie`:""}.`;
-  const note=`Genererat ${hh(new Date().toISOString())} av appens regelmotor · data från skanning ${D.updated?hh(D.updated)+" UTC":"demo"}${FHQ.ok?" + live-kurser":""}. ${mode} ${reg.warn?"MARKNADSVARNING: "+reg.text+"Tech undviks"+(free?" och max 1 nytt köp":"")+". ":""}Regler: ${rulesTxt(R)}. Räkneexempel, ingen rådgivning.`;
+  const note=`${mode}${reg.warn?" MARKNADSVARNING: "+reg.text+"Tech undviks"+(free?" och max 1 nytt köp":"")+".":""}`;
   return{title:"Autoförslag "+new Date().toLocaleDateString("sv-SE"),date:todayISO(),note,items,total:items.filter(i=>i.a!=="BEHÅLL").length,auto:true,cash:free?0:amt,scan:D.updated||"",made:Date.now()}
 }
 async function refreshAll(pid,cash,incl){
@@ -2263,9 +2286,10 @@ function tradePlan(s,R){
   const lv=(s.sr||[]).filter(z=>z.n>=2);
   const sup=lv.filter(z=>z.role==="stöd"&&z.lvl<px*0.995).sort((a,b)=>b.lvl-a.lvl)[0];
   const res=lv.filter(z=>z.role==="motstånd"&&z.lvl>px*1.01).sort((a,b)=>a.lvl-b.lvl)[0];
-  const sATR=px-2*atr,sPct=px*(1-R.stop/100);
+  const sATR=px-2*atr,sPct=R.stop>0?px*(1-R.stop/100):-Infinity;   // inget golv när procentstopp saknas (kärnan)
   const sStruct=sup?sup.lo-0.4*atr:swing-0.2*atr;             // en bit under stödzonens botten
-  const stop=Math.max(Math.min(sATR,sStruct),sPct);
+  let stop=Math.max(Math.min(sATR,sStruct),sPct);
+  if(!(stop<px*0.995))stop=Math.min(sATR,px-1.5*atr);        // stoppet måste ligga under kursen
   const entry=(eLo+eHi)/2,risk=entry-stop;
   const t1=res&&res.lo>entry+risk?Math.min(res.lo-0.2*atr,entry+2*risk):entry+2*risk,t2=entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
   return{px,atr,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,stopPct:(1-stop/entry)*100,sup,res,
@@ -2670,7 +2694,7 @@ function cashSheet(pid){
       const mvv=parseFloat($("#cm").value);
       if(mvv&&isFinite(mvv)){p.cashmv=(p.cashmv||[]).concat([{d:todayISO(),amt:mvv}])}
       const want=parseFloat($("#ck").value);
-      if(isFinite(want)){const c2=cashCalc(p);p.cashadj=(p.cashadj||0)+(want-c2.tot)}
+      if(isFinite(want)){const c2=cashCalc(p);p.cashadj=(p.cashadj||0)+(want-c2.raw)}
       save();closeSheet();route(true);toast("Kassa sparad")}})
 }
 function cashLine(p,c){
