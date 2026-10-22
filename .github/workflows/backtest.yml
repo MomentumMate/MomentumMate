@@ -68,7 +68,7 @@ on:
         type: boolean
         default: false
       core:
-        description: "Kärnlager: absoluta hållvillkor, månadsprövning, brusfilter"
+        description: "Kärnlager: hållvillkor, brusfilter och ROTATIONSTEST R1–R3 (sälj sämsta innehaven vid kvartal)"
         type: boolean
         default: false
       port:
