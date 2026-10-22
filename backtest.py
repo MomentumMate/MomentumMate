@@ -186,6 +186,8 @@ def period_ends(idx, freq="M"):
     s = pd.Series(idx, index=idx)
     if freq == "M":   key = [idx.year, idx.month]
     elif freq == "Q": key = [idx.year, idx.quarter]
+    elif freq == "Q1":                                   # kvartal förskjutet en månad (jan/apr/jul/okt)
+        sh = idx - pd.DateOffset(months=1); key = [sh.year, sh.quarter]
     elif freq == "H": key = [idx.year, (idx.month - 1) // 6]
     else:             key = [idx.year]
     return list(s.groupby(key).last())
@@ -747,6 +749,19 @@ def main():
             "R1. Kärna + rotation: sälj sämsta 10 % vid kvartal":        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.10),
             "R2. Kärna + rotation: sälj sämsta 25 % vid kvartal":        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25),
             "R3. Kärna + rotation 25 % bara om ersättaren rankas topp 5": dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25, rot_top=5),
+            "--- rotationens robusthet (2026-10-22) ---":                None,
+            "S1. Rotation 5 %":                                           dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.05),
+            "S2. Rotation 15 %":                                          dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.15),
+            "T0. Kärna, kvartal förskjutet 1 mån":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="Q1"),
+            "T1. Rotation 5 %, kvartal förskjutet":                       dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.05, reb="Q1"),
+            "T2. Rotation 10 %, kvartal förskjutet":                      dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.10, reb="Q1"),
+            "T3. Rotation 15 %, kvartal förskjutet":                      dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.15, reb="Q1"),
+            "T4. Rotation 25 %, kvartal förskjutet":                      dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25, reb="Q1"),
+            "U0. Kärna, dubbla kostnader":                                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, cour_pct=0.0018, fx_pct=0.00532),
+            "U1. Rotation 5 %, dubbla kostnader":                         dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.05, cour_pct=0.0018, fx_pct=0.00532),
+            "U2. Rotation 10 %, dubbla kostnader":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.10, cour_pct=0.0018, fx_pct=0.00532),
+            "U3. Rotation 15 %, dubbla kostnader":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.15, cour_pct=0.0018, fx_pct=0.00532),
+            "U4. Rotation 25 %, dubbla kostnader":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25, cour_pct=0.0018, fx_pct=0.00532),
             "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, add_at_support=True),
             "K. Satellit + ÖKA vid stöd":                                dict(B, add_at_support=True),
             "--- brusfilter på satelliten ---":                          None,
@@ -775,7 +790,7 @@ def main():
             except Exception as ex:
                 print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
         # --- håller kärnan i olika perioder och marknader? ---
-        print(f"\n   === UPPDELAT: dagens modell mot kärna mot kärna + rotation 25 % / 10 % (Sharpe och CAGR per delprov) ===")
+        print(f"\n   === UPPDELAT: dagens, kärna, rotation 5/10/15 % och rotation 10 % med förskjutet kvartal (Sharpe, CAGR) ===")
         def group(cols):
             us, nordic, eur = [], [], []
             for t in cols:
@@ -787,8 +802,10 @@ def main():
         segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
         SUB = {"dagens": VAR["0. Satellit (dagens): band 10/30, stopp 15, dagligen"],
                "kärna": VAR["A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad"],
-               "rotation25": VAR["R2. Kärna + rotation: sälj sämsta 25 % vid kvartal"],
-               "rotation10": VAR["R1. Kärna + rotation: sälj sämsta 10 % vid kvartal"]}
+               "rot5": VAR["S1. Rotation 5 %"],
+               "rot10": VAR["R1. Kärna + rotation: sälj sämsta 10 % vid kvartal"],
+               "rot15": VAR["S2. Rotation 15 %"],
+               "rot10+1mån": VAR["T2. Rotation 10 %, kvartal förskjutet"]}
         wins = {k: 0 for k in SUB}; split = {}
         print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>13}" for k in SUB) + "   vinnare")
         for segn, (s0, s1) in segs.items():
