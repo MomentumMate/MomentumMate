@@ -500,6 +500,16 @@ def run(close, vol, cfg, vix=None):
                 rank = row.rank(ascending=False, method="first")
                 top = set(rank[rank <= cfg["n"]].index)
                 keep = set(t for t in hold if rank.get(t, 1e9) <= cfg["band_out"])
+                # Rotation (test 2026-10-22): sälj den sämst rankade andelen av innehaven vid varje
+                # kvartalsskifte, oavsett om de fortfarande stiger, och låt påfyllningen ta in topp-N.
+                # Detta är "MINSKA i den svagare för att KÖPA den starkare" i mjuk form.
+                if cfg.get("rot_frac") and hold:
+                    k_rot = max(1, int(round(len(hold) * cfg["rot_frac"])))
+                    worst = sorted(hold, key=lambda x: rank.get(x, 1e9), reverse=True)[:k_rot]
+                    if cfg.get("rot_top"):   # bara om det finns en ersättare i den allra översta rankningen
+                        fresh = [t for t in rank[rank <= cfg["rot_top"]].index if t not in hold]
+                        worst = worst[:len(fresh)]
+                    keep -= set(w for w in worst if rank.get(w, 1e9) > cfg["n"])   # aldrig en som står i topp-N
                 # sälj allt som ramlat ur bandet
                 for t in list(hold):
                     if t not in keep:
@@ -734,6 +744,9 @@ def main():
             "A7. Kärna daglig, 10 d, buffert 3 %":                       dict(B, core="daily", confirm_days=10, sma_buf=3, band_out=100000, stop=0),
             "B. Kärna daglig + minsta innehavstid 60 d":                 dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, min_hold=60),
             "C. Kärna daglig + band 50 vid kvartal":                      dict(B, core="daily", confirm_days=5, band_out=50, stop=0),
+            "R1. Kärna + rotation: sälj sämsta 10 % vid kvartal":        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.10),
+            "R2. Kärna + rotation: sälj sämsta 25 % vid kvartal":        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25),
+            "R3. Kärna + rotation 25 % bara om ersättaren rankas topp 5": dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25, rot_top=5),
             "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, add_at_support=True),
             "K. Satellit + ÖKA vid stöd":                                dict(B, add_at_support=True),
             "--- brusfilter på satelliten ---":                          None,

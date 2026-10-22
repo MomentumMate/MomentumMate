@@ -352,7 +352,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-22-a";
+const APPV="2026-10-22-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -509,7 +509,7 @@ function detail(s,mk,extra="",pre=""){
    <div class="ctl" style="display:flex;gap:4px;margin:4px 0">${HR.map(x=>`<span class="chip" style="font-size:10.5px;padding:4px 7px" data-act="cvr" data-t="${esc(s.t)}" data-r="${x[1]}">${x[0]}</span>`).join("")}</div>
    <div class="cvin"><div class="empty" style="padding:30px 0">Laddar graf…</div></div>
    <div class="lay" style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px">${[["candle","Ljusstakar"],["vol","Volym"],["sma","SMA 50/200"],["sr","Stöd/motstånd"],["plan","Handelsplan"],["swing","Svängpunkter"]].map(([k,n])=>`<span class="chip off" style="font-size:10.5px;padding:4px 8px" data-act="cvl" data-t="${esc(s.t)}" data-k="${k}">${n}</span>`).join("")}</div></div>
-  <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px">${tp?box("Köpzon",`${f(tp.eLo,1)}–${f(tp.eHi,1)}`,"up")+box("Entry",f(tp.entry,2),"up")+box("Mål",f(tp.t1,2),"up")+box("Stopp",f(tp.stop,2),"dn"):""}
+  <div class="g3" style="grid-template-columns:repeat(4,1fr);gap:6px">${tp?box("Upplägg",tp.setup==="breakout"?"Breakout":tp.setup==="studs"?"Studs":"Avvakta",tp.setup==="avvakta"?"":"up")+box("Köpzon",`${f(tp.eLo,1)}–${f(tp.eHi,1)}`,"up")+box("Entry",f(tp.entry,2),"up")+box("Mål",f(tp.t1,2),"up")+box("Stopp",f(tp.stop,2),"dn"):""}
    ${box("12-1",typeof s.m121==="number"?sg(s.m121,0):"–",cls(s.m121))}${box("SMA200",s.sh?"–":s.a200?"över":"under",s.a200?"up":"dn")}${box("SMA50",s.a50?"över":"under",s.a50?"up":"dn")}${box("Plats",rk||"–",rk&&rk<=10?"up":"")}
    ${stl?box("Struktur",stl,st==="upp"?"up":st==="ned"?"dn":""):""}${box("52L",f52(s,"lo"))}${box("52H",f52(s,"hi"))}${box("Poäng",s.sc)}${s.vol?box("Volatilitet",f(s.vol,0)+" %"):""}</div>
   <div class="acts" style="margin:4px 0 10px"><button class="btn sm" data-act="plansheet" data-t="${esc(s.t)}">🎯 Handelsplan</button></div>
@@ -2273,29 +2273,46 @@ function newPfSheet(){
 }
 /* ============ v14: ENTRY, STOPP, POSITIONSSTORLEK OCH CHECKLISTA ============ */
 function sma(sp,n){if(!sp||sp.length<n)return null;const a=sp.slice(-n);return a.reduce((x,y)=>x+y,0)/a.length}
+/* Handelsplan enligt klassisk stöd/motstånd-teori (2026-10-22):
+   1. Stöd = tidigare bottnar där kursen vänt flera gånger (skannerns zoner, n ≥ 2). Motstånd = tidigare toppar.
+   2. Köpzon = området strax över stödet (stödzonens botten till ca en halv ATR över dess topp).
+   3. Entry = bekräftelse, aldrig mitt i zonen: studs upp ur köpzonen (zonens topp + 0,2 ATR)
+      eller breakout över motståndet (motståndets topp + 0,2 ATR).
+   4. Mål = nästa motstånd (strax under), annars 2 × risken. Stopp = strax under stödet.
+   Vilket av uppläggen som visas avgörs av var kursen står: nära stödet → studs, nära/över motståndet → breakout,
+   mitt emellan → avvakta (båda nivåerna visas). */
 function tradePlan(s,R){
   if(!s||!(s.px>0))return null;R=Object.assign({},RULE_DEF,R||{});
-  const px=s.px,atr=s.atr>0?s.atr:px*0.02,sp=s.sp||[],s20=sma(sp,20),s10=sma(sp,10);
+  const px=s.px,atr=s.atr>0?s.atr:px*0.02,sp=s.sp||[],s20=sma(sp,20);
   const swing=sp.length>10?Math.min(...sp.slice(-10)):px-2*atr;
-  // Entry: nära kurs om läget är normalt, annars invänta rekyl när aktien är utsträckt
-  const extAtr=s20?(px-s20)/atr:0,hot=s.rsi>=70||extAtr>2.2;
-  const eLo=hot?Math.max(s20||px-1.5*atr,px-1.8*atr):px-0.5*atr, eHi=hot?px-0.6*atr:px+0.3*atr;
-  // Stopp: under närmaste struktur, men aldrig lösare än regelns procentstopp
-  // Stöd/motstånd från skannern: stoppet läggs strax UNDER närmaste stöd (inte på det –
-  // marknaden skjuter ofta över), målet strax UNDER närmaste motstånd.
-  const lv=(s.sr||[]).filter(z=>z.n>=2);
-  const sup=lv.filter(z=>z.role==="stöd"&&z.lvl<px*0.995).sort((a,b)=>b.lvl-a.lvl)[0];
-  const res=lv.filter(z=>z.role==="motstånd"&&z.lvl>px*1.01).sort((a,b)=>a.lvl-b.lvl)[0];
-  const sATR=px-2*atr,sPct=R.stop>0?px*(1-R.stop/100):-Infinity;   // inget golv när procentstopp saknas (kärnan)
-  const sStruct=sup?sup.lo-0.4*atr:swing-0.2*atr;             // en bit under stödzonens botten
-  let stop=Math.max(Math.min(sATR,sStruct),sPct);
-  if(!(stop<px*0.995))stop=Math.min(sATR,px-1.5*atr);        // stoppet måste ligga under kursen
-  const entry=(eLo+eHi)/2,risk=entry-stop;
-  const t1=res&&res.lo>entry+risk?Math.min(res.lo-0.2*atr,entry+2*risk):entry+2*risk,t2=entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
-  return{px,atr,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,stopPct:(1-stop/entry)*100,sup,res,
-    stopWhy:sup?`strax under stödet vid ${f(sup.lvl,2)} (${sup.n} träffar)`:`under senaste tio dagarnas lägsta`,
-    t1Why:res&&res.lo>entry+risk?`strax under motståndet vid ${f(res.lvl,2)}`:`2 × risken`,
-    why:hot?`Utsträckt läge (RSI ${s.rsi}${s20?`, ${f((px/s20-1)*100,1)} % över 20-dagars medel`:""}) – invänta rekyl.`:"Normalt läge – köp i zonen eller på styrka."}
+  const lv=(s.sr||[]).filter(z=>z.n>=2),Z=z=>({lvl:z.lvl,lo:z.lo??z.lvl,hi:z.hi??z.lvl,n:z.n});
+  const sups=lv.filter(z=>z.role==="stöd"&&z.lvl<px).sort((a,b)=>b.lvl-a.lvl).map(Z);
+  const ress=lv.filter(z=>z.role==="motstånd"&&z.lvl>px).sort((a,b)=>a.lvl-b.lvl).map(Z);
+  const sup=sups[0]||{lvl:swing,lo:swing,hi:swing,n:0},res=ress[0]||null,res2=ress[1]||null;
+  const distS=(px-sup.hi)/atr,distR=res?(res.lo-px)/atr:Infinity;
+  const hot=s.rsi>=70||(s20&&(px-s20)/atr>2.2);
+  let setup,eLo,eHi,entry,stop,t1,why;
+  const stopB=sup.lo-0.4*atr;                                    // stopp strax under stödet
+  if(res&&distR<=1.0){                                           // vid motståndet → breakout-upplägg
+    setup="breakout";eLo=res.lvl;eHi=res.hi+0.5*atr;entry=res.hi+0.2*atr;
+    stop=Math.max(stopB,res.lo-1.0*atr);                         // efter utbrott blir motståndet stöd
+    t1=res2?res2.lo-0.2*atr:entry+2*(entry-stop);
+    why=`Kursen står vid motståndet ${f(res.lvl,2)}. Entry först vid stängning över ${f(entry,2)} med volym; köpzonen är återtestet av nivån.`}
+  else if(distS<=1.5||hot===false&&distS<=2.5){                 // vid stödet → studs-upplägg
+    setup="studs";eLo=sup.lo;eHi=sup.hi+0.5*atr;entry=eHi+0.2*atr;stop=stopB;
+    t1=res?res.lo-0.2*atr:entry+2*(entry-stop);
+    why=`Kursen ligger nära stödet ${f(sup.lvl,2)}. Köp inte i zonen – vänta på att kursen vänder upp och passerar ${f(entry,2)}.`}
+  else{                                                          // mitt i intervallet → avvakta
+    setup="avvakta";eLo=sup.lo;eHi=sup.hi+0.5*atr;entry=eHi+0.2*atr;stop=stopB;
+    t1=res?res.lo-0.2*atr:entry+2*(entry-stop);
+    why=`Kursen står mellan stödet ${f(sup.lvl,2)} och ${res?"motståndet "+f(res.lvl,2):"senaste toppen"}. Två lägen: rekyl ner i köpzonen och studs över ${f(entry,2)}, eller breakout ${res?"över "+f(res.hi+0.2*atr,2):"över toppen"}.`}
+  if(!(stop<entry*0.995))stop=Math.min(sup.lo-0.4*atr,entry-1.5*atr);
+  const risk=entry-stop;if(!(t1>entry+0.5*risk))t1=entry+2*risk;
+  const t2=res2&&res2.lo>t1?res2.lo-0.2*atr:entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
+  const brk=res?res.hi+0.2*atr:null;
+  return{px,atr,setup,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,brk,stopPct:(1-stop/entry)*100,sup:sup.n?sup:null,res,
+    stopWhy:sup.n?`strax under stödet vid ${f(sup.lvl,2)} (${sup.n} träffar)`:`under senaste tio dagarnas lägsta`,
+    t1Why:(setup==="breakout"?res2:res)?`strax under nästa motstånd vid ${f((setup==="breakout"?res2:res).lvl,2)}`:`2 × risken`,why}
 }
 function posSize(cap,riskPct,entry,stop,ccy){
   const r=entry-stop;if(!(cap>0)||!(r>0))return null;
@@ -2329,13 +2346,15 @@ function planSheet(t,pid){
   <div class="stat ${vcls}"><b>CHECKLISTA: ${ck.verdict} ${ck.tot}/${ck.max}</b>Svagast: ${esc(ck.worst.k)} – ${esc(ck.worst.w)}</div>
   <div class="mh" style="margin:10px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">NIVÅER</h2></div>
   <div class="g"><div><small>Kurs nu</small><b>${f(tp.px)} ${esc(u)}</b></div>
+   <div><small>Upplägg</small><b>${tp.setup==="breakout"?"Breakout":tp.setup==="studs"?"Studs ur köpzon":"Avvakta"}</b></div>
    <div><small>Köpzon</small><b>${f(tp.eLo)}–${f(tp.eHi)}</b></div>
+   <div><small>Entry</small><b class="up">${f(tp.entry)}</b></div>${tp.brk?`<div><small>Breakout över</small><b>${f(tp.brk)}</b></div>`:""}
    <div><small>Stopp</small><b class="dn">${f(tp.stop)} (−${f(tp.stopPct,1)} %)</b></div>
    <div><small>Mål 1</small><b class="up">${f(tp.t1)}</b></div>
    <div><small>Mål 2 (3R)</small><b class="up">${f(tp.t2)}</b></div>
    <div><small>Risk/avkastning</small><b class="${tp.rr<2?"dn":""}">${f(tp.rr,1)}:1</b></div></div>
   ${tp.rr<2?`<div class="stat BAD" style="margin:6px 0"><b>R:R UNDER 2:1</b>Vinstpotentialen till närmaste motstånd är mindre än dubbla risken till stoppet. Överväg att vänta på ett bättre läge, eller flytta köpzonen närmare stödet.</div>`:""}
-  <div class="mu" style="white-space:normal;margin:6px 0 2px">${esc(tp.why)} Stoppet ligger ${esc(tp.stopWhy)} och som mest ${R.stop} % från köpkursen. Mål 1 ligger ${esc(tp.t1Why)}. ATR (dagssvängning) ${f(tp.atr)} ${esc(u)}.</div>
+  <div class="mu" style="white-space:normal;margin:6px 0 2px">${esc(tp.why)} Stoppet ligger ${esc(tp.stopWhy)}${R.stop>0?` och som mest ${R.stop} % från köpkursen`:""}. Mål 1 ligger ${esc(tp.t1Why)}. ATR (dagssvängning) ${f(tp.atr)} ${esc(u)}.</div>
   <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">KOSTNAD FÖR AFFÄREN</h2></div>
   <div id="cst" class="mu" style="margin:2px 0 8px"></div>
   <div class="mh" style="margin:12px 0 4px"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:var(--gd)">POSITIONSSTORLEK</h2></div>
