@@ -86,6 +86,26 @@ def load_prices(tickers, years, cache=None):
     close = close.loc[:, ~close.columns.duplicated()]
     vol = vol.loc[:, ~vol.columns.duplicated()]
     close = close.dropna(axis=1, how="all")
+    # Felkursfilter (2026-10-23): en enda korrupt kurs kan ge likaviktat universum +70 % på ett år.
+    # En aktie som på EN dag rör sig mer än +300 % eller −80 % utan att komma tillbaka inom fem dagar
+    # är nästan alltid ett datafel (fel valuta, saknad split, decimalfel). Sådana aktier rapporteras
+    # och tas bort helt – hellre 10 aktier färre än en fiktiv vinnare.
+    r = close.pct_change()
+    bad = {}
+    for t in close.columns:
+        rt = r[t].dropna()
+        if rt.empty: continue
+        hi, lo = rt.max(), rt.min()
+        if hi > 3.0 or lo < -0.8:
+            d0 = rt.idxmax() if hi > 3.0 else rt.idxmin()
+            i0 = close.index.get_loc(d0)
+            before = close[t].iloc[max(0, i0 - 1)]; after = close[t].iloc[min(len(close) - 1, i0 + 5)]
+            ratio = after / before if before and before == before and before > 0 else np.nan
+            bad[t] = f"{d0.date()} {hi*100:+.0f}%/{lo*100:+.0f}%, kurs 5 d senare {ratio:.2f}× före"
+    if bad:
+        print(f"  FELKURSFILTER: {len(bad)} aktier bortfiltrerade (extrem dagsrörelse):")
+        for t, why in list(bad.items())[:25]: print(f"    {t:<14} {why}")
+        close = close.drop(columns=list(bad))
     vol = vol.reindex(columns=close.columns)
     if cache:
         try: close.to_pickle(cache)
@@ -799,7 +819,8 @@ def main():
                 e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd)
                 res[nm] = st
                 print(f"   {nm:<58}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
-                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d"
+                      + (f"  utgångar {st.get('utgångar')}" if nm[:1] in "AV" else ""))
             except Exception as ex:
                 print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
         # --- håller kärnan i olika perioder och marknader? ---
