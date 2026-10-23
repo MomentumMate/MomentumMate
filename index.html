@@ -352,7 +352,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-22-b";
+const APPV="2026-10-23-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -407,7 +407,7 @@ function calc(p){
   ruleSignals(p,{rows,tot}).forEach(a=>{const r=a.r;r.rule=a;const b=r.sig;
     if(a.k==="STOPP"||a.k==="BAND"||a.k==="ABSM"||a.k==="SMA")r.sig={k:"SELL",why:[a.why].concat(b.why||[])};
     else r.sig={k:"TRIM",why:[a.why].concat(b.k==="BUY"?["Momentumet är högt, men "+(a.k==="TAK"?"innehavet är för stort":"vinstmålet är nått")+" – därför ingen påfyllning."]:[])}});
-  rows.forEach(r=>{if(r.pend&&!r.rule)r.sig.why.push(`⏳ ${RLAB[r.pend.k]}: villkoret har gällt ${r.pend.n} av ${r.pend.N} dagar. Blir det ${r.pend.N} i rad ges säljsignal.`)});
+  rows.forEach(r=>{if(r.pend&&!r.rule)r.sig.why.push(r.pend.mw?`⏳ ${RLAB[r.pend.k]}: villkoret gäller just nu (${r.pend.n} dagar). Prövas vid månadsskiftet, ${r.pend.mw} – gäller det då ges SÄLJ.`:`⏳ ${RLAB[r.pend.k]}: villkoret har gällt ${r.pend.n} av ${r.pend.N} dagar. Blir det ${r.pend.N} i rad ges säljsignal.`)});
   rows.sort((a,b)=>b.val-a.val);
   return{rows,tot,cost,pnl:tot-cost,day,dayPct:(tot-day)?day/(tot-day)*100:0,ret:cost?(tot/cost-1)*100:0}
 }
@@ -1215,7 +1215,7 @@ dtstat:()=>{const dt=D.rank.DT||{cand:[],near:[]},mk=Ui.dtm,L=Ui.dtl,mn=MK(mk),h
 dt:()=>["Daghandelslistan","<p>Topp 25 av aktierna som klarar <b>alla fem kriterier</b>, från alla börser, rankade på en daghandelspoäng (0–100):</p><p><b>35 %</b> rörelse mot gårdagen (gap, max 10 %) · <b>25 %</b> pre-market-volym · <b>20 %</b> relativ volym · <b>10 %</b> daglig rörlighet (ATR) · <b>10 %</b> nyhetskatalysator, ±5 för nyhetston.</p><p>“Nästan kandidater” saknar bara ett kriterium (eller klarar alla bedömbara, för svenska aktier utan pre-market).</p><p>Listan uppdateras vid varje skanning och – om live-körningen är på – var 15:e minut under börstid. Det är ingen realtidsdata.</p>"+F],
 plan:()=>["Entry, stop och mål","<p><b>Trigger:</b> högsta av pre-market-high och gårdagens high – köp först när kursen stänger över den med ökad volym (≥ 1,2× snittet) och över VWAP.</p><p><b>Stop:</b> under närmaste struktur under entry (VWAP, PM-high, gårdagens high, dagens öppning eller senaste svinglow) minus 0,25× ATR(5 min). Begränsas till max 0,6× daglig ATR och minst 0,15×. Vid nyhetskatalysator senaste dygnet breddas stoppen 25 %.</p><p><b>Mål:</b> 1R och 2R (risk/belöning 1:1 och 1:2).</p><p><b>Flaggor:</b> K = köp (breakout över trigger på volym, eller återtest av VWAP). S = sälj (stop nådd, mål 2 nått, två stängningar under VWAP, eller överköpt RSI med lång överskugga).</p><p><b>Positionsstorlek</b> = (kapital × risk %) ÷ risk per aktie.</p>"+F],
 rot:()=>["Omfördelning mellan innehav","<p>Om ett innehav stagnerat (smalt 20-dagarsintervall, ingen månadsrörelse, under SMA50 eller svag momentumpoäng) medan ett annat innehav är i breakout eller har hög momentumpoäng, föreslår appen att sälja det första och köpa mer av det andra. Tryck på förslaget för att förifylla omfördelningen.</p>"+F],
-psig:()=>["Portföljsignaler","<p>Fyra signaler, alla ur rankningen och regelmotorn:</p><p><b>ÖKA:</b> aktien ligger i topp 10 i momentumrankningen.</p><p><b>BEHÅLL:</b> hållvillkoren gäller – 12-1 över noll och kurs över SMA200. Rankningsplats spelar ingen roll.</p><p><b>MINSKA:</b> innehavet väger över taket per aktie.</p><p><b>SÄLJ:</b> 12-1 har varit negativt, eller kursen under SMA200, <b>fem skanningsdagar i rad</b>. Ett dagsfall räcker aldrig. Under de fem dagarna visas ⏳ med räknaren.</p><p>Den gamla signalmotorn (BEVAKA, KÖP MER, varningar för RSI och MACD) togs bort 2026-10-21. Den var aldrig validerad och gav motsägelser: en aktie kunde vara plats 1 i börsdesken och “bevaka” i portföljen.</p><p><b>Satellitläge</b> (valbart under Regler) lägger till stopp 15 % med 5-dagarsfilter och band 10/30.</p>"+F]
+psig:()=>["Portföljsignaler","<p>Fyra signaler, alla ur rankningen och regelmotorn:</p><p><b>ÖKA:</b> aktien ligger i topp 10 i momentumrankningen.</p><p><b>BEHÅLL:</b> hållvillkoren gäller – 12-1 över noll och kurs över SMA200. Rankningsplats spelar ingen roll.</p><p><b>MINSKA:</b> innehavet väger över taket per aktie.</p><p><b>SÄLJ:</b> 12-1 är negativt eller kursen under SMA200 <b>vid månadsprövningen</b> – sista handelsdagen i månaden och tre dagar in i nästa. Dagarna innan visas ⏳ när villkoret bryts, med datum för prövningen. Ett dagsfall mitt i månaden ger aldrig säljsignal. Validerat 2026-10-23: månadsprövning slog daglig prövning med bekräftelse i tio av tolv delprov (22,6 mot 19,8 % per år).</p><p>Den gamla signalmotorn (BEVAKA, KÖP MER, varningar för RSI och MACD) togs bort 2026-10-21. Den var aldrig validerad och gav motsägelser: en aktie kunde vara plats 1 i börsdesken och “bevaka” i portföljen.</p><p><b>Satellitläge</b> (valbart under Regler) lägger till stopp 15 % med 5-dagarsfilter och band 10/30.</p>"+F]
 });
 
 /* ======================= v4: BÖRSER, DATAHÄLSA, MANUELLA INNEHAV ======================= */
@@ -1984,7 +1984,7 @@ function propHTML(p,c,sigs,rot,ideas){
     return`<div class="mh pmh" data-act="psec" data-k="${key}" style="margin:12px 0 4px;cursor:pointer"><h2 style="margin:0;font-size:12px;letter-spacing:1.6px;color:${col};flex:1">${lab} (${G[g].length})</h2><span class="pchev">${openS?"▴":"▾"}</span></div>${openS?(g==="buy"?`<div class="mu" style="font-size:11.5px;margin:0 0 4px">Prioritetsordning: #1 först.${mixTxt()}${costSum()}</div>`:"")+rows.join(""):""}`};
   const col=Ui.pcol[p.id]===true;
   const act=items.filter(i=>i.a!=="BEHÅLL"),tot0=(pl&&pl.total)||act.length,done=Math.max(0,tot0-act.length),sum=a=>items.filter(i=>i.a===a).reduce((x,i)=>x+planAmt(i),0),sS=sum("SÄLJ"),sB=sum("KÖP");
-  const stale=!!(pl&&((pl.scan&&D.updated&&D.updated>pl.scan)||planStale(p)));
+  const stale=!pl||!pl.scan||(D.updated&&D.updated>pl.scan)||!!planStale(p);
   return`<div class="mod" style="margin-top:10px"><div class="mh pmh" data-act="proptoggle" data-pid="${p.id}"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7"/></svg></div><h2 class="nowrap">FÖRSLAG &amp; SIGNALER</h2><span class="rfb${stale?" stale":""}" data-act="proprefresh" data-pid="${p.id}" title="${stale?"Inaktuellt – uppdatera":"Uppdatera förslag och signaler"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/><path d="M18 3v4h-4M6 21v-4h4"/></svg></span><span class="pchev">${col?"▾":"▴"}</span></div>
    <div class="psum mu" style="margin:-2px 0 6px;font-size:12px"><span>Sälj ${G.sell.length} · Köp ${G.buy.length} · Bevaka ${G.watch.length}${pl&&sS+sB>0?` · kassa efter ≈ ${kr((pl.cash||0)+sS-sB)} kr`:""}${pl?`<br><b style="color:var(--tx)">${done}/${tot0} genomförda</b>`:""}</span></div>
    <div class="pbody"${col?" hidden":""}>
@@ -2010,11 +2010,11 @@ function propHTML(p,c,sigs,rot,ideas){
    mot dagens band+stopp 15,9 % / 0,80 / −31,3 % / 99 köp / 52 dagar. Vann 8 av 12 delprov,
    alla fyra de senaste sex åren och alla tre i USA. Bandet var bromsen: det sålde aktier som
    halkat i rankningen men fortfarande steg. Kärnan säljer bara när aktien slutat stiga:
-   12-1 under noll eller kurs under SMA200, bekräftat 5 dagar i rad (trögare kostade).
+   12-1 under noll eller kurs under SMA200, prövat vid månadsskiftet (validerat 2026-10-23; daglig prövning med bekräftelse förlorade).
    mode "sat" = tidigare modell (band 10/30, stopp 15 med 5-dagarsfilter), valbar per portfölj. */
 const RULE_DEF={mode:"core",confirm:5,stop:0,trail:true,tp:0,tpSell:50,cap:10,maxRsi:80,repl:3,bandIn:10,bandOut:0,absMom:true,sma200:true};
 const RULE_SAT={mode:"sat",confirm:5,stop:15,trail:true,tp:0,tpSell:50,cap:10,maxRsi:80,repl:3,bandIn:10,bandOut:30,absMom:true,sma200:false};
-const rulesTxt=R=>R.mode==="sat"?`SATELLIT · stopp −${R.stop} % från ${R.trail?"toppkurs":"inköpskurs"} (${R.confirm} dagar i rad) · absolut momentum · band köp topp ${R.bandIn}, sälj under plats ${R.bandOut} · tak ${R.cap} %`:`KÄRNA · köp från topp ${R.bandIn} · håll så länge 12-1 > 0 och kurs > SMA200 · sälj först efter ${R.confirm} dagar i rad under villkoret${R.stop>0?` · stopp −${R.stop} %`:" · inget stopp"} · tak ${R.cap} %`;
+const rulesTxt=R=>R.mode==="sat"?`SATELLIT · stopp −${R.stop} % från ${R.trail?"toppkurs":"inköpskurs"} (${R.confirm} dagar i rad) · absolut momentum · band köp topp ${R.bandIn}, sälj under plats ${R.bandOut} · tak ${R.cap} %`:`KÄRNA · köp från topp ${R.bandIn} · håll så länge 12-1 > 0 och kurs > SMA200 · prövas vid månadsskiftet${R.stop>0?` · stopp −${R.stop} %`:" · inget stopp"} · tak ${R.cap} %`;
 const RLAB={STOPP:"STOPP",VINST:"TA HEM VINST",TAK:"MINSKA",TREND:"SÄLJ",BAND:"UR BANDET",ABSM:"MOMENTUM SLUT",SMA:"TREND BRUTEN"};
 let RANKC=null;
 function rankMap(){
@@ -2032,20 +2032,30 @@ function confirmDays(h,k,bad){
   if(!bad){if(c.n){h.cf[k]={d:day,n:0};PKD=true}return 0}
   if(c.d===day)return c.n||1;
   h.cf[k]={d:day,n:(c.n||0)+1};PKD=true;return h.cf[k].n}
+/* Månadsprövning (validerad 2026-10-23, backtest A: 22,6 %/år, Sharpe 1,01, 188 d innehav):
+   kärnans hållvillkor prövas vid månadsskiftet, inte dagligen. Prövningsfönstret är sista
+   handelsdagen i månaden och de tre första dagarna i nästa, så att det finns tid att handla.
+   Skanningen visar fortfarande varje dag om villkoret bryts – men signalen SÄLJ ställs i fönstret. */
+function monthCheckWindow(){
+  const day=(D.updated||"").slice(0,10)||todayISO();const d=new Date(day+"T12:00:00Z");
+  if(d.getUTCDate()<=3)return{open:true,label:"månadsskiftet"};
+  const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0));while([0,6].includes(last.getUTCDay()))last.setUTCDate(last.getUTCDate()-1);
+  const lbl=last.getUTCDate()+" "+["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][last.getUTCMonth()];
+  return{open:d>=last,label:lbl}}
 function ruleSignals(p,c){
   const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=p.rules&&p.rules.mode==="core"?R.stop:0}const out=[];
   c.rows.forEach(r=>{
     const h=r.h,px=r.px,F=r.F,s=r.s;if(!(px>0)||!(h.q>0))return;
     const base=h.c,pk=Math.max(h.pk||base,px),stopBase=R.trail?Math.max(base,pk):base,stopPx=stopBase*(1-R.stop/100);let a=null;
-    const N=R.confirm||5;
-    // 1) Absolut momentum: 12-1 under noll, bekräftat N dagar
-    if(s&&typeof s.m121==="number"){const n=confirmDays(h,"absm",s.m121<=0);
-      if(R.absMom&&n>=N)a={k:"ABSM",q:h.q,why:`Absolut momentum slut: 12-1-avkastningen har varit negativ (${f(s.m121,1)} %) i ${n} skanningsdagar i rad. Aktien stiger inte längre i sig. Sälj hela innehavet.`};
-      else if(R.absMom&&n>0)r.pend={k:"ABSM",n,N}}
-    // 2) Trend bruten: under SMA200, bekräftat N dagar (kärnan)
-    if(!a&&s&&R.sma200&&!s.sh){const n=confirmDays(h,"sma",!s.a200);
-      if(n>=N)a={k:"SMA",q:h.q,why:`Trenden är bruten: kursen har legat under 200-dagars medelvärde i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
-      else if(n>0&&!r.pend)r.pend={k:"SMA",n,N}}
+    const N=R.confirm||5,core=R.mode!=="sat",MW=monthCheckWindow();
+    // 1) Absolut momentum: 12-1 under noll. Kärna: prövas vid månadsskiftet. Satellit: N dagar i rad.
+    if(s&&typeof s.m121==="number"){const bad=s.m121<=0,n=confirmDays(h,"absm",bad);
+      if(R.absMom&&bad&&(core?MW.open:n>=N))a={k:"ABSM",q:h.q,why:core?`Absolut momentum slut: 12-1-avkastningen är negativ (${f(s.m121,1)} %) vid månadsprövningen. Aktien stiger inte längre i sig. Sälj hela innehavet.`:`Absolut momentum slut: 12-1-avkastningen har varit negativ (${f(s.m121,1)} %) i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
+      else if(R.absMom&&bad)r.pend={k:"ABSM",n,N,mw:core?MW.label:null}}
+    // 2) Trend bruten: under SMA200. Kärna: prövas vid månadsskiftet. Satellit: N dagar i rad.
+    if(!a&&s&&R.sma200&&!s.sh){const bad=!s.a200,n=confirmDays(h,"sma",bad);
+      if(bad&&(core?MW.open:n>=N))a={k:"SMA",q:h.q,why:core?`Trenden är bruten: kursen ligger under 200-dagars medelvärde vid månadsprövningen. Sälj hela innehavet.`:`Trenden är bruten: kursen har legat under 200-dagars medelvärde i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
+      else if(bad&&!r.pend)r.pend={k:"SMA",n,N,mw:core?MW.label:null}}
     // 3) Stopp (satellit), bekräftat N dagar
     if(!a&&R.stop>0){const n=confirmDays(h,"stop",px<=stopPx);
       if(n>=N)a={k:"STOPP",q:h.q,why:`Stopp −${R.stop} % nått ${n} dagar i rad: kursen ${f(px)} under ${f(stopPx)} (${R.trail&&pk>base?"toppkurs "+f(pk):"inköpskurs "+f(base)} −${R.stop} %). Sälj hela innehavet.`};
@@ -2106,7 +2116,7 @@ function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=Object.assign({},RULE_DEF,p.rules||{});
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3>
   <div class="tabs" style="margin:0 0 10px"><button class="${R.mode!=="sat"?"on":""}" id="mcore" type="button">Kärna</button><button class="${R.mode==="sat"?"on":""}" id="msat" type="button">Satellit</button></div>
-  <div class="mu" style="font-size:12px;margin:-4px 0 10px" id="mdesc">${R.mode!=="sat"?"<b>Kärna:</b> köp från topp 10, håll så länge 12-1 > 0 och kurs > SMA200, sälj först efter 5 dagar i rad under villkoret. Inget stopp, inget band. Backtest: 23,2 % per år, 155 dagars innehav, 35 köp per år.":"<b>Satellit:</b> den tidigare modellen – band 10/30, stopp 15 % med 5-dagarsfilter, absolut momentum. Backtest: 17,4 % per år, 83 dagars innehav, 80 köp per år. Tätare rotation, mildare nedgång."}</div>
+  <div class="mu" style="font-size:12px;margin:-4px 0 10px" id="mdesc">${R.mode!=="sat"?"<b>Kärna:</b> köp från topp 10, håll så länge 12-1 > 0 och kurs > SMA200, prövas en gång i månaden. Inget stopp, inget band. Backtest i rensat data: 22,6 % per år, Sharpe 1,01, 188 dagars innehav, 28 köp per år.":"<b>Satellit:</b> den tidigare modellen – band 10/30, stopp 15 % med 5-dagarsfilter, absolut momentum. Backtest: 17,4 % per år, 83 dagars innehav, 80 köp per år. Tätare rotation, mildare nedgång."}</div>
   <p class="mu" style="margin-top:-4px">Appen ger signal när en regel slår till och föreslår vad du kan köpa i stället. Toppkursen är den högsta kurs appen sett sedan köpet.</p>
   <div class="row2"><label class="fld"><span>Stopp (%)</span><input id="r1" type="number" inputmode="decimal" step="any" value="${R.stop}"></label><label class="fld"><span>Vinstmål (%)</span><input id="r2" type="number" inputmode="decimal" step="any" value="${R.tp}"></label></div>
   <div class="row2"><label class="fld"><span>Sälj vid vinstmål (% av innehavet)</span><input id="r3" type="number" inputmode="decimal" step="any" value="${R.tpSell}"></label><label class="fld"><span>Tak per aktie (%)</span><input id="r4" type="number" inputmode="decimal" step="any" value="${R.cap}"></label></div>
@@ -2119,7 +2129,7 @@ function rulesSheet(pid){
   <div class="acts"><button class="btn" id="rgo" style="flex:1">Spara</button>${p.rules?'<button class="btn ghost" id="rdel">Ta bort regler</button>':""}</div>`,()=>{
     let mode=R.mode||"core";const setM=m=>{mode=m;$("#mcore").classList.toggle("on",m==="core");$("#msat").classList.toggle("on",m==="sat");
       const T=m==="sat"?RULE_SAT:RULE_DEF;$("#r1").value=T.stop;$("#r8").value=T.bandIn;$("#r9").value=T.bandOut;
-      $("#mdesc").innerHTML=m!=="sat"?"<b>Kärna:</b> köp från topp 10, håll så länge 12-1 > 0 och kurs > SMA200, sälj först efter 5 dagar i rad under villkoret. Inget stopp, inget band. Backtest: 23,2 % per år, 155 dagars innehav, 35 köp per år.":"<b>Satellit:</b> den tidigare modellen – band 10/30, stopp 15 % med 5-dagarsfilter, absolut momentum. Backtest: 17,4 % per år, 83 dagars innehav, 80 köp per år. Tätare rotation, mildare nedgång."};
+      $("#mdesc").innerHTML=m!=="sat"?"<b>Kärna:</b> köp från topp 10, håll så länge 12-1 > 0 och kurs > SMA200, prövas en gång i månaden. Inget stopp, inget band. Backtest i rensat data: 22,6 % per år, Sharpe 1,01, 188 dagars innehav, 28 köp per år.":"<b>Satellit:</b> den tidigare modellen – band 10/30, stopp 15 % med 5-dagarsfilter, absolut momentum. Backtest: 17,4 % per år, 83 dagars innehav, 80 köp per år. Tätare rotation, mildare nedgång."};
     $("#mcore").onclick=()=>setM("core");$("#msat").onclick=()=>setM("sat");
     $("#rgo").onclick=()=>{const v=i=>parseFloat($("#r"+i).value);p.rules={mode,confirm:5,sma200:mode!=="sat",stop:v(1)>=0?v(1):RULE_DEF.stop,tp:v(2)>0?v(2):RULE_DEF.tp,tpSell:Math.min(100,v(3)>0?v(3):RULE_DEF.tpSell),cap:v(4)>=0?v(4):RULE_DEF.cap,maxRsi:v(5)>0?v(5):RULE_DEF.maxRsi,repl:Math.max(0,Math.round(v(6)>=0?v(6):RULE_DEF.repl)),trail:$("#r7").checked,absMom:$("#r10").checked,bandIn:Math.max(1,Math.round(v(8)>0?v(8):RULE_DEF.bandIn)),bandOut:Math.max(0,Math.round(v(9)>=0?v(9):RULE_DEF.bandOut))};save();closeSheet();route(true);toast("Reglerna är sparade")};
     if($("#rdel"))$("#rdel").onclick=()=>{delete p.rules;save();closeSheet();route(true)}})
@@ -2144,17 +2154,26 @@ function autoPlan(p,o){
   o=o||{};const R=Object.assign({},RULE_DEF,p.rules||{}),pp=Object.assign({},p,{rules:R}),c=calc(pp),items=[],amt=+o.cash||0,free=!(amt>0),incl=!!o.incl,reg=regimeNote();
   const RA=rulesOf(c),sold=new Set(RA.map(a=>a.r.h.t));let proceeds=0;
   RA.forEach(a=>{const h=a.r.h,s0=S[h.t];proceeds+=a.amt;items.push({t:h.t,a:"SÄLJ",q:a.q,why:a.why,tp:a.k==="VINST",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:a.r.px,done:false})});
-  if(free){const seen=new Set();rotation(c.rows).forEach(x=>{const r=x.a,h=r.h;if(sold.has(h.t)||seen.has(h.t))return;seen.add(h.t);sold.add(h.t);const s0=S[h.t];proceeds+=h.q*r.px*r.F;
+  if(free&&R.mode==="sat"){const seen=new Set();rotation(c.rows).forEach(x=>{const r=x.a,h=r.h;if(sold.has(h.t)||seen.has(h.t))return;seen.add(h.t);sold.add(h.t);const s0=S[h.t];proceeds+=h.q*r.px*r.F;
     items.push({t:h.t,a:"SÄLJ",q:h.q,why:"Fri omfördelning: "+x.wa.join("; ")+". Sälj hela innehavet och flytta till starkare aktier.",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})})}
   const prof=profileFor(c.tot),want=p.targetN||(prof?prof.n:20);
-  const live=c.rows.filter(r=>!sold.has(r.h.t)&&r.s);
-  if(live.length>want){live.slice().sort((a,b)=>(rankOf(a.h.t)||1e9)-(rankOf(b.h.t)||1e9)).slice(want).forEach(r=>{const h=r.h,s0=r.s;sold.add(h.t);proceeds+=h.q*r.px*r.F;
+  const cm=costMode(p,c),isNord=t=>/\.(ST|CO|OL|HE)$/.test(t),rk=t=>rankOf(t)||1e9;
+  let live=c.rows.filter(r=>!sold.has(r.h.t)&&r.s);
+  if(cm.onlyNordic){  // liten portfölj: utländska poster ryms inte – sälj dem utöver vad portföljen bär, sämst rankade först
+    const utl=live.filter(r=>!isNord(r.h.t)).sort((a,b)=>rk(b.h.t)-rk(a.h.t)),over=utl.length-Math.max(0,cm.maxUtl);
+    utl.slice(0,Math.max(0,over)).forEach(r=>{const h=r.h,s0=r.s;sold.add(h.t);proceeds+=h.q*r.px*r.F;
+      items.push({t:h.t,a:"SÄLJ",q:h.q,why:`Kostnadsläge: ${kr(cm.cap)} kr bär högst ${cm.maxUtl} utländsk${cm.maxUtl===1?"":"a"} post${cm.maxUtl===1?"":"er"} innan minimicourtaget äter upp vinsten. Pengarna går till nordiska aktier ur topp ${R.bandIn}.`,n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})});
+    live=live.filter(r=>!sold.has(r.h.t))}
+  if(live.length>want){live.slice().sort((a,b)=>(cm.onlyNordic&&isNord(a.h.t)!==isNord(b.h.t))?(isNord(a.h.t)?1:-1):rk(a.h.t)-rk(b.h.t)).slice(want).forEach(r=>{const h=r.h,s0=r.s;sold.add(h.t);proceeds+=h.q*r.px*r.F;
     items.push({t:h.t,a:"SÄLJ",q:h.q,why:`Över målantalet ${want} innehav (nu ${live.length}): lägst rankad, plats ${rankOf(h.t)||"–"}. Backtestet höll aldrig fler än ${want}.`,n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})})}
   const budget=free?proceeds:amt+(incl?proceeds:0),tot0=c.tot+(free?0:amt),capF=R.cap>0?R.cap/100:1;
   const secW={};c.rows.forEach(r=>{if(sold.has(r.h.t))return;const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
   const held=new Set(p.h.map(h=>h.t)),avoid=s=>reg.avoid.has(s.sec),cands=[];
   c.rows.forEach(r=>{if(sold.has(r.h.t)||!r.s)return;if(r.sig.k==="BUY"&&r.s.rsi<=R.maxRsi&&!avoid(r.s)&&r.w<R.cap)cands.push({s:r.s,held:true,pri:buyPri(r.s,{held:true,w:r.w,cap:R.cap,secW,tot:tot0})})});
-  ((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).map(t=>S[t]).filter(s=>s&&s.px>0&&!held.has(s.t)&&s.sc>=60&&s.rsi<=R.maxRsi&&s.a50&&(s.a200||s.sh)&&s.macd>0&&s.inf!==false&&!avoid(s)).slice(0,60).forEach(s=>cands.push({s,held:false,pri:buyPri(s,{secW,tot:tot0})}));
+  // Nya köp: topp bandIn i 12-1-rankningen – det validerade urvalet. Inga tekniska extrafilter (MACD, SMA50, RSI, poäng
+  // togs bort 2026-10-23: de ingick inte i backtestet). I kostnadsläge bara nordiska aktier.
+  const topN=R.mode==="sat"?60:Math.max(R.bandIn||10,10);
+  ((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).slice(0,R.mode==="sat"?60:topN*3).map(t=>S[t]).filter(s=>s&&s.px>0&&!held.has(s.t)&&!sold.has(s.t)&&s.inf!==false&&!avoid(s)&&(R.mode==="sat"?(s.sc>=60&&s.rsi<=R.maxRsi&&s.a50&&(s.a200||s.sh)&&s.macd>0):(rankOf(s.t)||1e9)<=topN)&&(!cm.onlyNordic||isNord(s.t))).forEach(s=>cands.push({s,held:false,pri:buyPri(s,{secW,tot:tot0})}));
   cands.sort((a,b)=>b.pri-a.pri);
   const slots=free?(reg.warn?1:Math.max(1,(R.repl||2)+1)):Math.max(1,Math.min(8,Math.ceil(budget/Math.max(1,capF*tot0*0.7))));
   let pool=budget;const picks=[];
@@ -2669,7 +2688,7 @@ function srHTML(s){
    <span class="ii" data-i="sr">ⓘ</span></div>`}
 /* Graderade säljsignaler: en del regler är exakta, andra rör sig dagligen. */
 const SIG_URG={STOPP:["Sälj vid nästa tillfälle","Kursen har legat under din stoppnivå fem dagar i rad. Villkoret är exakt."],
-  SMA:["Sälj vid nästa tillfälle","Kursen har legat under 200-dagars medelvärde fem dagar i rad. Den långsiktiga trenden är bruten – det är kärnans enda trendvillkor, och trögare regler kostade i backtestet."],
+  SMA:["Sälj vid nästa tillfälle","Kursen ligger under 200-dagars medelvärde vid månadsprövningen. Den långsiktiga trenden är bruten – det är kärnans enda trendvillkor."],
   ABSM:["Sälj vid nästa tillfälle","Tolvmånadersavkastningen har vänt negativ. Momentum är slut, inte svagt."],
   BAND:["Bekräfta först","Rankningen rör sig dagligen med hela marknaden. En aktie kan falla ur bandet och vara tillbaka nästa vecka. Titta på försämringsmåtten innan du säljer."],
   TREND:["Bekräfta först","Trendsignalen bryts ofta tillfälligt. Kontrollera om försämringen är bestående."],
