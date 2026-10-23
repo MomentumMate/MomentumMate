@@ -208,11 +208,10 @@ def period_ends(idx, freq="M"):
     elif freq == "Q": key = [idx.year, idx.quarter]
     elif freq == "Q1":                                   # kvartal förskjutet en månad (jan/apr/jul/okt)
         sh = idx - pd.DateOffset(months=1); key = [sh.year, sh.quarter]
-    elif freq in ("Mmid", "Qmid"):                       # första handelsdagen på/efter den 15:e
-        mid = [d for d in idx if d.day >= 15 and (d == idx[0] or (idx[idx.get_loc(d) - 1]).day < 15 or idx[idx.get_loc(d) - 1].month != d.month)]
-        mid = [d for d in mid if d.day >= 15]
-        out = [d for d in mid if freq == "Mmid" or d.month in (3, 6, 9, 12)]
-        return out
+    elif freq in ("Mmid", "Qmid"):                       # första handelsdagen på/efter den 15:e, en per månad
+        s2 = pd.Series(idx, index=idx); s2 = s2[s2.dt.day >= 15]
+        out = list(s2.groupby([s2.dt.year, s2.dt.month]).first())
+        return [d for d in out if freq == "Mmid" or d.month in (3, 6, 9, 12)]
     elif freq == "H": key = [idx.year, (idx.month - 1) // 6]
     else:             key = [idx.year]
     return list(s.groupby(key).last())
@@ -526,7 +525,12 @@ def run(close, vol, cfg, vix=None):
             if len(row) >= cfg["n"]:
                 rank = row.rank(ascending=False, method="first")
                 top = set(rank[rank <= cfg["n"]].index)
-                keep = set(t for t in hold if rank.get(t, 1e9) <= cfg["band_out"])
+                if cfg.get("core"):
+                    # Kärnan: hållvillkoren prövas i den dagliga loopen med bekräftelse. Ombalanseringen
+                    # får INTE sälja innehav som bara saknar rankning den här dagen (läckage upptäckt 2026-10-23).
+                    keep = set(t for t in hold if t not in rank.index or rank[t] <= cfg["band_out"])
+                else:
+                    keep = set(t for t in hold if rank.get(t, 1e9) <= cfg["band_out"])
                 # Rotation (test 2026-10-22): sälj den sämst rankade andelen av innehaven vid varje
                 # kvartalsskifte, oavsett om de fortfarande stiger, och låt påfyllningen ta in topp-N.
                 # Detta är "MINSKA i den svagare för att KÖPA den starkare" i mjuk form.
