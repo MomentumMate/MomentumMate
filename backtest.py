@@ -799,6 +799,12 @@ def main():
             "V3. Kärna, tredjedel per månad, månadsslut":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="M", tranche=3),
             "V4. Kärna, tredjedel per månad, mitt i månaden":            dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="Mmid", tranche=3),
             "V5. Kärna, tredjedel per månad, mitt i mån, dubbla kostn.": dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="Mmid", tranche=3, cour_pct=0.0018, fx_pct=0.00532),
+            "--- slutkandidater (2026-10-23): månadsprövning + tätare likaviktning ---": None,
+            "W1. A + tredjedel per månad, mitt i månaden":               dict(B, core="month", band_out=100000, stop=0, reb="Mmid", tranche=3),
+            "W2. A + hela portföljen varje månadsslut":                  dict(B, core="month", band_out=100000, stop=0, reb="M"),
+            "W3. A, kvartal förskjutet 1 mån":                           dict(B, core="month", band_out=100000, stop=0, reb="Q1"),
+            "W4. W1 med dubbla kostnader":                               dict(B, core="month", band_out=100000, stop=0, reb="Mmid", tranche=3, cour_pct=0.0018, fx_pct=0.00532),
+            "W5. W1 + minst 60 dagars innehav":                          dict(B, core="month", band_out=100000, stop=0, reb="Mmid", tranche=3, min_hold=60),
             "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, add_at_support=True),
             "K. Satellit + ÖKA vid stöd":                                dict(B, add_at_support=True),
             "--- brusfilter på satelliten ---":                          None,
@@ -828,7 +834,7 @@ def main():
             except Exception as ex:
                 print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
         # --- håller kärnan i olika perioder och marknader? ---
-        print(f"\n   === UPPDELAT: kärnan med olika ombalanseringsdatum – kvartal, kvartal +1 mån, kvartal mitt i månaden, tredjedel per månad (Sharpe, CAGR) ===")
+        print(f"\n   === UPPDELAT: slutkandidater – A2 (daglig 5 d), A (månadsprövning), A förskjuten, A + tredjedel/mån, A2 + tredjedel/mån ===")
         def group(cols):
             us, nordic, eur = [], [], []
             for t in cols:
@@ -840,10 +846,10 @@ def main():
         segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
         SUB = {"dagens": VAR["0. Satellit (dagens): band 10/30, stopp 15, dagligen"],
                "kärna": VAR["A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad"],
-               "kv+1mån": VAR["T0. Kärna, kvartal förskjutet 1 mån"],
-               "kv mitt": VAR["V1. Kärna, kvartal mitt i månaden (15:e mar/jun/sep/dec)"],
-               "1/3 slut": VAR["V3. Kärna, tredjedel per månad, månadsslut"],
-               "1/3 mitt": VAR["V4. Kärna, tredjedel per månad, mitt i månaden"]}
+               "A månad": VAR["A. Kärna: 12-1>0 & >SMA200, prövas månadsvis"],
+               "A +1mån": VAR["W3. A, kvartal förskjutet 1 mån"],
+               "A+1/3mitt": VAR["W1. A + tredjedel per månad, mitt i månaden"],
+               "A2+1/3mitt": VAR["V4. Kärna, tredjedel per månad, mitt i månaden"]}
         wins = {k: 0 for k in SUB}; split = {}
         print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>13}" for k in SUB) + "   vinnare")
         for segn, (s0, s1) in segs.items():
