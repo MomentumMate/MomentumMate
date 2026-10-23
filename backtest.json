@@ -1,0 +1,1046 @@
+{
+ "skapad": "2026-10-23T11:25:44Z",
+ "läge": "kärnlager",
+ "portfölj_sek": 7000000.0,
+ "år": 11.2,
+ "referens": 18.25,
+ "varianter": {
+  "_snitt": {
+   "slutkapital": 6.244,
+   "CAGR_%": 17.77,
+   "volatilitet_%": 17.9,
+   "Sharpe": 0.99,
+   "max_nedgång_%": -39.3,
+   "affärer": 0,
+   "köp": 0,
+   "köp_per_år": 0.0,
+   "innehavstid_dagar": null,
+   "längsta_innehav_dagar": null,
+   "utgångar": {}
+  },
+  "0. Satellit (dagens): band 10/30, stopp 15, dagligen": {
+   "slutkapital": 6.538,
+   "CAGR_%": 18.25,
+   "volatilitet_%": 19.8,
+   "Sharpe": 0.92,
+   "max_nedgång_%": -31.1,
+   "affärer": 2252,
+   "köp": 1102,
+   "köp_per_år": 98.4,
+   "innehavstid_dagar": 53,
+   "längsta_innehav_dagar": 329,
+   "utgångar": {
+    "stop": 657,
+    "band": 425
+   }
+  },
+  "A. Kärna: 12-1>0 & >SMA200, prövas månadsvis": {
+   "slutkapital": 9.758,
+   "CAGR_%": 22.56,
+   "volatilitet_%": 22.4,
+   "Sharpe": 1.01,
+   "max_nedgång_%": -34.8,
+   "affärer": 742,
+   "köp": 309,
+   "köp_per_år": 27.6,
+   "innehavstid_dagar": 188,
+   "längsta_innehav_dagar": 2027,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 286
+   }
+  },
+  "A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad": {
+   "slutkapital": 7.547,
+   "CAGR_%": 19.78,
+   "volatilitet_%": 22.6,
+   "Sharpe": 0.88,
+   "max_nedgång_%": -34.1,
+   "affärer": 854,
+   "köp": 347,
+   "köp_per_år": 31.0,
+   "innehavstid_dagar": 167,
+   "längsta_innehav_dagar": 2033,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 325
+   }
+  },
+  "A3. Kärna daglig, 10 dagar i rad": {
+   "slutkapital": 6.353,
+   "CAGR_%": 17.95,
+   "volatilitet_%": 22.9,
+   "Sharpe": 0.79,
+   "max_nedgång_%": -36.2,
+   "affärer": 763,
+   "köp": 305,
+   "köp_per_år": 27.2,
+   "innehavstid_dagar": 195,
+   "längsta_innehav_dagar": 2040,
+   "utgångar": {
+    "12-1 negativt": 1,
+    "under SMA200": 284
+   }
+  },
+  "A4. Kärna daglig, 20 dagar i rad": {
+   "slutkapital": 8.564,
+   "CAGR_%": 21.13,
+   "volatilitet_%": 23.0,
+   "Sharpe": 0.92,
+   "max_nedgång_%": -37.6,
+   "affärer": 628,
+   "köp": 237,
+   "köp_per_år": 21.2,
+   "innehavstid_dagar": 244,
+   "längsta_innehav_dagar": 2054,
+   "utgångar": {
+    "12-1 negativt": 4,
+    "under SMA200": 213
+   }
+  },
+  "A5. Kärna daglig, 5 d, buffert 3 % under SMA200": {
+   "slutkapital": 6.878,
+   "CAGR_%": 18.79,
+   "volatilitet_%": 21.5,
+   "Sharpe": 0.87,
+   "max_nedgång_%": -30.9,
+   "affärer": 749,
+   "köp": 300,
+   "köp_per_år": 26.8,
+   "innehavstid_dagar": 195,
+   "längsta_innehav_dagar": 2061,
+   "utgångar": {
+    "12-1 negativt": 5,
+    "under SMA200": 275
+   }
+  },
+  "A6. Kärna daglig, 5 d, buffert 5 % under SMA200": {
+   "slutkapital": 8.388,
+   "CAGR_%": 20.91,
+   "volatilitet_%": 21.6,
+   "Sharpe": 0.97,
+   "max_nedgång_%": -31.3,
+   "affärer": 678,
+   "köp": 267,
+   "köp_per_år": 23.8,
+   "innehavstid_dagar": 210,
+   "längsta_innehav_dagar": 2066,
+   "utgångar": {
+    "12-1 negativt": 9,
+    "under SMA200": 238
+   }
+  },
+  "A7. Kärna daglig, 10 d, buffert 3 %": {
+   "slutkapital": 6.863,
+   "CAGR_%": 18.76,
+   "volatilitet_%": 22.0,
+   "Sharpe": 0.85,
+   "max_nedgång_%": -32.9,
+   "affärer": 658,
+   "köp": 255,
+   "köp_per_år": 22.8,
+   "innehavstid_dagar": 234,
+   "längsta_innehav_dagar": 2068,
+   "utgångar": {
+    "12-1 negativt": 7,
+    "under SMA200": 228
+   }
+  },
+  "B. Kärna daglig + minsta innehavstid 60 d": {
+   "slutkapital": 9.149,
+   "CAGR_%": 21.85,
+   "volatilitet_%": 21.9,
+   "Sharpe": 1.0,
+   "max_nedgång_%": -30.5,
+   "affärer": 767,
+   "köp": 306,
+   "köp_per_år": 27.3,
+   "innehavstid_dagar": 198,
+   "längsta_innehav_dagar": 1140,
+   "utgångar": {
+    "12-1 negativt": 8,
+    "under SMA200": 278
+   }
+  },
+  "C. Kärna daglig + band 50 vid kvartal": {
+   "slutkapital": 5.948,
+   "CAGR_%": 17.26,
+   "volatilitet_%": 23.7,
+   "Sharpe": 0.73,
+   "max_nedgång_%": -37.2,
+   "affärer": 1389,
+   "köp": 653,
+   "köp_per_år": 58.3,
+   "innehavstid_dagar": 91,
+   "längsta_innehav_dagar": 792,
+   "utgångar": {
+    "band": 378,
+    "12-1 negativt": 2,
+    "under SMA200": 253
+   }
+  },
+  "R1. Kärna + rotation: sälj sämsta 10 % vid kvartal": {
+   "slutkapital": 7.189,
+   "CAGR_%": 19.26,
+   "volatilitet_%": 22.9,
+   "Sharpe": 0.84,
+   "max_nedgång_%": -34.4,
+   "affärer": 933,
+   "köp": 404,
+   "köp_per_år": 36.1,
+   "innehavstid_dagar": 150,
+   "längsta_innehav_dagar": 1004,
+   "utgångar": {
+    "band": 87,
+    "12-1 negativt": 3,
+    "under SMA200": 294
+   }
+  },
+  "R2. Kärna + rotation: sälj sämsta 25 % vid kvartal": {
+   "slutkapital": 9.471,
+   "CAGR_%": 22.23,
+   "volatilitet_%": 23.6,
+   "Sharpe": 0.94,
+   "max_nedgång_%": -34.0,
+   "affärer": 1087,
+   "köp": 491,
+   "köp_per_år": 43.8,
+   "innehavstid_dagar": 120,
+   "längsta_innehav_dagar": 727,
+   "utgångar": {
+    "band": 199,
+    "12-1 negativt": 2,
+    "under SMA200": 269
+   }
+  },
+  "R3. Kärna + rotation 25 % bara om ersättaren rankas topp 5": {
+   "slutkapital": 8.011,
+   "CAGR_%": 20.41,
+   "volatilitet_%": 22.6,
+   "Sharpe": 0.9,
+   "max_nedgång_%": -35.2,
+   "affärer": 976,
+   "köp": 420,
+   "köp_per_år": 37.5,
+   "innehavstid_dagar": 137,
+   "längsta_innehav_dagar": 874,
+   "utgångar": {
+    "band": 106,
+    "12-1 negativt": 4,
+    "under SMA200": 290
+   }
+  },
+  "S1. Rotation 5 %": {
+   "slutkapital": 7.876,
+   "CAGR_%": 20.23,
+   "volatilitet_%": 23.1,
+   "Sharpe": 0.88,
+   "max_nedgång_%": -34.1,
+   "affärer": 899,
+   "köp": 378,
+   "köp_per_år": 33.7,
+   "innehavstid_dagar": 153,
+   "längsta_innehav_dagar": 1004,
+   "utgångar": {
+    "band": 44,
+    "12-1 negativt": 2,
+    "under SMA200": 312
+   }
+  },
+  "S2. Rotation 15 %": {
+   "slutkapital": 8.966,
+   "CAGR_%": 21.63,
+   "volatilitet_%": 23.4,
+   "Sharpe": 0.93,
+   "max_nedgång_%": -33.6,
+   "affärer": 998,
+   "köp": 433,
+   "köp_per_år": 38.7,
+   "innehavstid_dagar": 144,
+   "längsta_innehav_dagar": 686,
+   "utgångar": {
+    "band": 124,
+    "12-1 negativt": 2,
+    "under SMA200": 286
+   }
+  },
+  "T0. Kärna, kvartal förskjutet 1 mån": {
+   "slutkapital": 7.495,
+   "CAGR_%": 19.7,
+   "volatilitet_%": 21.7,
+   "Sharpe": 0.91,
+   "max_nedgång_%": -33.4,
+   "affärer": 849,
+   "köp": 346,
+   "köp_per_år": 30.9,
+   "innehavstid_dagar": 169,
+   "längsta_innehav_dagar": 2037,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 325
+   }
+  },
+  "T1. Rotation 5 %, kvartal förskjutet": {
+   "slutkapital": 6.154,
+   "CAGR_%": 17.61,
+   "volatilitet_%": 21.9,
+   "Sharpe": 0.8,
+   "max_nedgång_%": -34.3,
+   "affärer": 925,
+   "köp": 382,
+   "köp_per_år": 34.1,
+   "innehavstid_dagar": 158,
+   "längsta_innehav_dagar": 910,
+   "utgångar": {
+    "band": 43,
+    "12-1 negativt": 2,
+    "under SMA200": 318
+   }
+  },
+  "T2. Rotation 10 %, kvartal förskjutet": {
+   "slutkapital": 6.579,
+   "CAGR_%": 18.32,
+   "volatilitet_%": 22.1,
+   "Sharpe": 0.83,
+   "max_nedgång_%": -35.3,
+   "affärer": 964,
+   "köp": 404,
+   "köp_per_år": 36.1,
+   "innehavstid_dagar": 151,
+   "längsta_innehav_dagar": 910,
+   "utgångar": {
+    "band": 84,
+    "12-1 negativt": 2,
+    "under SMA200": 298
+   }
+  },
+  "T3. Rotation 15 %, kvartal förskjutet": {
+   "slutkapital": 6.977,
+   "CAGR_%": 18.94,
+   "volatilitet_%": 22.3,
+   "Sharpe": 0.85,
+   "max_nedgång_%": -34.4,
+   "affärer": 1019,
+   "köp": 437,
+   "köp_per_år": 39.0,
+   "innehavstid_dagar": 136,
+   "längsta_innehav_dagar": 753,
+   "utgångar": {
+    "band": 124,
+    "12-1 negativt": 3,
+    "under SMA200": 289
+   }
+  },
+  "T4. Rotation 25 %, kvartal förskjutet": {
+   "slutkapital": 8.764,
+   "CAGR_%": 21.39,
+   "volatilitet_%": 22.6,
+   "Sharpe": 0.95,
+   "max_nedgång_%": -33.7,
+   "affärer": 1132,
+   "köp": 500,
+   "köp_per_år": 44.6,
+   "innehavstid_dagar": 118,
+   "längsta_innehav_dagar": 753,
+   "utgångar": {
+    "band": 199,
+    "12-1 negativt": 3,
+    "under SMA200": 277
+   }
+  },
+  "U0. Kärna, dubbla kostnader": {
+   "slutkapital": 6.756,
+   "CAGR_%": 18.6,
+   "volatilitet_%": 22.6,
+   "Sharpe": 0.82,
+   "max_nedgång_%": -34.6,
+   "affärer": 854,
+   "köp": 347,
+   "köp_per_år": 31.0,
+   "innehavstid_dagar": 168,
+   "längsta_innehav_dagar": 2033,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 325
+   }
+  },
+  "U1. Rotation 5 %, dubbla kostnader": {
+   "slutkapital": 7.022,
+   "CAGR_%": 19.01,
+   "volatilitet_%": 22.9,
+   "Sharpe": 0.83,
+   "max_nedgång_%": -33.5,
+   "affärer": 910,
+   "köp": 378,
+   "köp_per_år": 33.7,
+   "innehavstid_dagar": 153,
+   "längsta_innehav_dagar": 1004,
+   "utgångar": {
+    "band": 44,
+    "12-1 negativt": 2,
+    "under SMA200": 312
+   }
+  },
+  "U2. Rotation 10 %, dubbla kostnader": {
+   "slutkapital": 6.348,
+   "CAGR_%": 17.94,
+   "volatilitet_%": 22.7,
+   "Sharpe": 0.79,
+   "max_nedgång_%": -35.4,
+   "affärer": 939,
+   "köp": 403,
+   "köp_per_år": 36.0,
+   "innehavstid_dagar": 147,
+   "längsta_innehav_dagar": 1004,
+   "utgångar": {
+    "band": 87,
+    "12-1 negativt": 3,
+    "under SMA200": 293
+   }
+  },
+  "U3. Rotation 15 %, dubbla kostnader": {
+   "slutkapital": 7.765,
+   "CAGR_%": 20.08,
+   "volatilitet_%": 23.4,
+   "Sharpe": 0.86,
+   "max_nedgång_%": -34.2,
+   "affärer": 1002,
+   "köp": 433,
+   "köp_per_år": 38.7,
+   "innehavstid_dagar": 144,
+   "längsta_innehav_dagar": 686,
+   "utgångar": {
+    "band": 124,
+    "12-1 negativt": 2,
+    "under SMA200": 286
+   }
+  },
+  "U4. Rotation 25 %, dubbla kostnader": {
+   "slutkapital": 7.818,
+   "CAGR_%": 20.15,
+   "volatilitet_%": 23.6,
+   "Sharpe": 0.85,
+   "max_nedgång_%": -34.8,
+   "affärer": 1087,
+   "köp": 490,
+   "köp_per_år": 43.7,
+   "innehavstid_dagar": 119,
+   "längsta_innehav_dagar": 686,
+   "utgångar": {
+    "band": 199,
+    "12-1 negativt": 2,
+    "under SMA200": 268
+   }
+  },
+  "V1. Kärna, kvartal mitt i månaden (15:e mar/jun/sep/dec)": {
+   "slutkapital": 6.253,
+   "CAGR_%": 17.78,
+   "volatilitet_%": 22.3,
+   "Sharpe": 0.8,
+   "max_nedgång_%": -33.5,
+   "affärer": 856,
+   "köp": 344,
+   "köp_per_år": 30.7,
+   "innehavstid_dagar": 170,
+   "längsta_innehav_dagar": 2033,
+   "utgångar": {
+    "12-1 negativt": 3,
+    "under SMA200": 323
+   }
+  },
+  "V2. Kärna, hela portföljen varje månadsslut": {
+   "slutkapital": 8.717,
+   "CAGR_%": 21.33,
+   "volatilitet_%": 21.5,
+   "Sharpe": 0.99,
+   "max_nedgång_%": -33.3,
+   "affärer": 918,
+   "köp": 346,
+   "köp_per_år": 30.9,
+   "innehavstid_dagar": 178,
+   "längsta_innehav_dagar": 2037,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 324
+   }
+  },
+  "V3. Kärna, tredjedel per månad, månadsslut": {
+   "slutkapital": 7.96,
+   "CAGR_%": 20.35,
+   "volatilitet_%": 22.4,
+   "Sharpe": 0.91,
+   "max_nedgång_%": -33.6,
+   "affärer": 832,
+   "köp": 346,
+   "köp_per_år": 30.9,
+   "innehavstid_dagar": 177,
+   "längsta_innehav_dagar": 2037,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 324
+   }
+  },
+  "V4. Kärna, tredjedel per månad, mitt i månaden": {
+   "slutkapital": 9.262,
+   "CAGR_%": 21.99,
+   "volatilitet_%": 22.5,
+   "Sharpe": 0.98,
+   "max_nedgång_%": -32.1,
+   "affärer": 847,
+   "köp": 347,
+   "köp_per_år": 31.0,
+   "innehavstid_dagar": 171,
+   "längsta_innehav_dagar": 2033,
+   "utgångar": {
+    "12-1 negativt": 3,
+    "under SMA200": 326
+   }
+  },
+  "V5. Kärna, tredjedel per månad, mitt i mån, dubbla kostn.": {
+   "slutkapital": 8.419,
+   "CAGR_%": 20.95,
+   "volatilitet_%": 22.6,
+   "Sharpe": 0.93,
+   "max_nedgång_%": -34.3,
+   "affärer": 856,
+   "köp": 344,
+   "köp_per_år": 30.7,
+   "innehavstid_dagar": 174,
+   "längsta_innehav_dagar": 2033,
+   "utgångar": {
+    "12-1 negativt": 4,
+    "under SMA200": 322
+   }
+  },
+  "W1. A + tredjedel per månad, mitt i månaden": {
+   "slutkapital": 9.245,
+   "CAGR_%": 21.97,
+   "volatilitet_%": 22.5,
+   "Sharpe": 0.97,
+   "max_nedgång_%": -32.9,
+   "affärer": 768,
+   "köp": 311,
+   "köp_per_år": 27.8,
+   "innehavstid_dagar": 179,
+   "längsta_innehav_dagar": 2027,
+   "utgångar": {
+    "12-1 negativt": 3,
+    "under SMA200": 296
+   }
+  },
+  "W2. A + hela portföljen varje månadsslut": {
+   "slutkapital": 10.94,
+   "CAGR_%": 23.81,
+   "volatilitet_%": 22.8,
+   "Sharpe": 1.04,
+   "max_nedgång_%": -35.3,
+   "affärer": 815,
+   "köp": 318,
+   "köp_per_år": 28.4,
+   "innehavstid_dagar": 210,
+   "längsta_innehav_dagar": 2031,
+   "utgångar": {
+    "12-1 negativt": 2,
+    "under SMA200": 295
+   }
+  },
+  "W3. A, kvartal förskjutet 1 mån": {
+   "slutkapital": 8.46,
+   "CAGR_%": 21.0,
+   "volatilitet_%": 21.6,
+   "Sharpe": 0.97,
+   "max_nedgång_%": -34.2,
+   "affärer": 795,
+   "köp": 323,
+   "köp_per_år": 28.8,
+   "innehavstid_dagar": 178,
+   "längsta_innehav_dagar": 2031,
+   "utgångar": {
+    "12-1 negativt": 3,
+    "under SMA200": 301
+   }
+  },
+  "W4. W1 med dubbla kostnader": {
+   "slutkapital": 8.456,
+   "CAGR_%": 21.0,
+   "volatilitet_%": 22.7,
+   "Sharpe": 0.93,
+   "max_nedgång_%": -35.4,
+   "affärer": 760,
+   "köp": 309,
+   "köp_per_år": 27.6,
+   "innehavstid_dagar": 181,
+   "längsta_innehav_dagar": 2027,
+   "utgångar": {
+    "12-1 negativt": 3,
+    "under SMA200": 294
+   }
+  },
+  "W5. W1 + minst 60 dagars innehav": {
+   "slutkapital": 8.882,
+   "CAGR_%": 21.53,
+   "volatilitet_%": 22.1,
+   "Sharpe": 0.97,
+   "max_nedgång_%": -32.6,
+   "affärer": 745,
+   "köp": 296,
+   "köp_per_år": 26.4,
+   "innehavstid_dagar": 195,
+   "längsta_innehav_dagar": 2027,
+   "utgångar": {
+    "12-1 negativt": 9,
+    "under SMA200": 273
+   }
+  },
+  "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)": {
+   "slutkapital": 6.952,
+   "CAGR_%": 18.9,
+   "volatilitet_%": 22.0,
+   "Sharpe": 0.86,
+   "max_nedgång_%": -33.5,
+   "affärer": 963,
+   "köp": 326,
+   "köp_per_år": 29.1,
+   "innehavstid_dagar": 171,
+   "längsta_innehav_dagar": 2033,
+   "utgångar": {
+    "12-1 negativt": 3,
+    "under SMA200": 304
+   }
+  },
+  "K. Satellit + ÖKA vid stöd": {
+   "slutkapital": 6.538,
+   "CAGR_%": 18.25,
+   "volatilitet_%": 19.8,
+   "Sharpe": 0.92,
+   "max_nedgång_%": -31.1,
+   "affärer": 2252,
+   "köp": 1102,
+   "köp_per_år": 98.4,
+   "innehavstid_dagar": 53,
+   "längsta_innehav_dagar": 329,
+   "utgångar": {
+    "stop": 657,
+    "band": 425
+   }
+  },
+  "D. Stopp 3×ATR i stället för 15 %": {
+   "slutkapital": 2.997,
+   "CAGR_%": 10.29,
+   "volatilitet_%": 17.9,
+   "Sharpe": 0.57,
+   "max_nedgång_%": -33.3,
+   "affärer": 3912,
+   "köp": 1951,
+   "köp_per_år": 174.2,
+   "innehavstid_dagar": 22,
+   "längsta_innehav_dagar": 181,
+   "utgångar": {
+    "stop": 1680,
+    "band": 251
+   }
+  },
+  "E. Stopp 4×ATR": {
+   "slutkapital": 4.351,
+   "CAGR_%": 14.03,
+   "volatilitet_%": 19.4,
+   "Sharpe": 0.72,
+   "max_nedgång_%": -31.2,
+   "affärer": 3170,
+   "köp": 1571,
+   "köp_per_år": 140.3,
+   "innehavstid_dagar": 32,
+   "längsta_innehav_dagar": 248,
+   "utgångar": {
+    "stop": 1242,
+    "band": 309
+   }
+  },
+  "F. Stopp 15 % men kräver 5 dagar i rad under": {
+   "slutkapital": 5.807,
+   "CAGR_%": 17.01,
+   "volatilitet_%": 21.6,
+   "Sharpe": 0.79,
+   "max_nedgång_%": -31.3,
+   "affärer": 1835,
+   "köp": 895,
+   "köp_per_år": 79.9,
+   "innehavstid_dagar": 83,
+   "längsta_innehav_dagar": 399,
+   "utgångar": {
+    "stop": 415,
+    "band": 460
+   }
+  },
+  "G. Stopp 15 % + minsta innehavstid 60 d": {
+   "slutkapital": 5.555,
+   "CAGR_%": 16.54,
+   "volatilitet_%": 23.4,
+   "Sharpe": 0.71,
+   "max_nedgång_%": -38.3,
+   "affärer": 1658,
+   "köp": 812,
+   "köp_per_år": 72.5,
+   "innehavstid_dagar": 90,
+   "längsta_innehav_dagar": 329,
+   "utgångar": {
+    "stop": 389,
+    "band": 403
+   }
+  },
+  "H. Stopp 15 %, 5 dagar i rad, minst 60 d": {
+   "slutkapital": 6.3,
+   "CAGR_%": 17.86,
+   "volatilitet_%": 24.4,
+   "Sharpe": 0.73,
+   "max_nedgång_%": -41.3,
+   "affärer": 1517,
+   "köp": 743,
+   "köp_per_år": 66.3,
+   "innehavstid_dagar": 91,
+   "längsta_innehav_dagar": 363,
+   "utgångar": {
+    "stop": 264,
+    "band": 459
+   }
+  },
+  "I. Utan stopp (bara band 10/30)": {
+   "slutkapital": 5.954,
+   "CAGR_%": 17.27,
+   "volatilitet_%": 26.0,
+   "Sharpe": 0.67,
+   "max_nedgång_%": -45.7,
+   "affärer": 1369,
+   "köp": 670,
+   "köp_per_år": 59.8,
+   "innehavstid_dagar": 91,
+   "längsta_innehav_dagar": 540,
+   "utgångar": {
+    "band": 650
+   }
+  },
+  "_uppdelat": {
+   "Hela / Alla": {
+    "dagens": [
+     0.92,
+     18.25
+    ],
+    "kärna": [
+     0.88,
+     19.78
+    ],
+    "A månad": [
+     1.01,
+     22.56
+    ],
+    "A +1mån": [
+     0.97,
+     21.0
+    ],
+    "A+1/3mitt": [
+     0.97,
+     21.97
+    ],
+    "A2+1/3mitt": [
+     0.98,
+     21.99
+    ]
+   },
+   "Hela / USA": {
+    "dagens": [
+     0.67,
+     14.33
+    ],
+    "kärna": [
+     0.75,
+     18.39
+    ],
+    "A månad": [
+     0.81,
+     20.22
+    ],
+    "A +1mån": [
+     0.8,
+     20.04
+    ],
+    "A+1/3mitt": [
+     0.97,
+     25.5
+    ],
+    "A2+1/3mitt": [
+     0.87,
+     23.21
+    ]
+   },
+   "Hela / Norden": {
+    "dagens": [
+     1.12,
+     17.31
+    ],
+    "kärna": [
+     1.13,
+     19.56
+    ],
+    "A månad": [
+     1.19,
+     21.39
+    ],
+    "A +1mån": [
+     1.25,
+     22.04
+    ],
+    "A+1/3mitt": [
+     1.23,
+     21.64
+    ],
+    "A2+1/3mitt": [
+     1.11,
+     19.05
+    ]
+   },
+   "Hela / Europa": {
+    "dagens": [
+     0.65,
+     10.65
+    ],
+    "kärna": [
+     0.79,
+     14.28
+    ],
+    "A månad": [
+     0.86,
+     15.72
+    ],
+    "A +1mån": [
+     0.85,
+     15.48
+    ],
+    "A+1/3mitt": [
+     0.87,
+     15.89
+    ],
+    "A2+1/3mitt": [
+     0.85,
+     15.54
+    ]
+   },
+   "Första halvan / Alla": {
+    "dagens": [
+     1.35,
+     24.83
+    ],
+    "kärna": [
+     1.1,
+     22.98
+    ],
+    "A månad": [
+     0.99,
+     22.17
+    ],
+    "A +1mån": [
+     1.14,
+     24.37
+    ],
+    "A+1/3mitt": [
+     1.19,
+     27.26
+    ],
+    "A2+1/3mitt": [
+     1.12,
+     24.01
+    ]
+   },
+   "Första halvan / USA": {
+    "dagens": [
+     0.94,
+     19.08
+    ],
+    "kärna": [
+     0.92,
+     21.01
+    ],
+    "A månad": [
+     1.03,
+     25.18
+    ],
+    "A +1mån": [
+     0.88,
+     20.94
+    ],
+    "A+1/3mitt": [
+     1.19,
+     29.91
+    ],
+    "A2+1/3mitt": [
+     1.08,
+     26.45
+    ]
+   },
+   "Första halvan / Norden": {
+    "dagens": [
+     1.49,
+     22.28
+    ],
+    "kärna": [
+     1.15,
+     20.06
+    ],
+    "A månad": [
+     1.24,
+     22.97
+    ],
+    "A +1mån": [
+     1.22,
+     22.26
+    ],
+    "A+1/3mitt": [
+     1.34,
+     24.21
+    ],
+    "A2+1/3mitt": [
+     1.19,
+     20.45
+    ]
+   },
+   "Första halvan / Europa": {
+    "dagens": [
+     1.03,
+     16.14
+    ],
+    "kärna": [
+     0.85,
+     14.59
+    ],
+    "A månad": [
+     0.98,
+     17.25
+    ],
+    "A +1mån": [
+     0.84,
+     15.38
+    ],
+    "A+1/3mitt": [
+     1.06,
+     19.2
+    ],
+    "A2+1/3mitt": [
+     1.0,
+     17.1
+    ]
+   },
+   "Andra halvan / Alla": {
+    "dagens": [
+     0.58,
+     12.26
+    ],
+    "kärna": [
+     0.77,
+     19.08
+    ],
+    "A månad": [
+     0.99,
+     24.44
+    ],
+    "A +1mån": [
+     1.03,
+     23.35
+    ],
+    "A+1/3mitt": [
+     0.97,
+     21.43
+    ],
+    "A2+1/3mitt": [
+     1.02,
+     23.46
+    ]
+   },
+   "Andra halvan / USA": {
+    "dagens": [
+     0.55,
+     12.51
+    ],
+    "kärna": [
+     0.74,
+     19.93
+    ],
+    "A månad": [
+     0.78,
+     20.87
+    ],
+    "A +1mån": [
+     0.94,
+     23.92
+    ],
+    "A+1/3mitt": [
+     0.9,
+     23.11
+    ],
+    "A2+1/3mitt": [
+     0.73,
+     18.75
+    ]
+   },
+   "Andra halvan / Norden": {
+    "dagens": [
+     0.77,
+     11.99
+    ],
+    "kärna": [
+     1.24,
+     21.25
+    ],
+    "A månad": [
+     1.23,
+     21.88
+    ],
+    "A +1mån": [
+     1.35,
+     23.48
+    ],
+    "A+1/3mitt": [
+     1.26,
+     21.88
+    ],
+    "A2+1/3mitt": [
+     1.11,
+     18.94
+    ]
+   },
+   "Andra halvan / Europa": {
+    "dagens": [
+     0.38,
+     6.34
+    ],
+    "kärna": [
+     0.61,
+     11.38
+    ],
+    "A månad": [
+     0.61,
+     11.34
+    ],
+    "A +1mån": [
+     0.82,
+     15.22
+    ],
+    "A+1/3mitt": [
+     0.68,
+     12.87
+    ],
+    "A2+1/3mitt": [
+     0.7,
+     13.43
+    ]
+   }
+  },
+  "_vinster": {
+   "dagens": 2,
+   "kärna": 0,
+   "A månad": 1,
+   "A +1mån": 5,
+   "A+1/3mitt": 4,
+   "A2+1/3mitt": 0
+  }
+ },
+ "varning": "Survivorship bias."
+}
