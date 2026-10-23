@@ -188,6 +188,11 @@ def period_ends(idx, freq="M"):
     elif freq == "Q": key = [idx.year, idx.quarter]
     elif freq == "Q1":                                   # kvartal förskjutet en månad (jan/apr/jul/okt)
         sh = idx - pd.DateOffset(months=1); key = [sh.year, sh.quarter]
+    elif freq in ("Mmid", "Qmid"):                       # första handelsdagen på/efter den 15:e
+        mid = [d for d in idx if d.day >= 15 and (d == idx[0] or (idx[idx.get_loc(d) - 1]).day < 15 or idx[idx.get_loc(d) - 1].month != d.month)]
+        mid = [d for d in mid if d.day >= 15]
+        out = [d for d in mid if freq == "Mmid" or d.month in (3, 6, 9, 12)]
+        return out
     elif freq == "H": key = [idx.year, (idx.month - 1) // 6]
     else:             key = [idx.year]
     return list(s.groupby(key).last())
@@ -532,7 +537,9 @@ def run(close, vol, cfg, vix=None):
                 # återställ vikterna till lika stora (trimma vinnare, fyll på eftersläntrare)
                 if cfg.get("reweight") and hold:
                     tot = value(i); wsum = sum(h.get("w", 1.0) for h in hold.values()) or 1
+                    ntr = cfg.get("tranche", 0)      # trancherad ombalansering: en tredjedel av innehaven per månad
                     for t, h in list(hold.items()):
+                        if ntr and (sum(ord(c) for c in t) % ntr) != (d.month % ntr): continue
                         px = p.get(t)
                         if px != px or px <= 0: continue
                         target = tot * h.get("w", 1.0) / max(cfg["n"], wsum) if cfg.get("add_at_support") else tot / cfg["n"]
@@ -762,6 +769,12 @@ def main():
             "U2. Rotation 10 %, dubbla kostnader":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.10, cour_pct=0.0018, fx_pct=0.00532),
             "U3. Rotation 15 %, dubbla kostnader":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.15, cour_pct=0.0018, fx_pct=0.00532),
             "U4. Rotation 25 %, dubbla kostnader":                        dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, rot_frac=0.25, cour_pct=0.0018, fx_pct=0.00532),
+            "--- ombalanseringens datum (2026-10-23) ---":                None,
+            "V1. Kärna, kvartal mitt i månaden (15:e mar/jun/sep/dec)":  dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="Qmid"),
+            "V2. Kärna, hela portföljen varje månadsslut":               dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="M"),
+            "V3. Kärna, tredjedel per månad, månadsslut":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="M", tranche=3),
+            "V4. Kärna, tredjedel per månad, mitt i månaden":            dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="Mmid", tranche=3),
+            "V5. Kärna, tredjedel per månad, mitt i mån, dubbla kostn.": dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, reb="Mmid", tranche=3, cour_pct=0.0018, fx_pct=0.00532),
             "J. Kärna daglig + ÖKA vid stöd (1,5× vikt)":                dict(B, core="daily", confirm_days=5, band_out=100000, stop=0, add_at_support=True),
             "K. Satellit + ÖKA vid stöd":                                dict(B, add_at_support=True),
             "--- brusfilter på satelliten ---":                          None,
@@ -790,7 +803,7 @@ def main():
             except Exception as ex:
                 print(f"   {nm:<58} FEL {str(ex)[:50]}"); res[nm] = {"fel": str(ex)[:120]}
         # --- håller kärnan i olika perioder och marknader? ---
-        print(f"\n   === UPPDELAT: dagens, kärna, rotation 5/10/15 % och rotation 10 % med förskjutet kvartal (Sharpe, CAGR) ===")
+        print(f"\n   === UPPDELAT: kärnan med olika ombalanseringsdatum – kvartal, kvartal +1 mån, kvartal mitt i månaden, tredjedel per månad (Sharpe, CAGR) ===")
         def group(cols):
             us, nordic, eur = [], [], []
             for t in cols:
@@ -802,10 +815,10 @@ def main():
         segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
         SUB = {"dagens": VAR["0. Satellit (dagens): band 10/30, stopp 15, dagligen"],
                "kärna": VAR["A2. Kärna: samma, prövas DAGLIGEN, 5 dagar i rad"],
-               "rot5": VAR["S1. Rotation 5 %"],
-               "rot10": VAR["R1. Kärna + rotation: sälj sämsta 10 % vid kvartal"],
-               "rot15": VAR["S2. Rotation 15 %"],
-               "rot10+1mån": VAR["T2. Rotation 10 %, kvartal förskjutet"]}
+               "kv+1mån": VAR["T0. Kärna, kvartal förskjutet 1 mån"],
+               "kv mitt": VAR["V1. Kärna, kvartal mitt i månaden (15:e mar/jun/sep/dec)"],
+               "1/3 slut": VAR["V3. Kärna, tredjedel per månad, månadsslut"],
+               "1/3 mitt": VAR["V4. Kärna, tredjedel per månad, mitt i månaden"]}
         wins = {k: 0 for k in SUB}; split = {}
         print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>13}" for k in SUB) + "   vinnare")
         for segn, (s0, s1) in segs.items():
