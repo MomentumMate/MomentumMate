@@ -352,7 +352,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-10-23-d";
+const APPV="2026-10-23-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2036,18 +2036,26 @@ function confirmDays(h,k,bad){
    kärnans hållvillkor prövas vid månadsskiftet, inte dagligen. Prövningsfönstret är sista
    handelsdagen i månaden och de tre första dagarna i nästa, så att det finns tid att handla.
    Skanningen visar fortfarande varje dag om villkoret bryts – men signalen SÄLJ ställs i fönstret. */
-function monthCheckWindow(){
+/* Fönstret öppnas sista handelsdagen i månaden och STÅR ÖPPET tills ett förslag räknats på en skanning
+   från det månadsskiftet (p.mchk = datum för senaste prövning). Missar du några dagar försvinner inte signalen. */
+function lastTradingDay(y,m){const last=new Date(Date.UTC(y,m+1,0));while([0,6].includes(last.getUTCDay()))last.setUTCDate(last.getUTCDate()-1);return last}
+function monthCheckWindow(p){
   const day=(D.updated||"").slice(0,10)||todayISO();const d=new Date(day+"T12:00:00Z");
-  if(d.getUTCDate()<=3)return{open:true,label:"månadsskiftet"};
-  const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0));while([0,6].includes(last.getUTCDay()))last.setUTCDate(last.getUTCDate()-1);
-  const lbl=last.getUTCDate()+" "+["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][last.getUTCMonth()];
-  return{open:d>=last,label:lbl}}
+  const MN=["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
+  const thisEnd=lastTradingDay(d.getUTCFullYear(),d.getUTCMonth());
+  // senaste månadsskifte som redan passerat (eller är i dag)
+  const due=d>=thisEnd?thisEnd:lastTradingDay(d.getUTCFullYear(),d.getUTCMonth()-1);
+  const dueISO=due.toISOString().slice(0,10);
+  const done=p&&p.mchk&&p.mchk>=dueISO;           // förslag redan räknat efter det här månadsskiftet
+  const open=!done&&(d>=thisEnd||d.getUTCDate()<=3||(p&&p.mchk&&p.mchk<dueISO&&day>dueISO));
+  const next=d>=thisEnd?lastTradingDay(d.getUTCFullYear(),d.getUTCMonth()+1):thisEnd;
+  return{open,label:next.getUTCDate()+" "+MN[next.getUTCMonth()],dueISO}}
 function ruleSignals(p,c){
   const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=0;R.tp=0}const out=[];
   c.rows.forEach(r=>{
     const h=r.h,px=r.px,F=r.F,s=r.s;if(!(px>0)||!(h.q>0))return;
     const base=h.c,pk=Math.max(h.pk||base,px),stopBase=R.trail?Math.max(base,pk):base,stopPx=stopBase*(1-R.stop/100);let a=null;
-    const N=R.confirm||5,core=R.mode!=="sat",MW=monthCheckWindow();
+    const N=R.confirm||5,core=R.mode!=="sat",MW=monthCheckWindow(p);
     // 1) Absolut momentum: 12-1 under noll. Kärna: prövas vid månadsskiftet. Satellit: N dagar i rad.
     if(s&&typeof s.m121==="number"){const bad=s.m121<=0,n=confirmDays(h,"absm",bad);
       if(R.absMom&&bad&&(core?MW.open:n>=N))a={k:"ABSM",q:h.q,why:core?`Absolut momentum slut: 12-1-avkastningen är negativ (${f(s.m121,1)} %) vid månadsprövningen. Aktien stiger inte längre i sig. Sälj hela innehavet.`:`Absolut momentum slut: 12-1-avkastningen har varit negativ (${f(s.m121,1)} %) i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
@@ -2197,7 +2205,7 @@ async function refreshAll(pid,cash,incl){
   if(!DEMO){try{const r=await loadData();if(r&&r.d){D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData()}}catch(e){}}
   await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{})]);regimeCheck();
   const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
-  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl})});
+  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl});const _mw=monthCheckWindow(x);if(_mw.open)x.mchk=(D.updated||"").slice(0,10)||todayISO()});
   p.cashIncl=!!incl;save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
 }
 function refreshSheet(pid){
