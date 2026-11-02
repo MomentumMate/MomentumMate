@@ -11,6 +11,14 @@ import warnings
 # yfinance anropar pandas med "inplace=True", som pandas varnar för inför en kommande version.
 # Varningen gäller yfinances kod, inte vår, och fyllde loggen med tusentals rader. Tystas här.
 warnings.filterwarnings("ignore", message=".*inplace keyword.*")
+# Filtret ovan räcker inte: yfinance öppnar egna warnings-kontexter som lägger sig före våra filter.
+# Därför byts själva utskriftsfunktionen – bara den här kända pandas-varningen tystas, allt annat skrivs ut.
+_show_warning = warnings.showwarning
+def _quiet_showwarning(message, category, *args, **kwargs):
+    if "inplace keyword" in str(message) or getattr(category, "__name__", "") == "Pandas4Warning":
+        return
+    _show_warning(message, category, *args, **kwargs)
+warnings.showwarning = _quiet_showwarning
 import json, os, io, re, sys, time, math, datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
@@ -899,7 +907,9 @@ def apply_fi_short(recs):
     url = "https://www.fi.se/sv/vara-register/blankningsregistret/GetAktuellFile/"
     r = requests.get(url, timeout=40, headers={"User-Agent": "Mozilla/5.0"})
     r.raise_for_status()
-    df = pd.read_excel(io.BytesIO(r.content))
+    # FI levererar filen som OpenDocument (.ods); xlsx prövas först ifall formatet ändras
+    try: df = pd.read_excel(io.BytesIO(r.content), engine="odf")
+    except Exception: df = pd.read_excel(io.BytesIO(r.content))
     cols = {c: str(c).lower() for c in df.columns}
     cn = next((c for c, l in cols.items() if "emittent" in l or "namn" in l), None)
     cp = next((c for c, l in cols.items() if "procent" in l or "%" in l or "position" in l), None)
