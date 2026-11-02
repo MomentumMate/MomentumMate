@@ -417,10 +417,20 @@ def run(close, vol, cfg, vix=None):
                 # core="month": prövas vid månadsskifte. core="daily": prövas varje dag, men villkoret
                 # måste gälla confirm_days dagar i rad – ett dagsfall räcker inte.
                 ci = close.columns.get_loc(t)
+                # Gapregel (2026-11-02): föll aktien >= gap_sell % på en enskild dag säljs den dagen efter,
+                # oavsett månadsskifte. Testar om post-earnings-driften är värd att undvika.
+                gs = cfg.get("gap_sell", 0)
+                if gs and i > 0:
+                    if h.get("gapday") is not None and i > h["gapday"]:
+                        cash += h["sh"] * px - fee(h["sh"] * px, t, "sell"); hold_days.append(held_days); trades.append(("gap", t, d)); del hold[t]
+                        continue
+                    prev = close.iat[i - 1, ci]
+                    if prev == prev and px <= prev * (1 - gs / 100.0) and h.get("gapday") is None: h["gapday"] = i
                 m121 = (close.iat[max(0, i - 21), ci] / close.iat[max(0, i - 252), ci] - 1) if i >= 252 else 1.0
                 s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
                 buf = 1 - cfg.get("sma_buf", 0) / 100.0
-                bad = "12-1 negativt" if m121 <= 0 else ("under SMA200" if (s200 == s200 and px < s200 * buf) else None)
+                use_m, use_s = not cfg.get("hold_no_mom"), not cfg.get("hold_no_sma")   # krasch-testet stänger av villkor
+                bad = "12-1 negativt" if (use_m and m121 <= 0) else ("under SMA200" if (use_s and s200 == s200 and px < s200 * buf) else None)
                 if core_mode == "month":
                     if month_end and bad: why = bad
                 else:
@@ -670,7 +680,7 @@ def stats(e, trades, years, hold_days=None):
             "innehavstid_dagar": (round(float(np.median(hold_days)) * 1.4) if hold_days else None),
             "längsta_innehav_dagar": (round(max(hold_days) * 1.4) if hold_days else None),
             "utgångar": {k: sum(1 for t in trades if t[0] == k)
-                         for k in ("stop", "stopp vid stöd", "sma50", "sma200", "atr", "svag poäng", "band", "12-1 negativt", "under SMA200") 
+                         for k in ("stop", "stopp vid stöd", "sma50", "sma200", "atr", "svag poäng", "band", "12-1 negativt", "under SMA200", "gap") 
                          if any(t[0] == k for t in trades)}}
 
 def benchmark(close, years, start_i=210):
@@ -716,6 +726,7 @@ def main():
     ap.add_argument("--srstop", action="store_true", help="stopp strax under närmaste stöd mot fast procent")
     ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
+    ap.add_argument("--crash", action="store_true", help="gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -760,6 +771,72 @@ def main():
     bench_e, bench = benchmark(close, years)
     print("\n=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===")
     for k, v in bench.items(): print(f"   {k:<18}{v}")
+
+    # ---------- Krasch (2026-11-02): rapportsmällar och marknadskrascher ----------
+    if a.crash:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        VAR = {
+            "A. Kärna (referens): 12-1>0 & >SMA200, månadsvis":        dict(B),
+            "--- rapportsmällar: sälj dagen efter ett dagsfall ---":    None,
+            "G1. A + gap 15 %":                                         dict(B, gap_sell=15),
+            "G2. A + gap 20 %":                                         dict(B, gap_sell=20),
+            "G3. A + gap 25 %":                                         dict(B, gap_sell=25),
+            "G4. A + gap 20 %, dubbla kostnader":                       dict(B, gap_sell=20, **DBL),
+            "G5. A + gap 20 %, kvartal förskjutet 1 mån":               dict(B, gap_sell=20, reb="Q1"),
+            "--- marknadskrascher: stå kvar i stället för att sälja ---": None,
+            "H1. Bara 12-1 > 0 som hållvillkor (utan SMA200)":          dict(B, hold_no_sma=True),
+            "H2. Bara kurs > SMA200 som hållvillkor (utan 12-1)":       dict(B, hold_no_mom=True),
+            "H3. Inga hållvillkor alls – säljer bara ner till 20 vid kvartal": dict(B, hold_no_sma=True, hold_no_mom=True),
+            "H4. H1, kvartal förskjutet 1 mån":                         dict(B, hold_no_sma=True, reb="Q1"),
+            "H5. H3, kvartal förskjutet 1 mån":                         dict(B, hold_no_sma=True, hold_no_mom=True, reb="Q1"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        # kraschfönster: hur gick det just där det gjorde ont?
+        WIN = {"2018 Q4 (okt 1 – dec 24)": ("2018-10-01", "2018-12-24"),
+               "2020 covid (feb 19 – mar 23)": ("2020-02-19", "2020-03-23"),
+               "2020 återhämtning (mar 23 – aug 31)": ("2020-03-23", "2020-08-31"),
+               "2022 björn (jan 3 – okt 12)": ("2022-01-03", "2022-10-12"),
+               "2022–23 återhämtning (okt 12 – jul 31)": ("2022-10-12", "2023-07-31")}
+        def window(e, s0, s1):
+            seg = e.loc[s0:s1]
+            return round(float(seg.iloc[-1] / seg.iloc[0] - 1) * 100, 1) if len(seg) > 5 else None
+        print(f"\n########## Krasch: rapportsmällar och marknadskrascher, portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Beslutsregel (skriven innan körning): en regel går in bara om den slår A i CAGR OCH Sharpe,")
+        print(f"   håller vid dubbla kostnader och vid förskjutet kvartalsdatum, och inte fördjupar nedgången.\n")
+        print(f"   {'likaviktat snitt av universumet':<62}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}; eqs = {}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd); st["år"] = yearly(e)
+                st["fönster"] = {k: window(e, s0, s1) for k, (s0, s1) in WIN.items()}
+                res[nm] = st; eqs[nm] = e
+                print(f"   {nm:<62}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d  utgångar {st.get('utgångar')}")
+            except Exception as ex:
+                print(f"   {nm:<62} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        print(f"\n   === KRASCHFÖNSTER: avkastning i procent inom varje fönster ===")
+        names = [n for n in VAR if VAR[n] is not None and n in res and "fönster" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        print(f"   {'fönster':<40}" + "".join(f"{short[n]:>7}" for n in names) + f"{'snitt':>7}")
+        for k, (s0, s1) in WIN.items():
+            row = "".join(f"{(res[n]['fönster'][k] if res[n]['fönster'][k] is not None else '–'):>7}" for n in names)
+            print(f"   {k:<40}{row}{window(be, s0, s1) if be is not None else '–':>7}")
+        print(f"\n   === ÅR FÖR ÅR ===")
+        yrsall = sorted({y for n in names for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in names))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in names))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "krasch",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Kraschfönstren är få – tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
 
     # ---------- Kärnlager: håll ledarna genom normala rekyler utan att tappa avkastning ----------
     if a.core:
