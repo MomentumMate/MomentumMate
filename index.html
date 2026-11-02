@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-02-k";
+const APPV="2026-11-02-l";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1974,7 +1974,7 @@ function propHTML(p,c,sigs,rot,ideas){
   const tlink=(t,l)=>S[t]?`<b class="tlk" data-act="gostock" data-t="${esc(t)}">${esc(l)}</b>`:`<b>${esc(l)}</b>`,flag=t=>`<span class="fg">${flagOf(t)}</span>`,nm=(t,it)=>{const s=S[t];return s?s.n:(it&&it.n)||t},dn=t=>{const s=S[t];return s?s.d:t};
   const appLine=r=>r?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens signal: <span class="sig ${r.sig.k}" style="margin:0">${SIGL[r.sig.k]}</span> ${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div>`:"";
   const rotFor={};rot.forEach(x=>{(rotFor[x.b.h.t]=rotFor[x.b.h.t]||[]).push(x)});
-  const G={sell:[],buy:[],watch:[],hold:[]},Rcap=(p.rules&&p.rules.cap)||15,secW={};c.rows.forEach(r=>{const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
+  const G={sell:[],buy:[],watch:[],hold:[]},Rcap=rulesOf0(p).cap,secW={};c.rows.forEach(r=>{const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
   const bctx=r=>({held:!!r,w:r?r.w:null,cap:Rcap,secW,tot:c.tot}),pushG=(g,html,pri)=>{if(g==="buy")G.buy.push({pri:pri||0,html});else G[g].push(html)};
   const RA=rulesOf(c).filter(a=>!planHas[a.r.h.t]),RP=replSuggest(p,c,RA),ruleT=new Set(RA.map(a=>a.r.h.t));
   items.forEach((it,i)=>{const r=rowBy[it.t],x=rotFor[it.t];const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":(r&&r.sig.k==="BUY"?"buy":"hold");
@@ -2592,7 +2592,7 @@ function profileLine(p,c){
    <br>Backtest: ${pr.cagr} per år, nedgång ${pr.dd} i sämsta skedet.
    <span class="lnk" data-act="applyprof" data-pid="${p.id}">Ställ om</span>
    <span class="ii" data-i="profile">ⓘ</span></div>`}
-const rulesOf0=p=>{const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=0;R.tp=0}return R};
+const rulesOf0=p=>{const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=0;R.tp=0;R.cap=Math.min(+R.cap||RULE_DEF.cap,RULE_DEF.cap)}return R};  // kärnan: taket aldrig över 10 % (2 × målvikten 5 %) – gamla sparade 15 % från satellittiden skrivs över
 function costLine(p,c){
   const m=costMode(p,c);if(!m.cap)return"";
   if(!m.tight)return"";
