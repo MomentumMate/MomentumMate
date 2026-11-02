@@ -7,6 +7,10 @@ Valfritt: export BENZINGA_KEY=...   (Benzinga news API)
 Lägga till en ny börs:  se MARKETS nedan (en rad per börs).
 Lägga till enstaka aktier (t.ex. till din portfölj): skriv Yahoo-tickern i extra_tickers.txt.
 """
+import warnings
+# yfinance anropar pandas med "inplace=True", som pandas varnar för inför en kommande version.
+# Varningen gäller yfinances kod, inte vår, och fyllde loggen med tusentals rader. Tystas här.
+warnings.filterwarnings("ignore", message=".*inplace keyword.*")
 import json, os, io, re, sys, time, math, datetime as dt
 from concurrent.futures import ThreadPoolExecutor
 from email.utils import parsedate_to_datetime
