@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-02-j";
+const APPV="2026-11-02-k";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -789,12 +789,11 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="rbs">🔁 Ombalansering…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
     $("#sgs").onclick=()=>{closeSheet();setTimeout(sigSheet,260)};
     $("#fes").onclick=()=>{closeSheet();setTimeout(feeSheet,260)};
-    $("#rbs").onclick=()=>{closeSheet();setTimeout(()=>rebSheet(pid),260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
     $("#rls").onclick=()=>{closeSheet();setTimeout(()=>rulesSheet(pid),260)};
     $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t).then(()=>toast("Kopierat"),()=>{})}catch(x){}};
@@ -2148,9 +2147,14 @@ function rebDue(p){if(!p.reb||!p.reb.freq)return null;
   const days=p.reb.freq==="month"?30:91,last=p.reb.last?Date.parse(p.reb.last):0;
   if(!last)return{due:true,over:0,days};
   const gone=Math.floor((Date.now()-last)/864e5);return{due:gone>=days,over:gone-days,gone,days}}
-function rebLine(p){const r=rebDue(p);if(!r)return"";
-  if(!r.due)return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">🔁 Ombalansering om ${r.days-r.gone} dagar · <span class="lnk" data-act="rebset" data-pid="${p.id}">ändra</span></div>`;
-  return`<div class="stat WAIT" style="margin:0 0 8px"><b>🔁 DAGS ATT OMBALANSERA</b>${p.reb.last?`Senast ${esc(p.reb.last)}, ${r.gone} dagar sedan.`:"Inte gjord ännu."} Återställ posterna till ungefär lika stora och kontrollera att alla innehav ligger inom bandet. <span class="lnk" data-act="rebdone" data-pid="${p.id}">Markera som gjord</span> · <span class="lnk" data-act="rebset" data-pid="${p.id}">inställning</span></div>`}
+function rebLine(p){
+  // Likaviktningen styrs av kvartalsfönstret (quarterDue) sedan 2026-11-02 – inte av en egen påminnelse.
+  const qd=quarterDue(p);
+  if(qd)return`<div class="stat WAIT" style="margin:0 0 8px"><b>🔁 KVARTALSSKIFTE (${esc(qd.label)})</b>Likaviktningen ingår i förslaget: MINSKA det som vuxit över målvikt, ÖKA det som halkat under. Tryck 🔄 Uppdatera om förslaget inte är räknat efter kvartalsskiftet.</div>`;
+  const day=(D.updated||"").slice(0,10)||todayISO(),d=new Date(day+"T12:00:00Z");let y=d.getUTCFullYear(),m=d.getUTCMonth();
+  let q=null;for(let k=0;k<4&&!q;k++){const mm=m+k,yy=y+Math.floor(mm/12),m2=mm%12;if([2,5,8,11].includes(m2)){const c=lastTradingDay(yy,m2);if(c>d)q=c}}
+  if(!q)return"";const MN=["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
+  return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">🔁 Nästa likaviktning efter ${q.getUTCDate()} ${MN[q.getUTCMonth()]} – ingår då i förslaget.</div>`}
 function rebSheet(pid){const p=getP(pid);if(!p)return;const cur=(p.reb&&p.reb.freq)||"";
   sheet(`<h3>🔁 Ombalansering – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px">Bandningen säljer direkt när en aktie tappar momentum. Ombalanseringen är till för det andra: att återställa posterna till ungefär lika stora när vinnarna vuxit sig för stora.</p>
   <label class="fld"><span>Påminn mig</span><select id="rf"><option value=""${!cur?" selected":""}>Aldrig</option><option value="month"${cur==="month"?" selected":""}>Varje månad</option><option value="quarter"${cur==="quarter"?" selected":""}>Varje kvartal</option></select></label>
