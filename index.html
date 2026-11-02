@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-02-i";
+const APPV="2026-11-02-j";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -503,7 +503,7 @@ function card(s,i,o={}){
   return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
   <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div></div>
   ${trendArrow(s)}${right}</div>
-  <div class="al2">${chips}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(flagChip).join("")}</div>
+  <div class="al2">${chips}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(flagChip).join("")}${shortChip(s)}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,h?"":`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`,preObj)}</div>`
 }
 /* Aktiesidan – samma överallt. Byggd om 2026-10-21 för kärnmodellen: tre tal avgör allt
@@ -1684,6 +1684,11 @@ const mchip=(m,sel,attrs)=>`<span class="chip mk${m.k===sel?" on":""}" ${attrs||
 const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦",".TW":"🇹🇼",".NS":"🇮🇳",".BO":"🇮🇳",".AX":"🇦🇺",".KS":"🇰🇷",".KQ":"🇰🇷",".SA":"🇧🇷",".SS":"🇨🇳",".SZ":"🇨🇳",".NZ":"🇳🇿"};
 const flagOf=t=>{if(/-USD$/.test(t))return"🪙";for(const k in SUFF)if(t.endsWith(k))return SUFF[k];return"🇺🇸"};
 const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
+/* Blankning (2026-11-02): andel blankat – Yahoo (av float) eller FI:s register (summa positioner ≥ 0,5 %).
+   Enbart information som loggas i Signalutfall; styr inga förslag. Trösklar: ≥ 5 % visas, ≥ 10 % hög. */
+const SHORT_HI=10,SHORT_LO=5;
+const shortChip=s=>{if(!(s&&typeof s.shp==="number"&&s.shp>=SHORT_LO))return"";const hi=s.shp>=SHORT_HI;
+  return`<span class="sig ${hi?"TRIM":"WATCH"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">🩳 ${hi?"Hög blankning":"Blankning"} ${f(s.shp,1)} %</span>`};
 /* ---------- Ändra ordning (dra och släpp) ---------- */
 Ui.reorder=false;
 function reorderView(){
@@ -2659,6 +2664,9 @@ function sigRecord(p,c){
     if(!k||k==="HOLD"||!r.s||!(r.s.px>0))return;
     if(have.has(r.h.t+"|"+k))return;
     log.push({d:today,p:p.id,t:r.h.t,k,px:r.s.px,ccy:r.s.ccy});add++});
+  // Blankning: innehav med hög blankning loggas som egen signal så att utfallet kan mätas (info, styr inget)
+  (c.rows||[]).forEach(r=>{if(!r.s||!(r.s.px>0)||!(typeof r.s.shp==="number"&&r.s.shp>=SHORT_HI))return;if(have.has(r.h.t+"|SHORT"))return;
+    log.push({d:today,p:p.id,t:r.h.t,k:"SHORT",px:r.s.px,ccy:r.s.ccy,shp:r.s.shp});add++});
   if(add)sigSave(log)}
 function sigOutcome(){
   const log=sigLog();let n=0;
@@ -2675,7 +2683,7 @@ function sigStats(){
 function sigSheet(){
   const by=sigStats(),log=sigLog(),ks=[...new Set(Object.keys(by).map(k=>k.split("|")[0]))];
   const lbl={SELL:"SÄLJ",BUY:"KÖP MER",TRIM:"TRIMMA",ROT:"OMFÖRDELA",STOPP:"STOPP",BAND:"UR BANDET",
-    ABSM:"MOMENTUM SLUT",VINST:"TA HEM VINST",TAK:"ÖVER TAK",TREND:"TRENDBROTT",WATCH:"BEVAKA"};
+    ABSM:"MOMENTUM SLUT",VINST:"TA HEM VINST",TAK:"ÖVER TAK",TREND:"TRENDBROTT",WATCH:"BEVAKA",SHORT:"HÖG BLANKNING (info)"};
   const med=a=>{const b=a.slice().sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:null};
   sheet(`<h3>🔬 Hur bra är signalerna?</h3>
   <p class="mu" style="margin-top:-4px">Varje signal loggas när den visas och mäts sedan mot kursen 20, 60 och 120 dagar senare – även de du inte följde. Det är återkoppling på din egen handel, inte på en simulering.</p>

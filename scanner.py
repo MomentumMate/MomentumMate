@@ -886,6 +886,42 @@ def get_info(t, tries=2, wait=2):
         return i
     except Exception: return {}
 
+def _norm_name(x):
+    """Normaliserar bolagsnamn för matchning mot FI:s register: gemener, utan bolagsform och serie."""
+    x = (x or "").lower()
+    x = re.sub(r"\(publ\)|\bpubl\b|\bab\b|\basa\b|\boyj\b|\ba/s\b|\bser\.?\s*[abc]\b|\bclass\s*[abc]\b|\b[a-z]\b|\bholding\b|\bgroup\b|\bsdb\b", " ", x)
+    x = re.sub(r"[^a-z0-9åäö]+", " ", x)
+    return " ".join(x.split())
+
+def apply_fi_short(recs):
+    """Finansinspektionens blankningsregister: summan av nettokorta positioner >= 0,5 % per svensk emittent.
+    Dagsfärsk, offentlig. Matchas på bolagsnamn eftersom registret saknar ticker; bara entydiga träffar används."""
+    url = "https://www.fi.se/sv/vara-register/blankningsregistret/GetAktuellFile/"
+    r = requests.get(url, timeout=40, headers={"User-Agent": "Mozilla/5.0"})
+    r.raise_for_status()
+    df = pd.read_excel(io.BytesIO(r.content))
+    cols = {c: str(c).lower() for c in df.columns}
+    cn = next((c for c, l in cols.items() if "emittent" in l or "namn" in l), None)
+    cp = next((c for c, l in cols.items() if "procent" in l or "%" in l or "position" in l), None)
+    cd = next((c for c, l in cols.items() if "datum" in l), None)
+    if cn is None or cp is None:
+        raise RuntimeError(f"okänt filformat, kolumner: {list(df.columns)[:6]}")
+    fi = {}
+    for _, row in df.iterrows():
+        n = _norm_name(row[cn]); 
+        try: p = float(str(row[cp]).replace(",", ".").replace("%", ""))
+        except Exception: continue
+        if n: fi[n] = (p, str(row[cd])[:10] if cd is not None else "")
+    sv = {t: _norm_name(rr.get("n")) for t, rr in recs.items() if t.endswith(".ST")}
+    hits = 0
+    for t, n in sv.items():
+        if not n: continue
+        cands = [k for k in fi if k == n or k.startswith(n + " ") or n.startswith(k + " ")]
+        if len(cands) != 1: continue
+        p, d = fi[cands[0]]
+        recs[t]["shp"] = round(p, 1); recs[t]["shs"] = "FI"; recs[t]["shd"] = d; hits += 1
+    print(f"  Blankningsregistret (FI): {len(fi)} emittenter, {hits} svenska aktier matchade", flush=True)
+
 def _ts(s):
     try: return dt.datetime.fromisoformat(str(s).replace("Z", "+00:00")).timestamp()
     except Exception: return 0
@@ -1403,6 +1439,9 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
+            # Blankning (2026-11-02): andel av float enligt Yahoo, i procent. Bara information – styr inget.
+            "shp": (num(float(info.get("shortPercentOfFloat")) * 100, 1) if info.get("shortPercentOfFloat") not in (None, "") else None),
+            "shs": ("Yahoo" if info.get("shortPercentOfFloat") not in (None, "") else None),
             
             "hi": round(float(max(closes[-252:])), 2), "lo": round(float(min(closes[-252:])), 2),
 
@@ -1690,6 +1729,21 @@ def hist_name(t): return re.sub(r"[^A-Za-z0-9._=-]", "_", t)
 def _series(idx, vals):
     return {"t": [int(i.timestamp()) for i in idx], "p": [round(float(v), 2) for v in vals]}
 
+def _ohlcv(df):
+    """Serie med stängning plus öppning/högsta/lägsta/volym – ljusstakar och volym i 1D/1V-grafen."""
+    o = _series(df.index, df["Close"])
+    try:
+        has = all(c in df.columns for c in ("Open", "High", "Low"))
+        if has:
+            o["o"]  = [round(float(x), 2) if x == x else None for x in df["Open"]]
+            o["hi"] = [round(float(x), 2) if x == x else None for x in df["High"]]
+            o["lo"] = [round(float(x), 2) if x == x else None for x in df["Low"]]
+        if "Volume" in df.columns:
+            o["v"] = [int(x) if x == x else 0 for x in df["Volume"]]
+    except Exception:
+        pass
+    return o
+
 def write_hist(recs, daily, intra_a, intra_b):
     """1D/1V från intradata, 1M–2Å från daglig stängning (2 år), 5Å veckovis."""
     os.makedirs("hist/h", exist_ok=True); n = 0
@@ -1712,20 +1766,22 @@ def write_hist(recs, daily, intra_a, intra_b):
             h["5y"] = _series(wk.index[-262:], wk.iloc[-262:])
             idf = intra_a.get(t) if t in intra_a else intra_b.get(t)
             if idf is not None and len(idf):
-                cl = idf["Close"].dropna()
-                ix = cl.index
+                # Hela OHLCV-ramen behålls så att dagsgrafen kan rita ljusstakar och volym (sedan 2026-11-02)
+                df = idf.dropna(subset=["Close"]).copy()
+                ix = df.index
                 ix = ix.tz_localize("UTC") if ix.tz is None else ix
                 tz, _ = session(t)
-                cl = cl.copy(); cl.index = ix.tz_convert(tz)
+                df.index = ix.tz_convert(tz)
                 if is_us(t):
-                    mins = cl.index.hour * 60 + cl.index.minute
-                    cl = cl[(mins >= 570) & (mins < 960)]
-                if len(cl):
-                    days = sorted(set(cl.index.date)); keep = set(days[-5:])
-                    last = cl[[x.date() == days[-1] for x in cl.index]]
-                    h["1d"] = _series(last.index, last)
-                    w5 = cl[[x.date() in keep for x in cl.index]].resample("30min").last().dropna()
-                    h["1w"] = _series(w5.index, w5)
+                    mins = df.index.hour * 60 + df.index.minute
+                    df = df[(mins >= 570) & (mins < 960)]
+                if len(df):
+                    days = sorted(set(df.index.date)); keep = set(days[-5:])
+                    last = df[[x.date() == days[-1] for x in df.index]]
+                    h["1d"] = _ohlcv(last)
+                    w5 = df[[x.date() in keep for x in df.index]].resample("30min").agg(
+                        {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}).dropna(subset=["Close"])
+                    h["1w"] = _ohlcv(w5)
             with open(f"hist/h/{hist_name(t)}.json", "w", encoding="utf-8") as f:
                 json.dump(h, f, separators=(",", ":"))
             n += 1
@@ -1873,6 +1929,10 @@ def main():
     print(f"Analys: {len(recs)} aktier klara, {len(dropped)} saknas (Yahoo saknar data eller för kort historik).")
 
     # Piotroski F-score hämtas bara för de bäst rankade – varje aktie kostar tre extra anrop
+    try:
+        apply_fi_short(recs)
+    except Exception as ex:
+        print(f"  Blankningsregistret (FI) hoppades över: {str(ex)[:80]}", flush=True)
     try:
         FS_TOP = 70
         cand = sorted(recs.values(), key=lambda r: -r["sc"])[:FS_TOP]
