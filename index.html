@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-02-g";
+const APPV="2026-11-02-h";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2061,6 +2061,18 @@ function confirmDays(h,k,bad){
 /* Fönstret öppnas sista handelsdagen i månaden och STÅR ÖPPET tills ett förslag räknats på en skanning
    från det månadsskiftet (p.mchk = datum för senaste prövning). Missar du några dagar försvinner inte signalen. */
 function lastTradingDay(y,m){const last=new Date(Date.UTC(y,m+1,0));while([0,6].includes(last.getUTCDay()))last.setUTCDate(last.getUTCDate()-1);return last}
+/* Likaviktning vid kvartalsskiftet (backtestets reb="Q", reweight=true). Fönstret öppnas sista handelsdagen i
+   mars, juni, september och december och står öppet tills ett förslag räknats – dock högst 45 dagar, sedan väntar
+   det på nästa kvartal. p.qrw = datum för senast räknade likaviktning. */
+function quarterDue(p){
+  const day=(D.updated||"").slice(0,10)||todayISO();const d=new Date(day+"T12:00:00Z");
+  let y=d.getUTCFullYear(),m=d.getUTCMonth();
+  for(let k=0;k<4;k++){const mm=m-k,yy=mm<0?y-1:y,m2=(mm+12)%12;if(![2,5,8,11].includes(m2))continue;
+    const q=lastTradingDay(yy,m2);if(d<q)continue;const iso=q.toISOString().slice(0,10);
+    if(p&&p.qrw&&p.qrw>=iso)return null;
+    if((d-q)/864e5>45)return null;
+    return{iso,label:q.getUTCDate()+" "+["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"][m2]}}
+  return null}
 function monthCheckWindow(p){
   const day=(D.updated||"").slice(0,10)||todayISO();const d=new Date(day+"T12:00:00Z");
   const MN=["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
@@ -2200,10 +2212,19 @@ function autoPlan(p,o){
     live=live.filter(r=>!sold.has(r.h.t))}
   if(live.length>want){live.slice().sort((a,b)=>(cm.onlyNordic&&isNord(a.h.t)!==isNord(b.h.t))?(isNord(a.h.t)?1:-1):rk(a.h.t)-rk(b.h.t)).slice(want).forEach(r=>{const h=r.h,s0=r.s;sold.add(h.t);proceeds+=h.q*r.px*r.F;
     items.push({t:h.t,a:"SÄLJ",q:h.q,why:`Över målantalet ${want} innehav (nu ${live.length}): lägst rankad, plats ${rankOf(h.t)||"–"}. Backtestet höll aldrig fler än ${want}.`,n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})})}
+  // Likaviktning vid kvartalsskiftet: sälj ner det som vuxit över målvikt, köp upp det som halkat under.
+  const qd=quarterDue(p),tgtW=1/Math.max(1,want),tot1=c.tot+(free?0:amt),tgt=tot1*tgtW,rw=new Set();
+  const soldQ=t=>items.filter(i=>i.t===t&&i.a==="SÄLJ").reduce((x,i)=>x+i.q,0);
+  if(qd){c.rows.forEach(r=>{if(!r.s)return;const rem=r.h.q-soldQ(r.h.t);if(rem<=0)return;   // delvis sålt (t.ex. taket) räknas på resten
+      const per=r.px*r.F,val=rem*per,exc=val-tgt;if(exc>tgt*0.25){const q=Math.floor(exc/per);
+      if(q>=1&&q<rem&&q*per>=Math.max(1500,minTrade(r.h.t)*20)){rw.add(r.h.t);proceeds+=q*per;const h=r.h,s0=r.s;
+        items.push({t:h.t,a:"SÄLJ",q,why:`Likaviktning vid kvartalsskiftet (${qd.label}): ${f(val/tot1*100,1)} % av portföljen mot målet ${f(tgtW*100,1)} %. Sälj ner till målvikt – vinnarna får inte växa sig för stora.`,n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})}}})}
   const budget=free?proceeds:amt+(incl?proceeds:0),tot0=c.tot+(free?0:amt),capF=R.cap>0?R.cap/100:1;
   const secW={};c.rows.forEach(r=>{if(sold.has(r.h.t))return;const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
   const held=new Set(p.h.map(h=>h.t)),avoid=s=>reg.avoid.has(s.sec),cands=[];
-  c.rows.forEach(r=>{if(sold.has(r.h.t)||!r.s)return;if(r.sig.k==="BUY"&&(R.mode==="sat"?r.s.rsi<=R.maxRsi:true)&&!avoid(r.s)&&r.w<R.cap)cands.push({s:r.s,held:true,pri:buyPri(r.s,{held:true,w:r.w,cap:R.cap,secW,tot:tot0})})});
+  c.rows.forEach(r=>{if(sold.has(r.h.t)||!r.s)return;
+    if(qd&&!rw.has(r.h.t)&&r.val<tgt*0.75){cands.push({s:r.s,held:true,rw:true,tgt,pri:1e6-rk(r.h.t)});return}   // under målvikt vid kvartal: fyll på först
+    if(r.sig.k==="BUY"&&(R.mode==="sat"?r.s.rsi<=R.maxRsi:true)&&!avoid(r.s)&&r.w<R.cap)cands.push({s:r.s,held:true,pri:buyPri(r.s,{held:true,w:r.w,cap:R.cap,secW,tot:tot0})})});
   // Nya köp: topp bandIn i 12-1-rankningen – det validerade urvalet. Inga tekniska extrafilter (MACD, SMA50, RSI, poäng
   // togs bort 2026-10-23: de ingick inte i backtestet). I kostnadsläge bara nordiska aktier.
   const topN=R.mode==="sat"?60:Math.max(R.bandIn||10,10);
@@ -2211,12 +2232,12 @@ function autoPlan(p,o){
   cands.sort((a,b)=>b.pri-a.pri);
   const slots=free?(reg.warn?1:Math.max(1,(R.repl||2)+1)):Math.max(1,Math.min(8,Math.ceil(budget/Math.max(1,capF*tot0*0.7))));
   let pool=budget;const picks=[];
-  const take=(x,share)=>{const s=x.s,per=s.px*fx(s.ccy),cur=(c.rows.find(r=>r.h.t===s.t)||{val:0}).val,room=Math.max(0,capF*tot0-cur),q=Math.min(Math.floor(Math.min(share,pool)/per),Math.floor(room/per));if(q<1)return false;pool-=q*per;picks.push({x,q,per,room:room-q*per});return true};
+  const take=(x,share)=>{const s=x.s,per=s.px*fx(s.ccy),cur=(c.rows.find(r=>r.h.t===s.t)||{val:0}).val,room=Math.max(0,(x.rw?Math.min(capF*tot0,x.tgt):capF*tot0)-cur),q=Math.min(Math.floor(Math.min(share,pool)/per),Math.floor(room/per));if(q<1)return false;pool-=q*per;picks.push({x,q,per,room:room-q*per});return true};
   for(const x of cands){if(picks.length>=slots||pool<2000)break;take(x,pool/Math.max(1,slots-picks.length))}
   for(let i=0;i<200&&pool>0;i++){let any=false;for(const pk of picks){if(pool>=pk.per&&pk.room>=pk.per){pk.q++;pool-=pk.per;pk.room-=pk.per;any=true}}if(!any)break}
   if(!free)for(const x of cands){if(pool<2000||picks.length>=10)break;if(picks.some(pk=>pk.x===x))continue;take(x,pool)}
   const spent=picks.reduce((a,pk)=>a+pk.q*pk.per,0);
-  picks.sort((a,b)=>b.x.pri-a.x.pri).forEach((pk,i)=>{const s=pk.x.s;items.push({t:s.t,a:"KÖP",q:pk.q,pri:pk.x.pri,why:`#${i+1} ${pk.x.held?"Appens KÖP MER":"Nytt momentum"}: poäng ${s.sc}, RSI ${s.rsi}, 1 mån ${f(s.r1m,1)} %, 3 mån ${f(s.r3m,1)} %${s.sec?" · "+(SECSV[s.sec]||s.sec):""}. Stopp ≈ ${f(s.px*(1-R.stop/100))} ${s.cur}.`,n:s.n,ccy:s.ccy,px:s.px,done:false})});
+  picks.sort((a,b)=>b.x.pri-a.x.pri).forEach((pk,i)=>{const s=pk.x.s;items.push({t:s.t,a:"KÖP",q:pk.q,pri:pk.x.pri,why:pk.x.rw?`#${i+1} Likaviktning vid kvartalsskiftet: innehavet ligger under målvikten ${f(tgtW*100,1)} %. Köp upp till målvikt.`:`#${i+1} ${pk.x.held?"Appens KÖP MER":"Nytt momentum"}: poäng ${s.sc}, RSI ${s.rsi}, 1 mån ${f(s.r1m,1)} %, 3 mån ${f(s.r3m,1)} %${s.sec?" · "+(SECSV[s.sec]||s.sec):""}. Stopp ≈ ${f(s.px*(1-R.stop/100))} ${s.cur}.`,n:s.n,ccy:s.ccy,px:s.px,done:false})});
   c.rows.forEach(r=>{if(sold.has(r.h.t))return;const h=r.h,s=r.s,u=s?s.cur:(h.ccy||""),pk=Math.max(h.pk||h.c,r.px),base=R.trail?Math.max(h.c,pk):h.c;
     items.push({t:h.t,a:"BEHÅLL",q:0,why:(s?`Appen: ${SIGL[r.sig.k]} (poäng ${s.sc}, RSI ${s.rsi}${s.rsi>R.maxRsi?" – överköpt, köp inte mer":""}). `:"")+`Stopp ≈ ${f(base*(1-R.stop/100))} ${u}, nästa vinstmål ≈ ${f(h.c*(1+R.tp*((h.tps||0)+1)/100))} ${u}.`,n:h.n||"",ccy:s?s.ccy:h.ccy,px:r.px,done:false})});
   const hh=t=>{try{return new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
@@ -2229,7 +2250,7 @@ async function refreshAll(pid,cash,incl){
   if(!DEMO){try{const r=await loadData();if(r&&r.d){D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData()}}catch(e){}}
   await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{})]);regimeCheck();
   const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
-  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl});const _mw=monthCheckWindow(x);if(_mw.open)x.mchk=(D.updated||"").slice(0,10)||todayISO()});
+  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl});const _mw=monthCheckWindow(x);if(_mw.open)x.mchk=(D.updated||"").slice(0,10)||todayISO();if(quarterDue(x))x.qrw=(D.updated||"").slice(0,10)||todayISO()});
   p.cashIncl=!!incl;save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
 }
 function refreshSheet(pid){
