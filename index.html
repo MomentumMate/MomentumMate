@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-l";
+const APPV="2026-11-03-m";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -433,8 +433,10 @@ function calc(p){
   if(pl)rows.forEach(r=>{const its=pl.filter(i=>i.t===r.h.t&&!i.done&&i.q>0);if(!its.length)return;
     const sell=its.filter(i=>i.a==="SÄLJ"),buy=its.filter(i=>i.a==="KÖP");
     if(sell.length){const q=sell.reduce((a,i)=>a+i.q,0),whole=q>=r.h.q-1e-9;
-      r.sig={k:whole?"SELL":"TRIM",why:[sell[0].why].concat(r.sig.why.filter(w=>!/behåll\.$/.test(w)&&!/^Hållvillkoret bryts/.test(w)))};r.plan=whole?"SÄLJ":"MINSKA"}
-    else if(buy.length){r.sig={k:"BUY",why:[buy[0].why.replace(/^#\d+ /,"")].concat(r.sig.why.filter(w=>!/behåll\.$/.test(w)))};r.plan="ÖKA"}});
+      // Förslaget gäller: bara rankraden följer med, inte dagens regelutfall (taket/väntar), som kan säga något annat.
+      const rankLine=(r.sig.why||[]).filter(w=>/^Plats /.test(w));
+      r.sig={k:whole?"SELL":"TRIM",why:[sell[0].why].concat(rankLine)};r.rule=null;r.pend=null;r.plan=whole?"SÄLJ":"MINSKA"}
+    else if(buy.length){const rankLine=(r.sig.why||[]).filter(w=>/^Plats /.test(w));r.sig={k:"BUY",why:[buy[0].why.replace(/^#\d+ /,"")].concat(rankLine)};r.plan="ÖKA"}});
   rows.sort((a,b)=>b.val-a.val);
   return{rows,tot,cost,pnl:tot-cost,day,dayPct:(tot-day)?day/(tot-day)*100:0,ret:cost?(tot/cost-1)*100:0}
 }
