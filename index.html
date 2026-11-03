@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-g";
+const APPV="2026-11-03-h";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2113,7 +2113,7 @@ function monthCheckWindow(p){
   const next=d>=thisEnd?lastTradingDay(d.getUTCFullYear(),d.getUTCMonth()+1):thisEnd;
   return{open,label:next.getUTCDate()+" "+MN[next.getUTCMonth()],dueISO}}
 function ruleSignals(p,c){
-  const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=0;R.tp=0}const out=[];
+  const R=rulesOf0(p);const out=[];
   c.rows.forEach(r=>{
     const h=r.h,px=r.px,F=r.F,s=r.s;if(!(px>0)||!(h.q>0))return;
     const base=h.c,pk=Math.max(h.pk||base,px),stopBase=R.trail?Math.max(base,pk):base,stopPx=stopBase*(1-R.stop/100);let a=null;
@@ -2238,7 +2238,7 @@ function buyPri(s,x){x=x||{};let v=+s.sc||0;
   if(x.secW&&x.tot){const sw=(x.secW[s.sec]||0)/Math.max(x.tot,1);if(sw>0.45)v-=15}
   return Math.round(v*10)/10}
 function autoPlan(p,o){
-  o=o||{};const R=Object.assign({},RULE_DEF,p.rules||{}),pp=Object.assign({},p,{rules:R}),c=calc(pp),items=[],amt=+o.cash||0,free=!(amt>0),incl=!!o.incl,reg=regimeNote();
+  o=o||{};const R=rulesOf0(p),pp=Object.assign({},p,{rules:R}),c=calc(pp),items=[],amt=+o.cash||0,free=!(amt>0),incl=!!o.incl,reg=regimeNote();
   const RA=rulesOf(c),sold=new Set(RA.map(a=>a.r.h.t));let proceeds=0;
   RA.forEach(a=>{const h=a.r.h,s0=S[h.t];proceeds+=a.amt;items.push({t:h.t,a:"SÄLJ",q:a.q,why:a.why,tp:a.k==="VINST",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:a.r.px,done:false})});
   if(free&&R.mode==="sat"){const seen=new Set();rotation(c.rows).forEach(x=>{const r=x.a,h=r.h;if(sold.has(h.t)||seen.has(h.t))return;seen.add(h.t);sold.add(h.t);const s0=S[h.t];proceeds+=h.q*r.px*r.F;
@@ -2273,12 +2273,15 @@ function autoPlan(p,o){
   const topN=R.mode==="sat"?60:Math.max(want,R.bandIn||10);
   ((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).slice(0,R.mode==="sat"?60:topN*3).map(t=>S[t]).filter(s=>s&&s.px>0&&!held.has(s.t)&&!sold.has(s.t)&&s.inf!==false&&!avoid(s)&&(R.mode==="sat"?(s.sc>=60&&s.rsi<=R.maxRsi&&s.a50&&(s.a200||s.sh)&&s.macd>0):(rankOf(s.t)||1e9)<=topN)&&(!cm.onlyNordic||isNord(s.t))).forEach(s=>cands.push({s,held:false,pri:buyPri(s,{secW,tot:tot0})}));
   cands.sort((a,b)=>b.pri-a.pri);
-  const slots=free?(reg.warn?1:Math.max(1,(R.repl||2)+1)):Math.max(1,Math.min(8,Math.ceil(budget/Math.max(1,capF*tot0*0.7))));
+  // Antal köp (2026-11-03): kärnan fyller upp till målantalet, som backtestets påfyllning. Tidigare max 4 (satellitens
+  // "repl+1"), vilket lämnade stor kassa när många innehav såldes samtidigt.
+  const liveN=c.rows.filter(r=>!sold.has(r.h.t)).length,rwN=cands.filter(x=>x.rw).length;
+  const slots=R.mode==="sat"?(free?(reg.warn?1:Math.max(1,(R.repl||2)+1)):Math.max(1,Math.min(8,Math.ceil(budget/Math.max(1,capF*tot0*0.7))))):Math.max(1,(want-liveN)+rwN);
   let pool=budget;const picks=[];
   const take=(x,share)=>{const s=x.s,per=s.px*fx(s.ccy),cur=(c.rows.find(r=>r.h.t===s.t)||{val:0}).val,room=Math.max(0,(x.rw?Math.min(capF*tot0,x.tgt):capF*tot0)-cur),q=Math.min(Math.floor(Math.min(share,pool)/per),Math.floor(room/per));if(q<1)return false;pool-=q*per;picks.push({x,q,per,room:room-q*per});return true};
   for(const x of cands){if(picks.length>=slots||pool<2000)break;take(x,pool/Math.max(1,slots-picks.length))}
   for(let i=0;i<200&&pool>0;i++){let any=false;for(const pk of picks){if(pool>=pk.per&&pk.room>=pk.per){pk.q++;pool-=pk.per;pk.room-=pk.per;any=true}}if(!any)break}
-  if(!free)for(const x of cands){if(pool<2000||picks.length>=10)break;if(picks.some(pk=>pk.x===x))continue;take(x,pool)}
+  if(!free||R.mode!=="sat")for(const x of cands){if(pool<2000||picks.length>=(R.mode==="sat"?10:slots))break;if(picks.some(pk=>pk.x===x))continue;take(x,pool)}
   const spent=picks.reduce((a,pk)=>a+pk.q*pk.per,0);
   picks.sort((a,b)=>b.x.pri-a.x.pri).forEach((pk,i)=>{const s=pk.x.s;items.push({t:s.t,a:"KÖP",q:pk.q,pri:pk.x.pri,why:pk.x.rw?`#${i+1} Likaviktning vid kvartalsskiftet: innehavet ligger under målvikten ${f(tgtW*100,1)} %. Köp upp till målvikt.`:`#${i+1} ${pk.x.held?"Appens KÖP MER":"Nytt momentum"}: poäng ${s.sc}, RSI ${s.rsi}, 1 mån ${f(s.r1m,1)} %, 3 mån ${f(s.r3m,1)} %${s.sec?" · "+(SECSV[s.sec]||s.sec):""}. Stopp ≈ ${f(s.px*(1-R.stop/100))} ${s.cur}.`,n:s.n,ccy:s.ccy,px:s.px,done:false})});
   c.rows.forEach(r=>{if(sold.has(r.h.t))return;const h=r.h,s=r.s,u=s?s.cur:(h.ccy||""),pk=Math.max(h.pk||h.c,r.px),base=R.trail?Math.max(h.c,pk):h.c;
@@ -2627,7 +2630,8 @@ function profileLine(p,c){
    <br>Backtest: ${pr.cagr} per år, nedgång ${pr.dd} i sämsta skedet.
    <span class="lnk" data-act="applyprof" data-pid="${p.id}">Ställ om</span>
    <span class="ii" data-i="profile">ⓘ</span></div>`}
-const rulesOf0=p=>{const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=0;R.tp=0;R.cap=Math.min(+R.cap||RULE_DEF.cap,RULE_DEF.cap)}return R};  // kärnan: taket aldrig över 10 % (2 × målvikten 5 %) – gamla sparade 15 % från satellittiden skrivs över
+const rulesOf0=p=>{const R=Object.assign({},RULE_DEF,p.rules||{});if(!R.mode||R.mode==="core"){R.bandOut=0;R.sma200=true;R.stop=0;R.tp=0;const tot=(p.h||[]).reduce((a,h)=>{const s=S[h.t];return a+(s&&s.px>0?h.q*s.px*fx(s.ccy):h.q*(h.c||0)*(s?fx(s.ccy):1))},0);
+    const want=p.targetN||((profileFor(tot)||{n:20}).n);R.cap=Math.round(200/Math.max(1,want))}return R};   // kärnan: tak = 2 × målvikten (10 % vid 20 innehav, 40 % vid 5)  // kärnan: taket aldrig över 10 % (2 × målvikten 5 %) – gamla sparade 15 % från satellittiden skrivs över
 function costLine(p,c){
   const m=costMode(p,c);if(!m.cap)return"";
   if(!m.tight)return"";
