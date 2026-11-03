@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-02-l";
+const APPV="2026-11-03-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -405,6 +405,7 @@ function sellHolding(p,t,q,px,d){_sellHolding(p,t,q,px,d);mirrorOp(p,tw=>{if(tw.
 function signal(r,n,R){
   const s=r.s;if(!s)return{k:"NA",why:["Ingen live-data för den här aktien. Lägg tickern i holdings.txt så tas den med nästa körning."]};
   R=R||RULE_DEF;const rk=rankOf(s.t),tot=rankMap().n;
+  const ny=newList(s);if(ny)return{k:"HOLD",why:[ny.why]};   // nynoterad: modellen har inget underlag ännu
   if(rk&&rk<=(R.bandIn||10))return{k:"BUY",why:[`Plats ${rk} av ${tot} i momentumrankningen – bland de starkaste. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200.`]};
   return{k:"HOLD",why:[`Plats ${rk||"–"} av ${tot}. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200. Hållvillkoren gäller – behåll.`]};
 }
@@ -503,7 +504,7 @@ function card(s,i,o={}){
   return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
   <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div></div>
   ${trendArrow(s)}${right}</div>
-  <div class="al2">${chips}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(flagChip).join("")}${shortChip(s)}</div>
+  <div class="al2">${chips}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(flagChip).join("")}${newChip(s)}${shortChip(s)}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,h?"":`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`,preObj)}</div>`
 }
 /* Aktiesidan – samma överallt. Byggd om 2026-10-21 för kärnmodellen: tre tal avgör allt
@@ -1686,6 +1687,14 @@ const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 /* Blankning (2026-11-02): andel blankat – Yahoo (av float) eller FI:s register (summa positioner ≥ 0,5 %).
    Enbart information som loggas i Signalutfall; styr inga förslag. Trösklar: ≥ 5 % visas, ≥ 10 % hög. */
 const SHORT_HI=10,SHORT_LO=5;
+/* Nynoterad (2026-11-03): aktier med för kort historik för modellens villkor. nb = antal handelsdagar i serien.
+   SMA200 kräver 201 dagar, 12-1 kräver ca 253. Till dess kan varken håll- eller köpvillkor prövas. */
+const newList=s=>{if(!s)return null;const nb=+s.nb||0;if(!nb)return null;const shortSma=!!s.sh&&nb<201,noM=typeof s.m121!=="number"&&nb<300;if(!shortSma&&!noM)return null;
+  const dSma=Math.max(0,201-nb),dM=Math.max(0,253-nb);
+  const why=shortSma?`Nynoterad – ${nb} handelsdagar. För kort historik för modellens villkor: SMA200 om ${dSma} dagar, 12-1-rankning om ca ${dM}. BEHÅLL betyder här "inget underlag", inte "allt är bra".`
+    :`Nynoterad – ${nb} handelsdagar. SMA200 gäller (${s.a200?"över":"under"}), men 12-1 kan rankas först om ca ${dM} dagar. Kan inte få KÖP eller ÖKA till dess.`;
+  return{nb,dSma,dM,shortSma,why}};
+const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="sig WATCH" title="${esc(ny.why)}">🆕 Nynoterad · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}</span>`};
 const shortChip=s=>{if(!(s&&typeof s.shp==="number"&&s.shp>=SHORT_LO))return"";const hi=s.shp>=SHORT_HI;
   return`<span class="sig ${hi?"TRIM":"WATCH"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">🩳 ${hi?"Hög blankning":"Blankning"} ${f(s.shp,1)} %</span>`};
 /* ---------- Ändra ordning (dra och släpp) ---------- */
