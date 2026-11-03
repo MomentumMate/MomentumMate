@@ -503,6 +503,14 @@ def run(close, vol, cfg, vix=None):
             _due = (i % _rf) == (hash((i // _rf, cfg.get("seed", 0))) % _rf)
         else:
             _due = _rf <= 1 or i % _rf == 0
+        def entry_ok(t):
+            """Inträdesfilter (G6, 2026-11-03): köp bara om kursen ligger över SMA200 – samma villkor som hållregeln."""
+            if not cfg.get("entry_sma200"): return True
+            try:
+                ci_ = close.columns.get_loc(t); px_ = p.get(t); s_ = EX["sma200"].iat[i, ci_]
+                return px_ == px_ and s_ == s_ and px_ > s_
+            except Exception:
+                return True
         if cfg.get("refill") and d not in rebs and len(hold) < n_eff and _due:
             row_r = sc.iloc[i].dropna()
             mk_r = cfg.get("mkt", "all")
@@ -512,7 +520,7 @@ def run(close, vol, cfg, vix=None):
                 row_r = row_r[[t for t in row_r.index if "." not in t]]
             if len(row_r) >= cfg["n"]:
                 rk = row_r.rank(ascending=False, method="first")
-                free = [t for t in rk[rk <= cfg["n"]].sort_values().index if t not in hold]
+                free = [t for t in rk[rk <= cfg["n"]].sort_values().index if t not in hold and entry_ok(t)]
                 tot_r = value(i)
                 for t in free[:n_eff - len(hold)]:
                     px = p.get(t)
@@ -590,7 +598,7 @@ def run(close, vol, cfg, vix=None):
                     wide = cfg.get("cand_width", 1.0)
                     lim = cfg["n"] if not cfg.get("cost_adj") else min(cfg["band_out"], int(cfg["n"] * wide))
                     top_sel = set(rank[rank <= lim].index)
-                    cand_all = [t for t in rank.sort_values().index if t not in hold and t in top_sel]
+                    cand_all = [t for t in rank.sort_values().index if t not in hold and t in top_sel and entry_ok(t)]
                     if cfg.get("cost_adj"):
                         # Väg poäng mot kostnad i stället för att sortera bort dyra aktier.
                         # slope = procents avkastning per poäng, mätt på historiken.
@@ -786,6 +794,10 @@ def main():
             "G3. A + gap 25 %":                                         dict(B, gap_sell=25),
             "G4. A + gap 20 %, dubbla kostnader":                       dict(B, gap_sell=20, **DBL),
             "G5. A + gap 20 %, kvartal förskjutet 1 mån":               dict(B, gap_sell=20, reb="Q1"),
+            "--- inträdesfilter: köp bara om kursen ligger över SMA200 ---": None,
+            "G6. A + inträde kräver kurs > SMA200":                     dict(B, entry_sma200=True),
+            "G7. G6, dubbla kostnader":                                  dict(B, entry_sma200=True, **DBL),
+            "G8. G6, kvartal förskjutet 1 mån":                         dict(B, entry_sma200=True, reb="Q1"),
             "--- marknadskrascher: stå kvar i stället för att sälja ---": None,
             "H1. Bara 12-1 > 0 som hållvillkor (utan SMA200)":          dict(B, hold_no_sma=True),
             "H2. Bara kurs > SMA200 som hållvillkor (utan 12-1)":       dict(B, hold_no_mom=True),
