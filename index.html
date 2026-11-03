@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-q";
+const APPV="2026-11-03-r";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2259,7 +2259,8 @@ function buyPri(s,x){x=x||{};let v=+s.sc||0;
   if(x.secW&&x.tot){const sw=(x.secW[s.sec]||0)/Math.max(x.tot,1);if(sw>0.45)v-=15}
   return Math.round(v*10)/10}
 function autoPlan(p,o){
-  o=o||{};const R=rulesOf0(p),pp=Object.assign({},p,{rules:R}),c=calc(pp),items=[],amt=+o.cash||0,free=!(amt>0),incl=!!o.incl,reg=regimeNote();
+  // plan:null – förslaget räknas alltid på råa signaler, aldrig på det förra förslagets överskrivning (bugg 2026-11-03: gav 2 SÄLJ i stället för 13)
+  o=o||{};const R=rulesOf0(p),pp=Object.assign({},p,{rules:R,plan:null}),c=calc(pp),items=[],amt=+o.cash||0,free=!(amt>0),incl=!!o.incl,reg=regimeNote();
   const RA=rulesOf(c),sold=new Set(RA.map(a=>a.r.h.t));let proceeds=0;
   RA.forEach(a=>{const h=a.r.h,s0=S[h.t];proceeds+=a.amt;items.push({t:h.t,a:"SÄLJ",q:a.q,why:a.why,note:a.k==="TAK"?`Över taket ${R.cap} % – minska till målvikt.`:"",tp:a.k==="VINST",n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:a.r.px,done:false})});
   if(free&&R.mode==="sat"){const seen=new Set();rotation(c.rows).forEach(x=>{const r=x.a,h=r.h;if(sold.has(h.t)||seen.has(h.t))return;seen.add(h.t);sold.add(h.t);const s0=S[h.t];proceeds+=h.q*r.px*r.F;
