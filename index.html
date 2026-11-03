@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-p";
+const APPV="2026-11-03-q";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -409,7 +409,7 @@ function signal(r,n,R){
   const s=r.s;if(!s)return{k:"NA",why:["Ingen live-data för den här aktien. Lägg tickern i holdings.txt så tas den med nästa körning."]};
   R=R||RULE_DEF;const rk=rankOf(s.t),tot=rankMap().n;
   const ny=newList(s);if(ny)return{k:"HOLD",why:[ny.why]};   // nynoterad: modellen har inget underlag ännu
-  if(rk&&rk<=(R.bandIn||10))return{k:"BUY",why:[`Plats ${rk} av ${tot} i momentumrankningen – bland de starkaste. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200.`]};
+  if(rk&&rk<=(R.bandIn||10))return{k:"BUY",why:[`${coreFact(s)}`,`Plats ${rk} av ${tot} – bland de starkaste.`]};
   // Hållvillkoren: 12-1 > 0 och kurs > SMA200. Texten ska säga om de håller eller inte – inte "behåll" när de bryts.
   const okM=typeof s.m121!=="number"||s.m121>0,okS=!!s.a200||!!s.sh;
   if(!okM||!okS)return{k:"HOLD",why:[`Hållvillkoret bryts: ${!okM?`12-1 negativt (${f(s.m121,1)} %)`:"kursen ligger under SMA200"}. Säljs vid månadsprövningen. ${statusLine(s,!okM?"m121":"sma")}`]};
@@ -2024,7 +2024,7 @@ function propHTML(p,c,sigs,rot,ideas){
   items.forEach((it,i)=>{const r=rowBy[it.t],x=rotFor[it.t];const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":"hold";   // BEHÅLL-rader ligger alltid under BEHÅLL (2026-11-03)
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
     const pri=g==="buy"?(it.pri!=null?+it.pri:(S[it.t]?buyPri(S[it.t],bctx(r)):0)):0;
-    pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${lab(it)}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)&&SIGL[r.sig.k]!==lab(it)&&!(it.a==="KÖP"&&r.sig.k==="BUY")?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}</div>${it.why?`<div class="mu" style="white-space:pre-line">${esc(it.why)}</div>`:""}${g==="buy"&&pri&&rulesOf0(p).mode==="sat"?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r,it)}${extra}</div>
+    pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${lab(it)}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)&&SIGL[r.sig.k]!==lab(it)&&!(it.a==="KÖP"&&r.sig.k==="BUY")?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}${(()=>{const w=r?r.w:(it.q&&c&&c.tot?planAmt(it)/c.tot*100:0);return w>0?` · ${f(w,1)} %${r?"":" ny"}`:""})()}</div>${it.why?`<div class="mu" style="white-space:pre-line">${esc(it.why)}</div>`:""}${g==="buy"&&pri&&rulesOf0(p).mode==="sat"?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r,it)}${extra}</div>
      <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>`}</div></div>`,pri)});
   RA.forEach(a=>{const r=a.r,h=r.h,repl=RP.get(a)||[];
     G.sell.push(`<div class="sr rls"><div class="m"><div>${flag(h.t)}${tlink(h.t,r.s?r.s.d:h.t)}<span class="pla S">${RLAB[a.k]} ${a.q} st</span></div><div class="mu">${esc(r.s?r.s.n:(h.n||h.t))} · ≈ ${kr(a.amt)} kr · vikt ${f(r.w,1)} %</div><div class="mu" style="white-space:normal">${esc(a.why)}</div>
