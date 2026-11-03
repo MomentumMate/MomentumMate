@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-b";
+const APPV="2026-11-03-c";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2305,7 +2305,7 @@ function buildPortfolio(cap,hz,o){
   const postNow=cap*0.95/Math.max(1,nWant);
   const secs=sectorMomentum(),secRank={};secs.forEach((x,i)=>secRank[x.sec]=i);
   const hot=new Set(secs.slice(0,C.sect).map(x=>x.sec));
-  // Kärnans urval (2026-10-23): topp 30 i 12-1-rankningen, inga tekniska extrafilter (de ingick inte i backtestet).
+  // Kärnans urval (2026-10-23): topp 30 i momentumrankningen (poäng 80 % 12-1, 20 % trendkvalitet – samma som backtestet), inga tekniska extrafilter.
   const onlyN=capU<nWant,isN=t=>/\.(ST|CO|OL|HE)$/.test(t);
   const pool=Object.values(S).filter(x=>x&&x.px>0&&x.inf!==false&&(rankOf(x.t)||1e9)<=Math.max(30,nWant*3)&&(!onlyN||isN(x.t)));
   // Kostnaden dras av i poäng. En dyr aktie väljs när dess försprång täcker merkostnaden.
@@ -2322,7 +2322,7 @@ function buildPortfolio(cap,hz,o){
   const alloc=raw.map(x=>Math.min(budget*x/rsum,cap*capF));
   const items=picks.map((c,i)=>{const s=c.s,per=s.px*fx(s.ccy);let w=alloc[i];
     const q=Math.max(0,Math.floor(w/per));return{t:s.t,a:"KÖP",q,pri:c.v,n:s.n,ccy:s.ccy,px:s.px,per,
-      why:`Plats ${rankOf(s.t)||"–"} i 12-1-rankningen · ${SECSV[s.sec]||s.sec||"–"} · 12-1 ${f(s.m121,1)} %. Kärnan: håll så länge 12-1 > 0 och kurs > SMA200, prövas vid månadsskiftet.`}});
+      why:`Plats ${rankOf(s.t)||"–"} i momentumrankningen · ${SECSV[s.sec]||s.sec||"–"} · 12-1 ${f(s.m121,1)} %. Kärnan: håll så länge 12-1 > 0 och kurs > SMA200, prövas vid månadsskiftet.`}});
   let items2=items.filter(x=>x.q>0);
   // fyll på med hela aktier så länge budgeten räcker och taket per aktie håller
   let rest=budget-items2.reduce((a,x)=>a+x.q*x.per,0);
