@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-f";
+const APPV="2026-11-03-g";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -424,6 +424,14 @@ function calc(p){
     if(a.k==="STOPP"||a.k==="BAND"||a.k==="ABSM"||a.k==="SMA")r.sig={k:"SELL",why:[a.why].concat(b.why&&b.why.length?[b.why[0]]:[])};   // bara rankraden följer med, inte "behåll"
     else r.sig={k:"TRIM",why:[a.why].concat(b.k==="BUY"?["Momentumet är högt, men "+(a.k==="TAK"?"innehavet är för stort":"vinstmålet är nått")+" – därför ingen påfyllning."]:[])}});
   rows.forEach(r=>{if(r.pend&&!r.rule)r.sig.why.push(r.pend.mw?`⏳ ${RLAB[r.pend.k]}: villkoret gäller just nu (${r.pend.n} dagar). Prövas vid månadsskiftet, ${r.pend.mw} – gäller det då ges SÄLJ.`:`⏳ ${RLAB[r.pend.k]}: villkoret har gällt ${r.pend.n} av ${r.pend.N} dagar. Blir det ${r.pend.N} i rad ges säljsignal.`)});
+  // Enhetlig kommunikation (2026-11-03): ligger ett ogjort förslag i portföljen är det förslaget som gäller –
+  // kortet visar samma sak som förslagsraden: SÄLJ, MINSKA (delförsäljning) eller ÖKA (köp i ett innehav).
+  const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan.items:null;
+  if(pl)rows.forEach(r=>{const its=pl.filter(i=>i.t===r.h.t&&!i.done&&i.q>0);if(!its.length)return;
+    const sell=its.filter(i=>i.a==="SÄLJ"),buy=its.filter(i=>i.a==="KÖP");
+    if(sell.length){const q=sell.reduce((a,i)=>a+i.q,0),whole=q>=r.h.q-1e-9;
+      r.sig={k:whole?"SELL":"TRIM",why:[`${whole?"SÄLJ":"MINSKA"} enligt förslaget: ${sell.map(i=>i.why).join(" ")}`].concat(r.sig.why.filter(w=>!/behåll\.$/.test(w)))};r.plan=whole?"SÄLJ":"MINSKA"}
+    else if(buy.length){r.sig={k:"BUY",why:[`ÖKA enligt förslaget: ${buy.map(i=>i.why).join(" ")}`].concat(r.sig.why.filter(w=>!/behåll\.$/.test(w)))};r.plan="ÖKA"}});
   rows.sort((a,b)=>b.val-a.val);
   return{rows,tot,cost,pnl:tot-cost,day,dayPct:(tot-day)?day/(tot-day)*100:0,ret:cost?(tot/cost-1)*100:0}
 }
