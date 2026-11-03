@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-d";
+const APPV="2026-11-03-e";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -407,7 +407,10 @@ function signal(r,n,R){
   R=R||RULE_DEF;const rk=rankOf(s.t),tot=rankMap().n;
   const ny=newList(s);if(ny)return{k:"HOLD",why:[ny.why]};   // nynoterad: modellen har inget underlag ännu
   if(rk&&rk<=(R.bandIn||10))return{k:"BUY",why:[`Plats ${rk} av ${tot} i momentumrankningen – bland de starkaste. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200.`]};
-  return{k:"HOLD",why:[`Plats ${rk||"–"} av ${tot}. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200. Hållvillkoren gäller – behåll.`]};
+  // Hållvillkoren: 12-1 > 0 och kurs > SMA200. Texten ska säga om de håller eller inte – inte "behåll" när de bryts.
+  const okM=typeof s.m121!=="number"||s.m121>0,okS=!!s.a200||!!s.sh,rankTxt=`Plats ${rk||"–"} av ${tot}. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200.`;
+  if(!okM||!okS)return{k:"HOLD",why:[rankTxt,`Hållvillkoret bryts (${!okM?"12-1 är negativt":"kursen ligger under SMA200"}). Säljs vid månadsprövningen – finns ett SÄLJ i förslaget är det det som gäller.`]};
+  return{k:"HOLD",why:[rankTxt,"Hållvillkoren gäller – behåll."]};
 }
 let PKD=false;setInterval(()=>{if(PKD){PKD=false;try{save()}catch(e){}}},5000);
 function calc(p){
@@ -418,7 +421,7 @@ function calc(p){
   rows.forEach(r=>{r.w=tot?r.val/tot*100:0});
   rows.forEach(r=>{r.sig=signal(r,rows.length,p.rules)});
   ruleSignals(p,{rows,tot}).forEach(a=>{const r=a.r;r.rule=a;const b=r.sig;
-    if(a.k==="STOPP"||a.k==="BAND"||a.k==="ABSM"||a.k==="SMA")r.sig={k:"SELL",why:[a.why].concat(b.why||[])};
+    if(a.k==="STOPP"||a.k==="BAND"||a.k==="ABSM"||a.k==="SMA")r.sig={k:"SELL",why:[a.why].concat(b.why&&b.why.length?[b.why[0]]:[])};   // bara rankraden följer med, inte "behåll"
     else r.sig={k:"TRIM",why:[a.why].concat(b.k==="BUY"?["Momentumet är högt, men "+(a.k==="TAK"?"innehavet är för stort":"vinstmålet är nått")+" – därför ingen påfyllning."]:[])}});
   rows.forEach(r=>{if(r.pend&&!r.rule)r.sig.why.push(r.pend.mw?`⏳ ${RLAB[r.pend.k]}: villkoret gäller just nu (${r.pend.n} dagar). Prövas vid månadsskiftet, ${r.pend.mw} – gäller det då ges SÄLJ.`:`⏳ ${RLAB[r.pend.k]}: villkoret har gällt ${r.pend.n} av ${r.pend.N} dagar. Blir det ${r.pend.N} i rad ges säljsignal.`)});
   rows.sort((a,b)=>b.val-a.val);
