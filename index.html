@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-a";
+const APPV="2026-11-03-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1978,7 +1978,7 @@ const a_el=pid=>{const h=document.querySelector(`.pmh[data-pid="${pid}"]`);retur
 function propHTML(p,c,sigs,rot,ideas){
   try{sigRecord(p,c)}catch(e){}
   const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan:null,items=pl?pl.items:[];
-  if(!p.h.length)return"";
+  if(!p.h.length&&!pl)return"";   // tom portfölj utan förslag: inget att visa. Med förslag (Föreslå portfölj) visas köpraderna.
   const rowBy={};c.rows.forEach(r=>{rowBy[r.h.t]=r});const planHas={};items.forEach((it,i)=>{(planHas[it.t]=planHas[it.t]||[]).push(i)});
   const tlink=(t,l)=>S[t]?`<b class="tlk" data-act="gostock" data-t="${esc(t)}">${esc(l)}</b>`:`<b>${esc(l)}</b>`,flag=t=>`<span class="fg">${flagOf(t)}</span>`,nm=(t,it)=>{const s=S[t];return s?s.n:(it&&it.n)||t},dn=t=>{const s=S[t];return s?s.d:t};
   const appLine=r=>r?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens signal: <span class="sig ${r.sig.k}" style="margin:0">${SIGL[r.sig.k]}</span> ${esc(r.sig.why[0]||"")}${r.sig.why.length>1?` (+${r.sig.why.length-1})`:""}</div>`:"";
@@ -2077,6 +2077,7 @@ function lastTradingDay(y,m){const last=new Date(Date.UTC(y,m+1,0));while([0,6].
    mars, juni, september och december och står öppet tills ett förslag räknats – dock högst 45 dagar, sedan väntar
    det på nästa kvartal. p.qrw = datum för senast räknade likaviktning. */
 function quarterDue(p){
+  if(p&&!(p.h&&p.h.length))return null;   // tom portfölj: inget att likavikta
   const day=(D.updated||"").slice(0,10)||todayISO();const d=new Date(day+"T12:00:00Z");
   let y=d.getUTCFullYear(),m=d.getUTCMonth();
   for(let k=0;k<4;k++){const mm=m-k,yy=mm<0?y-1:y,m2=(mm+12)%12;if(![2,5,8,11].includes(m2))continue;
