@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-n";
+const APPV="2026-11-03-o";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -411,9 +411,9 @@ function signal(r,n,R){
   const ny=newList(s);if(ny)return{k:"HOLD",why:[ny.why]};   // nynoterad: modellen har inget underlag ännu
   if(rk&&rk<=(R.bandIn||10))return{k:"BUY",why:[`Plats ${rk} av ${tot} i momentumrankningen – bland de starkaste. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200.`]};
   // Hållvillkoren: 12-1 > 0 och kurs > SMA200. Texten ska säga om de håller eller inte – inte "behåll" när de bryts.
-  const okM=typeof s.m121!=="number"||s.m121>0,okS=!!s.a200||!!s.sh,rankTxt=`Plats ${rk||"–"} av ${tot}. 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200.`;
-  if(!okM||!okS)return{k:"HOLD",why:[rankTxt,`Hållvillkoret bryts (${!okM?"12-1 är negativt":"kursen ligger under SMA200"}). Säljs vid månadsprövningen – finns ett SÄLJ i förslaget är det det som gäller.`]};
-  return{k:"HOLD",why:[rankTxt,"Hållvillkoren gäller – behåll."]};
+  const okM=typeof s.m121!=="number"||s.m121>0,okS=!!s.a200||!!s.sh;
+  if(!okM||!okS)return{k:"HOLD",why:[`Hållvillkoret bryts: ${!okM?`12-1 negativt (${f(s.m121,1)} %)`:"kursen ligger under SMA200"}. Säljs vid månadsprövningen. ${statusLine(s,!okM?"m121":"sma")}`]};
+  return{k:"HOLD",why:[`Hållvillkoren gäller. ${statusLine(s)}`]};
 }
 let PKD=false;setInterval(()=>{if(PKD){PKD=false;try{save()}catch(e){}}},5000);
 function calc(p){
@@ -424,19 +424,19 @@ function calc(p){
   rows.forEach(r=>{r.w=tot?r.val/tot*100:0});
   rows.forEach(r=>{r.sig=signal(r,rows.length,p.rules)});
   ruleSignals(p,{rows,tot}).forEach(a=>{const r=a.r;r.rule=a;const b=r.sig;
-    if(a.k==="STOPP"||a.k==="BAND"||a.k==="ABSM"||a.k==="SMA")r.sig={k:"SELL",why:[a.why].concat(b.why&&b.why.length?[b.why[0]]:[])};   // bara rankraden följer med, inte "behåll"
+    if(a.k==="STOPP"||a.k==="BAND"||a.k==="ABSM"||a.k==="SMA")r.sig={k:"SELL",why:[a.why]};
     else r.sig={k:"TRIM",why:[a.why].concat(b.k==="BUY"?["Momentumet är högt, men "+(a.k==="TAK"?"innehavet är för stort":"vinstmålet är nått")+" – därför ingen påfyllning."]:[])}});
   rows.forEach(r=>{if(r.pend&&!r.rule)r.sig.why.push(r.pend.mw?`⏳ ${RLAB[r.pend.k]}: villkoret gäller just nu (${r.pend.n} dagar). Prövas vid månadsskiftet, ${r.pend.mw} – gäller det då ges SÄLJ.`:`⏳ ${RLAB[r.pend.k]}: villkoret har gällt ${r.pend.n} av ${r.pend.N} dagar. Blir det ${r.pend.N} i rad ges säljsignal.`)});
   // Enhetlig kommunikation (2026-11-03): ligger ett ogjort förslag i portföljen är det förslaget som gäller –
   // kortet visar samma sak som förslagsraden: SÄLJ, MINSKA (delförsäljning) eller ÖKA (köp i ett innehav).
   const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan.items:null;
-  if(pl)rows.forEach(r=>{const its=pl.filter(i=>i.t===r.h.t&&!i.done&&i.q>0);if(!its.length)return;
+  const nt=t=>String(t||"").trim().toUpperCase();
+  if(pl)rows.forEach(r=>{const its=pl.filter(i=>nt(i.t)===nt(r.h.t)&&!i.done&&i.q>0);if(!its.length)return;
     const sell=its.filter(i=>i.a==="SÄLJ"),buy=its.filter(i=>i.a==="KÖP");
     if(sell.length){const q=sell.reduce((a,i)=>a+i.q,0),whole=q>=r.h.q-1e-9;
       // Förslaget gäller: bara rankraden följer med, inte dagens regelutfall (taket/väntar), som kan säga något annat.
-      const rankLine=(r.sig.why||[]).filter(w=>/^Plats /.test(w));
-      r.sig={k:whole?"SELL":"TRIM",why:[sell[0].why].concat(rankLine)};r.rule=null;r.pend=null;r.plan=whole?"SÄLJ":"MINSKA"}
-    else if(buy.length){const rankLine=(r.sig.why||[]).filter(w=>/^Plats /.test(w));r.sig={k:"BUY",why:[buy[0].why.replace(/^#\d+ /,"")].concat(rankLine)};r.plan="ÖKA"}});
+      r.sig={k:whole?"SELL":"TRIM",why:[sell.map(i=>i.why).join(" ")]};r.rule=null;r.pend=null;r.plan=whole?"SÄLJ":"MINSKA"}
+    else if(buy.length){r.sig={k:"BUY",why:[buy[0].why.replace(/^#\d+ /,"")]};r.plan="ÖKA"}});
   rows.sort((a,b)=>b.val-a.val);
   return{rows,tot,cost,pnl:tot-cost,day,dayPct:(tot-day)?day/(tot-day)*100:0,ret:cost?(tot/cost-1)*100:0}
 }
@@ -1706,6 +1706,12 @@ const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 /* Blankning (2026-11-02): andel blankat – Yahoo (av float) eller FI:s register (summa positioner ≥ 0,5 %).
    Enbart information som loggas i Signalutfall; styr inga förslag. Trösklar: ≥ 5 % visas, ≥ 10 % hög. */
 const SHORT_HI=10,SHORT_LO=5;
+/* Enhetlig lägesrad under varje signal (2026-11-03): "Plats X av N · 12-1 +y % · över/under SMA200".
+   omit = "sma" eller "m121" utelämnar den uppgift som redan står i regeltexten, så att inget upprepas. */
+function statusLine(s,omit){if(!s)return"";const parts=[];const rk=rankOf(s.t);parts.push(`Plats ${rk||"–"} av ${rankMap().n}`);
+  if(omit!=="m121")parts.push(`12-1 ${typeof s.m121==="number"?sg(s.m121,0):"saknas"}`);
+  if(omit!=="sma")parts.push(s.sh?"SMA200 saknas (kort historik)":`${s.a200?"över":"under"} SMA200`);
+  return parts.join(" · ")+"."}
 /* Nynoterad (2026-11-03): aktier med för kort historik för modellens villkor. nb = antal handelsdagar i serien.
    SMA200 kräver 201 dagar, 12-1 kräver ca 253. Till dess kan varken håll- eller köpvillkor prövas. */
 const newList=s=>{if(!s)return null;const nb=+s.nb||0;if(!nb)return null;const shortSma=!!s.sh&&nb<201,noM=typeof s.m121!=="number"&&nb<300;if(!shortSma&&!noM)return null;
@@ -2131,11 +2137,11 @@ function ruleSignals(p,c){
     const N=R.confirm||5,core=R.mode!=="sat",MW=monthCheckWindow(p);
     // 1) Absolut momentum: 12-1 under noll. Kärna: prövas vid månadsskiftet. Satellit: N dagar i rad.
     if(s&&typeof s.m121==="number"){const bad=s.m121<=0,n=confirmDays(h,"absm",bad);
-      if(R.absMom&&bad&&(core?MW.open:n>=N))a={k:"ABSM",q:h.q,why:core?`12-1 negativt (${f(s.m121,1)} %) vid månadsprövningen – sälj hela innehavet.`:`Absolut momentum slut: 12-1-avkastningen har varit negativ (${f(s.m121,1)} %) i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
+      if(R.absMom&&bad&&(core?MW.open:n>=N))a={k:"ABSM",q:h.q,why:core?`12-1 negativt (${f(s.m121,1)} %) vid månadsprövningen – sälj hela innehavet. ${statusLine(s,"m121")}`:`Absolut momentum slut: 12-1-avkastningen har varit negativ (${f(s.m121,1)} %) i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
       else if(R.absMom&&bad)r.pend={k:"ABSM",n,N,mw:core?MW.label:null}}
     // 2) Trend bruten: under SMA200. Kärna: prövas vid månadsskiftet. Satellit: N dagar i rad.
     if(!a&&s&&R.sma200&&!s.sh){const bad=!s.a200,n=confirmDays(h,"sma",bad);
-      if(bad&&(core?MW.open:n>=N))a={k:"SMA",q:h.q,why:core?`Kursen ligger under SMA200 vid månadsprövningen – sälj hela innehavet.`:`Trenden är bruten: kursen har legat under 200-dagars medelvärde i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
+      if(bad&&(core?MW.open:n>=N))a={k:"SMA",q:h.q,why:core?`Kursen ligger under SMA200 vid månadsprövningen – sälj hela innehavet. ${statusLine(s,"sma")}`:`Trenden är bruten: kursen har legat under 200-dagars medelvärde i ${n} skanningsdagar i rad. Sälj hela innehavet.`};
       else if(bad&&!r.pend)r.pend={k:"SMA",n,N,mw:core?MW.label:null}}
     // 3) Stopp (satellit), bekräftat N dagar
     if(!a&&R.stop>0){const n=confirmDays(h,"stop",px<=stopPx);
@@ -2305,8 +2311,12 @@ function autoPlan(p,o){
   c.rows.forEach(r=>{if(sold.has(r.h.t))return;const h=r.h,s=r.s,u=s?s.cur:(h.ccy||""),pk=Math.max(h.pk||h.c,r.px),base=R.trail?Math.max(h.c,pk):h.c;
     const whyHold=R.mode==="sat"
       ?(s?`Appen: ${SIGL[r.sig.k]} (poäng ${s.sc}, RSI ${s.rsi}${s.rsi>R.maxRsi?" – överköpt, köp inte mer":""}). `:"")+`Stopp ≈ ${f(base*(1-R.stop/100))} ${u}, nästa vinstmål ≈ ${f(h.c*(1+R.tp*((h.tps||0)+1)/100))} ${u}.`
-      :(s?(newList(s)?newList(s).why:`Hållvillkoren gäller: 12-1 ${sg(s.m121,0)}, ${s.a200?"över":"under"} SMA200. Plats ${rankOf(s.t)||"–"} av ${rankMap().n}.`):"Ingen live-data.");
+      :(s?(newList(s)?newList(s).why:`Hållvillkoren gäller. ${statusLine(s)}`):"Ingen live-data.");
     items.push({t:h.t,a:"BEHÅLL",q:0,why:whyHold,n:h.n||"",ccy:s?s.ccy:h.ccy,px:r.px,done:false})});
+  // Samma aktie med samma åtgärd blir en rad (t.ex. MINSKA för taket + MINSKA för likaviktning) – 2026-11-03
+  {const byKey={},merged=[];items.forEach(it=>{const k=String(it.t).trim().toUpperCase()+"|"+it.a;const e=byKey[k];
+    if(e&&it.a!=="BEHÅLL"){e.q=(e.q||0)+(it.q||0);if(it.why&&e.why.indexOf(it.why)<0)e.why=e.why+" "+it.why;e.pri=Math.max(e.pri||0,it.pri||0)}
+    else if(e){/* dubbel BEHÅLL: behåll första */}else{byKey[k]=it;merged.push(it)}});items.length=0;merged.forEach(x=>items.push(x))}
   const hh=t=>{try{return new Date(t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
   const mode=free?`Ingen summa angiven: köpen finansieras av försäljningarna (≈ ${kr(proceeds)} kr).`:`Belopp att fördela: ${kr(amt)} kr${incl?` + försäljningsintäkter ${kr(proceeds)} kr`:` (försäljningsintäkter ≈ ${kr(proceeds)} kr ligger utanför och blir kassa)`}. Köpen summerar till ≈ ${kr(spent)} kr${pool>1000?`; ${kr(pool)} kr gick inte att placera inom taket ${R.cap} % per aktie`:""}.`;
   const note=`${mode}${reg.warn?" MARKNADSVARNING: "+reg.text+"Tech undviks"+(free?" och max 1 nytt köp":"")+".":""}`;
