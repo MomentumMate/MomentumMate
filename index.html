@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-m";
+const APPV="2026-11-03-n";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2706,6 +2706,10 @@ function massSell(p,c){
   const typ={};sel.forEach(r=>{const k=(r.rule&&r.rule.k)||r.sig.k;typ[k]=(typ[k]||0)+1});
   const lbl={STOPP:"stopp",BAND:"ur bandet",ABSM:"momentum slut",SELL:"trendbrott",TREND:"trendbrott"};
   const band=typ.BAND||0;
+  const R=rulesOf0(p);
+  if(R.mode!=="sat"){   // kärnan (2026-11-03): ingen uppmaning att vänta – backtestet säljer allt samma dag, stegvis försäljning testades och förlorade
+    return`<div class="stat WAIT" style="margin:0 0 8px"><b>${sel.length} AV ${rows.length} INNEHAV FÅR SÄLJ</b>
+   ${f(w,0)} % av portföljen. Det är väntat efter en bred rekyl: hållvillkoret prövas för alla innehav samtidigt vid månadsskiftet. Modellen gör alla affärer samma dag och köper de nya ledarna direkt – ${sel.length} försäljningar kostar ungefär ${kr(sel.reduce((a,r)=>a+tradeCost(r.val,r.h.t,"sell").tot,0))} kr.</div>`}
   return`<div class="stat BAD" style="margin:0 0 8px"><b>⚠ ${sel.length} AV ${rows.length} INNEHAV FÅR SÄLJSIGNAL</b>
    Det motsvarar ${f(w,0)} % av portföljen. Fördelning: ${Object.entries(typ).map(([k,n])=>`${n} ${lbl[k]||k}`).join(", ")}.
    <br>Så många signaler samtidigt beror nästan alltid på en marknadsrörelse eller på att modellen ändrats – inte på att varje enskild aktie försämrats.
