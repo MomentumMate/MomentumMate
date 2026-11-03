@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-c";
+const APPV="2026-11-03-d";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -872,6 +872,9 @@ function act(a,d){
     case"pfreorderdone":Ui.pfReorder=false;route();break;
     case"psort":Ui.psort=d.v;try{localStorage.setItem("mm_psort",d.v)}catch(e){}route(true);break;
     case"planapply":planApplySheet(d.pid,+d.i);break;
+    case"mchkreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
+      [p].concat(tw?[tw]:[]).forEach(x=>{delete x.mchk;const q=quarterDue(Object.assign({},x,{qrw:null}));if(q)delete x.qrw});
+      save();refreshAll(p.id,p.cashHint,p.cashIncl);break}
     case"gostock":Ui.back={h:location.hash,y:window.scrollY,label:"Förslag & signaler"};location.hash="#/stock/"+encodeURIComponent(d.t);break;
     case"goback":{const b=Ui.back;Ui.back=null;if(b){location.hash=b.h;setTimeout(()=>window.scrollTo(0,b.y),180)}else history.back();break}
     case"archtoggle":Ui.archOpen=!Ui.archOpen;route(true);break;
@@ -2172,7 +2175,15 @@ function rebSheet(pid){const p=getP(pid);if(!p)return;const cur=(p.reb&&p.reb.fr
     $("#rfgo").onclick=()=>{const f=$("#rf").value;if(!f)delete p.reb;else p.reb={freq:f,last:(p.reb&&p.reb.last)||todayISO()};save();closeSheet();route(true);toast(f?"Påminnelse sparad":"Påminnelse avstängd")}})}
 const VALID=`<div class="mu" style="font-size:11.5px;margin:0 0 8px">🔬 Reglerna nedan är <span class="lnk" data-i="valid">validerade i backtest</span></div>`;
 function rulesLine(p,c){const k=c&&clusters(p,c),big=k&&k.groups.filter(g=>g.w>=25);
-  return twinWarn(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+(big&&big.length?corrLine(p,c):""):"")+rebLine(p)}
+  return twinWarn(p)+(c?massSell(p,c)+fewWarn(p,c)+cashLine(p,c)+profileLine(p,c)+costLine(p,c)+(big&&big.length?corrLine(p,c):""):"")+rebLine(p)+reopenLine(p)}
+/* Månadsprövningen räknas en gång per månadsskifte. Räknades den på helgen (fredagens kurser) och man vill
+   ha ett nytt förslag med samma prövning – t.ex. för att få med likaviktningen – kan fönstret öppnas igen
+   inom tio dagar efter månadsskiftet. (2026-11-03) */
+function reopenLine(p){
+  const MW=monthCheckWindow(p);if(MW.open||!p.mchk)return"";
+  const day=(D.updated||"").slice(0,10)||todayISO();const dd=(Date.parse(day)-Date.parse(MW.dueISO))/864e5;
+  if(!(dd>=0&&dd<=10))return"";
+  return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">Månadsprövningen räknades ${esc(p.mchk)}. <span class="lnk" data-act="mchkreopen" data-pid="${p.id}">Räkna om den med dagens data</span> (ger SÄLJ-raderna igen tillsammans med eventuell likaviktning).</div>`}
 /* Inställningsraden (belopp, regler, skanning) ligger längst ner i panelen sedan 2026-11-02 – signalerna ska komma först. */
 function settingsLine(p){
   return`<div class="kv" style="margin:6px 0 0"><div><small>Belopp att fördela</small><b>${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b><span class="lnk" data-act="propcash" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Regler</small><b style="font-size:13px">${p.rules&&p.rules.mode==="sat"?"Satellit":"Kärna"}</b><span class="lnk" data-act="rulesedit" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Senaste skanning</small><b style="font-size:13px">${D.updated?hhmm(D.updated)+" UTC":"–"}</b></div></div>`}
