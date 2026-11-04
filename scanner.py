@@ -1388,8 +1388,12 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # Kärnan är 12-1-momentum: tolv månaders avkastning utan den senaste månaden.
     # Volatilitetsjusteringen testades i backtestet och togs bort: den kostade 4,7
     # procentenheter per år (10,6 % mot 15,3 %). Ren 12-1-avkastning fungerar bättre.
+    # Taket höjt 80 → 150 % och lika poäng avgörs av 12-1 (backtest --tie 2026-11-04): med tak 80 delade
+    # 36 aktier poängen 100 och ordningen mellan dem avgjordes av skanningsordningen. Att låta 12-1 avgöra
+    # gav 36 mot 20 % per år, vann alla tolv delprov och höll vid dubbla kostnader. Tak 150 (X4) hade
+    # grundaste nedgången och bäst resultat vid förskjutet kvartal.
     if m121 is not None:
-        mom = min(max(m121, 0), 80) / 80 * 100
+        mom = min(max(m121, 0), MOM_CAP) / MOM_CAP * 100
         if m_short: mom *= 0.85                            # 6-1 som reserv är mindre tillförlitlig
     else:
         mom = min(max(r3, 0), 60) / 60 * 100               # reserv när historiken är kort
@@ -1479,6 +1483,8 @@ def horizon(s):
         return "12-24", "Långsiktig trend intakt över SMA200 med positiv halvårsavkastning."
     return "none", "Ingen tydlig trend just nu – avvakta."
 
+MOM_CAP = 150   # 12-1 i procent som ger full momentumpoäng (var 80; backtest --tie 2026-11-04)
+
 def finalize(recs, markets):
     keys = [m["k"] for m in markets]
     groups = {}
@@ -1492,8 +1498,9 @@ def finalize(recs, markets):
     for k in keys + list(groups) + ["ALL"]:
         members = [t for t, r in recs.items() if member(k, r)]
         if not members: continue
-        by_sc = sorted(members, key=lambda t: -recs[t]["sc"])
-        mom = by_sc[:25]          # ren poängordning – samma ordning som fliken Alla
+        # Lika poäng avgörs av högre 12-1 (backtest --tie 2026-11-04) – inte av skanningsordningen.
+        by_sc = sorted(members, key=lambda t: (-recs[t]["sc"], -(recs[t].get("m121") if isinstance(recs[t].get("m121"), (int, float)) else -1e9)))
+        mom = by_sc[:25]          # poängordning, 12-1 bryter lika – samma ordning som fliken Alla
         rank[k] = {"mom": mom, "all": by_sc}
     rank["DT"] = rank_dt(recs)
     return rank

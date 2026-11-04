@@ -722,7 +722,8 @@ def benchmark(close, years, start_i=210):
     return e, stats(e, [], years)
 
 # ----------------------------------------------------------------------------- main
-DEF = dict(n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=True,
+DEF = dict(mom_cap=150, tie_m121=True,   # vald 2026-11-04 (--tie, X4): tak 150 %, lika poäng avgörs av 12-1
+           n=10, band_out=20, stop=12, trail=True, look=252, skip=21, voladj=True,
            trendfilter=True, minturnover=3e6, cost_bps=15, reb="M", reweight=False, rw_band=0.25,
            exit_sma50=False, exit_sma200=False, exit_atr=0, exit_score=0,
            vix_cut=0, vix_q=0.80, vix_win=504,
@@ -883,9 +884,9 @@ def main():
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         VAR = {
-            "A. Kärna (referens): tak 60 %, lika poäng i listordning":   dict(B),
+            "A. Kärna (referens): tak 60 %, lika poäng i listordning":   dict(B, mom_cap=60, tie_m121=False),
             "--- samma tak, men lika poäng avgörs av högre 12-1 ---":     None,
-            "X1. Tak 60 %, lika poäng → högst 12-1 först":               dict(B, tie_m121=True),
+            "X1. Tak 60 %, lika poäng → högst 12-1 först":               dict(B, mom_cap=60, tie_m121=True),
             "X2. Tak 80 % (skannerns), lika poäng → högst 12-1 först":   dict(B, mom_cap=80, tie_m121=True),
             "--- högre tak: storleken på 12-1 får slå igenom ---":        None,
             "X3. Tak 100 %":                                             dict(B, mom_cap=100, tie_m121=True),
@@ -895,14 +896,14 @@ def main():
             "--- lägre tak: bred topp, trenden avgör mer ---":            None,
             "X7. Tak 40 %, lika poäng → högst 12-1 först":               dict(B, mom_cap=40, tie_m121=True),
             "--- robusthet ---":                                         None,
-            "X8. X1, dubbla kostnader":                                  dict(B, tie_m121=True, **DBL),
+            "X8. X1, dubbla kostnader":                                  dict(B, mom_cap=60, tie_m121=True, **DBL),
             "X9. X4, dubbla kostnader":                                  dict(B, mom_cap=150, tie_m121=True, **DBL),
             "X10. X6, dubbla kostnader":                                 dict(B, mom_rank=True, **DBL),
             "X11. A, dubbla kostnader":                                  dict(B, **DBL),
-            "X12. X1, kvartal förskjutet 1 mån":                         dict(B, tie_m121=True, reb="Q1"),
+            "X12. X1, kvartal förskjutet 1 mån":                         dict(B, mom_cap=60, tie_m121=True, reb="Q1"),
             "X13. X4, kvartal förskjutet 1 mån":                         dict(B, mom_cap=150, tie_m121=True, reb="Q1"),
             "X14. X6, kvartal förskjutet 1 mån":                         dict(B, mom_rank=True, reb="Q1"),
-            "X15. A, kvartal förskjutet 1 mån":                          dict(B, reb="Q1"),
+            "X15. A, kvartal förskjutet 1 mån":                          dict(B, mom_cap=60, tie_m121=False, reb="Q1"),
         }
         yrs = (close.index[-1] - close.index[210]).days / 365.25
         be, bst = benchmark(close, yrs)
@@ -929,7 +930,7 @@ def main():
         rs_ = []
         for seed in (1, 2, 3):
             cols = list(close.columns); np.random.default_rng(seed).shuffle(cols)
-            cfg = dict(DEF); cfg.update(B)
+            cfg = dict(DEF); cfg.update(B); cfg.update(mom_cap=60, tie_m121=False)
             try:
                 e, tr, hd = run(close[cols], vol[cols], cfg); st = stats(e, tr, yrs, hd); rs_.append(st)
                 print(f"   {'A, slumpordning frö ' + str(seed):<64}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %")
