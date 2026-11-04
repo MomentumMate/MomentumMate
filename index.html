@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-03-r";
+const APPV="2026-11-04-s";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -939,6 +939,7 @@ PN.addEventListener("touchend",()=>{PN.style.transition="";if(y0!=null&&dy>90)cl
 /* ======================= v3: DAGHANDEL, MATE, ROTATION, IMPORT, GITHUB ======================= */
 const enc=encodeURIComponent;
 const fmtV=n=>n==null?"–":n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
+const TZL=(()=>{try{const o=-new Date().getTimezoneOffset()/60;return "lokal tid (UTC"+(o>=0?"+":"")+o+")"}catch(e){return "lokal tid"}})();
 const hhmm=iso=>{try{return new Date(iso).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
 const CRIT=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
 const STL={BUY:"KÖP-SIGNAL",SELL:"SÄLJ-SIGNAL",HOLD:"I POSITION",WAIT:"VÄNTA"},STC={BUY:"BUY",SELL:"SELL",HOLD:"INPOS",WAIT:"WAIT"};
@@ -1062,7 +1063,7 @@ function ans(q){
   return"Jag hittade inget på det. Prova en ticker (t.ex. NVDA), eller <span class='lnk' data-act='mq' data-q='hjälp'>hjälp</span>."
 }
 function marketBrief(){
-  const feed=(D.feed||[]).slice(0,30),mks=D.markets||[],up=D.updated?hhmm(D.updated)+" UTC":"–";
+  const feed=(D.feed||[]).slice(0,30),mks=D.markets||[],up=D.updated?hhmm(D.updated)+" "+TZL:"–";
   const hld=new Set(P.ps.flatMap(p=>p.h.map(h=>h.t)));
   const mkline=m=>{try{const st=mstats(m.k);if(!st)return"";return`<b>${esc(MK(m.k).n)}</b>: ${st.tr} % över SMA200, snittpoäng ${f(st.av,1)}.`}catch(e){return""}};
   const mkdata=mks.map(mkline).filter(Boolean);
@@ -1245,7 +1246,7 @@ dtstat:()=>{const dt=D.rank.DT||{cand:[],near:[]},mk=Ui.dtm,L=Ui.dtl,mn=MK(mk),h
    +"<p>Daghandelsmodulen är <b>inte validerad</b> i backtestet, och forskningen om privatpersoners daghandel är entydigt negativ. Använd den som bevakning, inte som strategi.</p>"]},
 dt:()=>["Daghandelslistan","<p>Topp 25 av aktierna som klarar <b>alla fem kriterier</b>, från alla börser, rankade på en daghandelspoäng (0–100):</p><p><b>35 %</b> rörelse mot gårdagen (gap, max 10 %) · <b>25 %</b> pre-market-volym · <b>20 %</b> relativ volym · <b>10 %</b> daglig rörlighet (ATR) · <b>10 %</b> nyhetskatalysator, ±5 för nyhetston.</p><p>“Nästan kandidater” saknar bara ett kriterium (eller klarar alla bedömbara, för svenska aktier utan pre-market).</p><p>Listan uppdateras vid varje skanning och – om live-körningen är på – var 15:e minut under börstid. Det är ingen realtidsdata.</p>"+F],
 plan:()=>["Entry, stop och mål","<p><b>Trigger:</b> högsta av pre-market-high och gårdagens high – köp först när kursen stänger över den med ökad volym (≥ 1,2× snittet) och över VWAP.</p><p><b>Stop:</b> under närmaste struktur under entry (VWAP, PM-high, gårdagens high, dagens öppning eller senaste svinglow) minus 0,25× ATR(5 min). Begränsas till max 0,6× daglig ATR och minst 0,15×. Vid nyhetskatalysator senaste dygnet breddas stoppen 25 %.</p><p><b>Mål:</b> 1R och 2R (risk/belöning 1:1 och 1:2).</p><p><b>Flaggor:</b> K = köp (breakout över trigger på volym, eller återtest av VWAP). S = sälj (stop nådd, mål 2 nått, två stängningar under VWAP, eller överköpt RSI med lång överskugga).</p><p><b>Positionsstorlek</b> = (kapital × risk %) ÷ risk per aktie.</p>"+F],
-rot:()=>["Omfördelning mellan innehav","<p><b>I kärnan omfördelas inte mellan innehav.</b> Det testades som rotation i oktober 2026 – sälj de sämst rankade, köp högre rankade – i nivåerna 5, 10, 15 och 25 %, med förskjutna kvartalsdatum och dubbla kostnader. Resultatet höll inte: vinsten försvann när datumet flyttades en månad. Den enda omfördelningen i kärnan är likaviktningen vid kvartalsskiftet: trimma det som vuxit, fyll på det som halkat efter.</p><p>I satellitläget kan appen föreslå byte från ett stagnerat innehav (smalt 20-dagarsintervall, under SMA50) till ett i breakout. Det är den gamla modellens logik och visas bara där.</p>"+F],
+rot:()=>["Omfördelning mellan innehav","<p><b>I kärnan omfördelas inte mellan innehav.</b> Det testades som rotation i oktober 2026 – sälj de sämst rankade, köp högre rankade – i nivåerna 5, 10, 15 och 25 %, med förskjutna kvartalsdatum och dubbla kostnader. Resultatet höll inte: vinsten försvann när datumet flyttades en månad. Den enda omfördelningen i kärnan är likaviktningen vid kvartalsskiftet: trimma det som vuxit, fyll på det som halkat efter. Nynoterade innehav (utan 12-1-rankning) fylls inte på – de ligger kvar med sin vikt tills de kan prövas som alla andra.</p><p>I satellitläget kan appen föreslå byte från ett stagnerat innehav (smalt 20-dagarsintervall, under SMA50) till ett i breakout. Det är den gamla modellens logik och visas bara där.</p>"+F],
 psig:()=>["Portföljsignaler","<p>Fyra signaler, alla ur rankningen och regelmotorn:</p><p><b>ÖKA:</b> aktien ligger i topp 10 i momentumrankningen.</p><p><b>BEHÅLL:</b> hållvillkoren gäller – 12-1 över noll och kurs över SMA200. Rankningsplats spelar ingen roll.</p><p><b>MINSKA:</b> innehavet väger över taket per aktie.</p><p><b>SÄLJ:</b> 12-1 är negativt eller kursen under SMA200 <b>vid månadsprövningen</b> – sista handelsdagen i månaden och tre dagar in i nästa. Dagarna innan visas ⏳ när villkoret bryts, med datum för prövningen. Ett dagsfall mitt i månaden ger aldrig säljsignal. Validerat 2026-10-23: månadsprövning slog daglig prövning med bekräftelse i tio av tolv delprov (22,6 mot 19,8 % per år).</p><p>Den gamla signalmotorn (BEVAKA, KÖP MER, varningar för RSI och MACD) togs bort 2026-10-21. Den var aldrig validerad och gav motsägelser: en aktie kunde vara plats 1 i börsdesken och “bevaka” i portföljen.</p><p><b>SÄLJ</b> ges också för de lägst rankade innehaven när antalet överstiger målet (20, eller 5 under ca 160 000 kr), och i kostnadsläge för utländska innehav som kapitalet inte bär. Det är portföljregler, inte hållvillkor, och de prövas vid varje förslag.</p><p><b>Satellitläge</b> (valbart under Regler) är den tidigare modellen: stopp 15 % med 5-dagarsfilter och band 10/30. Validerat som sämre (18,3 mot 22,6 % per år) men med mildare nedgång.</p>"+F]
 });
 
@@ -1720,8 +1721,8 @@ function statusLine(s,omit){if(!s)return"";const parts=[];const rk=rankOf(s.t);p
    SMA200 kräver 201 dagar, 12-1 kräver ca 253. Till dess kan varken håll- eller köpvillkor prövas. */
 const newList=s=>{if(!s)return null;const nb=+s.nb||0;if(!nb)return null;const shortSma=!!s.sh&&nb<201,noM=typeof s.m121!=="number"&&nb<300;if(!shortSma&&!noM)return null;
   const dSma=Math.max(0,201-nb),dM=Math.max(0,253-nb);
-  const why=shortSma?`Nynoterad – ${nb} handelsdagar. För kort historik för modellens villkor: SMA200 om ${dSma} dagar, 12-1-rankning om ca ${dM}. BEHÅLL betyder här "inget underlag", inte "allt är bra".`
-    :`Nynoterad – ${nb} handelsdagar. SMA200 gäller (${s.a200?"över":"under"}), men 12-1 kan rankas först om ca ${dM} dagar. Kan inte få KÖP eller ÖKA till dess.`;
+  const why=shortSma?`Nynoterad – ${nb} handelsdagar. För kort historik för modellens villkor: SMA200 om ${dSma} dagar, 12-1-rankning om ca ${dM}. BEHÅLL betyder här "inget underlag", inte "allt är bra". Fylls inte på vid likaviktning.`
+    :`Nynoterad – ${nb} handelsdagar. SMA200 gäller (${s.a200?"över":"under"}), men 12-1 kan rankas först om ca ${dM} dagar. Kan inte få KÖP eller ÖKA till dess – fylls inte heller på vid likaviktning.`;
   return{nb,dSma,dM,shortSma,why}};
 const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="sig WATCH" title="${esc(ny.why)}">🆕 Nynoterad · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}</span>`};
 const shortChip=s=>{if(!(s&&typeof s.shp==="number"&&s.shp>=SHORT_LO))return"";const hi=s.shp>=SHORT_HI;
@@ -2063,7 +2064,7 @@ function propHTML(p,c,sigs,rot,ideas){
    ${sec("sell","SÄLJ / MINSKA","var(--dn)")}${sec("buy","KÖP / ÖKA","var(--up)")}${sec("hold","BEHÅLL","var(--gd)")}
    ${ideas.length?`<details class="nwd"><summary>Idéer att undersöka (${ideas.length})</summary><div class="mu" style="margin-bottom:6px">Hög momentumpoäng, du äger dem inte.</div><div class="chips">${ideas.map(s=>`<span class="chip" data-go="#/stock/${encodeURIComponent(s.t)}">${esc(s.d)} <span class="${cls(s.chg)}">${sg(s.chg,1)}</span></span>`).join("")}</div></details>`:""}
    ${pl?`<div class="mu" style="margin-top:8px;font-size:11.5px">Förslaget är modellens räkneexempel och ingen rådgivning. “Registrera” uppdaterar bara appen – du lägger ordern själv i banken. Belopp räknas med dagens kurs.</div><div class="acts"><span class="lnk" data-act="plandel" data-pid="${p.id}">Ta bort förslaget</span></div>
-   <div class="mu" style="margin-top:12px;font-size:11.5px">${esc(pl.title||"Förslag")}${pl.made?" · "+hhmm(new Date(pl.made).toISOString()):""}</div>${pl.note?`<div class="mu" style="margin:4px 0 8px;font-size:11.5px">${esc(pl.note)}</div>`:""}`:""}
+   <div class="mu" style="margin-top:12px;font-size:11.5px">${esc(pl.title||"Förslag")}${pl.made?" · "+hhmm(new Date(pl.made).toISOString()):""}${pl.scan?" · räknat på skanningen "+hhmm(pl.scan)+" "+TZL+(D.updated&&D.updated!==pl.scan?" (nyare finns: "+hhmm(D.updated)+" UTC)":""):""}</div>${pl.note?`<div class="mu" style="margin:4px 0 8px;font-size:11.5px">${esc(pl.note)}</div>`:""}`:""}
    ${settingsLine(p)}</div></div>`
 }
 /* ======================= v11: STRATEGIREGLER (stopp, vinstmål, tak, ersättning) ======================= */
@@ -2219,7 +2220,7 @@ function reopenLine(p){
   return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">Månadsprövningen räknades ${esc(p.mchk)}. <span class="lnk" data-act="mchkreopen" data-pid="${p.id}">Räkna om den med dagens data</span> (ger SÄLJ-raderna igen tillsammans med eventuell likaviktning).</div>`}
 /* Inställningsraden (belopp, regler, skanning) ligger längst ner i panelen sedan 2026-11-02 – signalerna ska komma först. */
 function settingsLine(p){
-  return`<div class="kv" style="margin:6px 0 0"><div><small>Belopp att fördela</small><b>${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b><span class="lnk" data-act="propcash" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Regler</small><b style="font-size:13px">${p.rules&&p.rules.mode==="sat"?"Satellit":"Kärna"}</b><span class="lnk" data-act="rulesedit" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Senaste skanning</small><b style="font-size:13px">${D.updated?hhmm(D.updated)+" UTC":"–"}</b></div></div>`}
+  return`<div class="kv" style="margin:6px 0 0"><div><small>Belopp att fördela</small><b>${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b><span class="lnk" data-act="propcash" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Regler</small><b style="font-size:13px">${p.rules&&p.rules.mode==="sat"?"Satellit":"Kärna"}</b><span class="lnk" data-act="rulesedit" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Senaste skanning</small><b style="font-size:13px">${D.updated?hhmm(D.updated)+" "+TZL:"–"}</b></div></div>`}
 function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const R=rulesOf0(p);
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3>
@@ -2287,7 +2288,7 @@ function autoPlan(p,o){
   const held=new Set(p.h.map(h=>h.t)),avoid=s=>reg.avoid.has(s.sec),cands=[];
   const candT=new Set();   // en aktie får bara en plats på köpsidan (2026-11-03)
   c.rows.forEach(r=>{if(sold.has(r.h.t)||!r.s||candT.has(r.h.t))return;candT.add(r.h.t);
-    if(qd&&!rw.has(r.h.t)&&r.val<tgt*0.75){cands.push({s:r.s,held:true,rw:true,tgt,pri:1e6-rk(r.h.t)});return}   // under målvikt vid kvartal: fyll på först
+    if(qd&&!rw.has(r.h.t)&&r.val<tgt*0.75&&!newList(r.s)){cands.push({s:r.s,held:true,rw:true,tgt,pri:1e6-rk(r.h.t)});return}   // under målvikt vid kvartal: fyll på först – men aldrig nynoterade (2026-11-04: ingen 12-1-rankning, inget stöd i backtestet)
     if(rw.has(r.h.t))return;   // nyss minskad till målvikt – köp inte tillbaka i samma förslag
     if(r.sig.k==="BUY"&&(R.mode==="sat"?r.s.rsi<=R.maxRsi:true)&&!avoid(r.s)&&r.w<R.cap)cands.push({s:r.s,held:true,pri:buyPri(r.s,{held:true,w:r.w,cap:R.cap,secW,tot:tot0})})});
   // Nya köp: topp bandIn i 12-1-rankningen – det validerade urvalet. Inga tekniska extrafilter (MACD, SMA50, RSI, poäng
@@ -2301,6 +2302,10 @@ function autoPlan(p,o){
     ?Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&x.inf!==false&&isNord(x.t)).sort((a,b)=>b.sc-a.sc).slice(0,topN).map(x=>x.t)
     :((D.rank&&D.rank.ALL&&D.rank.ALL.mom)||[]).slice(0,R.mode==="sat"?60:topN*3);
   srcList.map(t=>S[t]).filter(s=>s&&s.px>0&&!held.has(s.t)&&!sold.has(s.t)&&!seen.has(s.t)&&s.inf!==false&&!avoid(s)&&(R.mode==="sat"?(s.sc>=60&&s.rsi<=R.maxRsi&&s.a50&&(s.a200||s.sh)&&s.macd>0):cm.onlyNordic||(rankOf(s.t)||1e9)<=topN)&&(!cm.onlyNordic||isNord(s.t))).forEach(s=>{seen.add(s.t);cands.push({s,held:false,pri:buyPri(s,{secW,tot:tot0})})});
+  // Köpordning i kärnan (2026-11-04): ren rankningsordning, som backtestets påfyllning. buyPri:s tillägg (RSI, fundamenta,
+  // sektorvikt, innehavsbonus) är satellitlogik och aldrig validerade – de gjorde att plats 1 i rankningen kunde hamna på köpplats 13.
+  // Likaviktningsköpen (rw) ligger kvar först, i väntan på backtestet --rw.
+  if(R.mode!=="sat")cands.forEach(x=>{if(!x.rw)x.pri=1e5-(rankOf(x.s.t)||(cm.onlyNordic?1e5-Math.round((+x.s.sc||0)*10):1e5))});
   cands.sort((a,b)=>b.pri-a.pri);
   // Antal köp (2026-11-03): kärnan fyller upp till målantalet, som backtestets påfyllning. Tidigare max 4 (satellitens
   // "repl+1"), vilket lämnade stor kassa när många innehav såldes samtidigt.
@@ -2312,7 +2317,7 @@ function autoPlan(p,o){
   for(let i=0;i<200&&pool>0;i++){let any=false;for(const pk of picks){if(pool>=pk.per&&pk.room>=pk.per){pk.q++;pool-=pk.per;pk.room-=pk.per;any=true}}if(!any)break}
   if(!free||R.mode!=="sat")for(const x of cands){if(pool<2000||picks.length>=(R.mode==="sat"?10:slots))break;if(picks.some(pk=>pk.x===x))continue;take(x,pool)}
   const spent=picks.reduce((a,pk)=>a+pk.q*pk.per,0);
-  picks.sort((a,b)=>b.x.pri-a.x.pri).forEach((pk,i)=>{const s=pk.x.s;items.push({t:s.t,a:"KÖP",q:pk.q,pri:pk.x.pri,note:pk.x.rw?`Likaviktning: under målvikten ${f(tgtW*100,1)} %.`:(pk.x.held?"Påfyllning upp till målvikt.":""),why:pk.x.rw?`#${i+1} Likaviktning vid kvartalsskiftet: innehavet ligger under målvikten ${f(tgtW*100,1)} %. Köp upp till målvikt.`:`#${i+1} ${pk.x.held?"Appens KÖP MER":"Nytt momentum"}: poäng ${s.sc}, RSI ${s.rsi}, 1 mån ${f(s.r1m,1)} %, 3 mån ${f(s.r3m,1)} %${s.sec?" · "+(SECSV[s.sec]||s.sec):""}.${R.mode==="sat"?` Stopp ≈ ${f(s.px*(1-R.stop/100))} ${s.cur}.`:""}`,n:s.n,ccy:s.ccy,px:s.px,done:false})});
+  picks.sort((a,b)=>b.x.pri-a.x.pri).forEach((pk,i)=>{const s=pk.x.s;items.push({t:s.t,a:"KÖP",q:pk.q,pri:pk.x.pri,note:pk.x.rw?`Likaviktning: under målvikten ${f(tgtW*100,1)} %.`:(pk.x.held?"Påfyllning upp till målvikt.":""),why:pk.x.rw?`#${i+1} Likaviktning vid kvartalsskiftet: innehavet ligger under målvikten ${f(tgtW*100,1)} %. Köp upp till målvikt.`:`#${i+1} ${pk.x.held?"Appens KÖP MER":"Nytt momentum"}: ${R.mode!=="sat"?`plats ${rankOf(s.t)||"–"} i rankningen, `:""}poäng ${s.sc}, RSI ${s.rsi}, 1 mån ${f(s.r1m,1)} %, 3 mån ${f(s.r3m,1)} %${s.sec?" · "+(SECSV[s.sec]||s.sec):""}.${R.mode==="sat"?` Stopp ≈ ${f(s.px*(1-R.stop/100))} ${s.cur}.`:""}`,n:s.n,ccy:s.ccy,px:s.px,done:false})});
   c.rows.forEach(r=>{if(sold.has(r.h.t))return;const h=r.h,s=r.s,u=s?s.cur:(h.ccy||""),pk=Math.max(h.pk||h.c,r.px),base=R.trail?Math.max(h.c,pk):h.c;
     const whyHold=R.mode==="sat"
       ?(s?`Appen: ${SIGL[r.sig.k]} (poäng ${s.sc}, RSI ${s.rsi}${s.rsi>R.maxRsi?" – överköpt, köp inte mer":""}). `:"")+`Stopp ≈ ${f(base*(1-R.stop/100))} ${u}, nästa vinstmål ≈ ${f(h.c*(1+R.tp*((h.tps||0)+1)/100))} ${u}.`
@@ -2343,7 +2348,7 @@ function refreshSheet(pid){
   <label class="fld"><span>Belopp att fördela (kr, valfritt)</span><input id="rk" type="number" inputmode="decimal" step="any" value="${p.cashHint>0?p.cashHint:""}" placeholder="Tomt = fri omfördelning"></label>
   <div class="mu" style="font-size:11.5px;margin:6px 0 8px"><b>Skriver du ett belopp</b> fördelas köpen på just det beloppet och inte mer. <b>Lämnar du tomt</b> får appen fritt föreslå att sälja svagare innehav och köpa starkare, så summorna kan bli större.</div>
   <label class="fld" style="flex-direction:row;gap:8px;align-items:center"><input id="rinc" type="checkbox" style="width:auto"><span>Räkna även med intäkterna från föreslagna försäljningar (när du angett belopp)</span></label>
-  <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" UTC"+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.</div>
+  <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" "+TZL+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.</div>
   <button class="btn wide" id="rgo2">Uppdatera nu</button>`,()=>{$("#rgo2").onclick=()=>{const k=parseFloat($("#rk").value)||0,inc=$("#rinc").checked;closeSheet();refreshAll(pid,k,inc)}})
 }
 /* ============ v13: PORTFÖLJFÖRSLAG (kapital + horisont + sektorspridning) ============ */

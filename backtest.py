@@ -590,6 +590,11 @@ def run(close, vol, cfg, vix=None):
                             sell = (cur - target) / px
                             h["sh"] -= sell; cash += sell * px - fee(sell * px, t, "sell"); trades.append(("trim", t, d))
                         elif cur < target * (1 - cfg.get("rw_band", 0.25)) and cash > 0:
+                            # Påfyllning av eftersläntrare (test 2026-11-04): rw_up=False stänger av den helt,
+                            # rw_up_rank=N fyller bara på innehav som själva rankas topp N. Frågan är om
+                            # pengarna gör mer nytta i nya topp-20-aktier än i innehav som halkat efter.
+                            if cfg.get("rw_up", True) is False: continue
+                            if cfg.get("rw_up_rank") and rank.get(t, 1e9) > cfg["rw_up_rank"]: continue
                             add = min(target - cur, cash)
                             h["sh"] += (add - fee(add, t, "buy")) / px; cash -= add; trades.append(("add", t, d))
                 # fyll på upp till n med de högst rankade
@@ -650,6 +655,19 @@ def run(close, vol, cfg, vix=None):
                         if px != px or px <= 0: continue
                         target = tot / max(1, n_eff)
                         if cash < target * 0.2: break
+                        amt = min(target, cash)
+                        sh = (amt - fee(amt, t, "buy")) / px
+                        cash -= amt
+                        hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
+                # Extra platser (test 2026-11-04): kassa som blivit över när eftersläntrare INTE fylls på
+                # får köpa nya topp-N-aktier utöver målantalet, högst rw_extra stycken.
+                if cfg.get("rw_extra") and cash > 0 and len(row) >= cfg["n"]:
+                    tot_x = value(i); target = tot_x / max(1, cfg["n"])
+                    extra = [t for t in rank.sort_values().index if rank[t] <= cfg["n"] and t not in hold and entry_ok(t)]
+                    for t in extra:
+                        if len(hold) >= cfg["n"] + cfg["rw_extra"] or cash < target * 0.5: break
+                        px = p.get(t)
+                        if px != px or px <= 0: continue
                         amt = min(target, cash)
                         sh = (amt - fee(amt, t, "buy")) / px
                         cash -= amt
@@ -735,6 +753,7 @@ def main():
     ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
     ap.add_argument("--crash", action="store_true", help="gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher")
+    ap.add_argument("--rw", action="store_true", help="likaviktning: fylla på eftersläntrare eller köpa nya topp-20-aktier?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
 
@@ -847,6 +866,69 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "krasch",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias och ingen fundamenta. Kraschfönstren är få – tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Likaviktning (2026-11-04): fylla på eftersläntrare eller köpa nya ledare? ----------
+    if a.rw:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        VAR = {
+            "A. Kärna (referens): likavikta upp och ner vid kvartal":     dict(B),
+            "--- ingen påfyllning av eftersläntrare ---":                 None,
+            "W1. Bara ner: minska vinnare, fyll inte på eftersläntrare":  dict(B, rw_up=False),
+            "W2. W1 + kassan köper nya topp 20 (högst 3 extra platser)": dict(B, rw_up=False, rw_extra=3),
+            "W3. W1 + kassan köper nya topp 20 (högst 5 extra platser)": dict(B, rw_up=False, rw_extra=5),
+            "--- påfyllning bara av innehav som själva rankas högt ---":   None,
+            "W4. Fyll på bara innehav som rankas topp 20":                dict(B, rw_up_rank=20),
+            "W5. Fyll på bara innehav som rankas topp 30":                dict(B, rw_up_rank=30),
+            "W6. Fyll på bara innehav som rankas topp 50":                dict(B, rw_up_rank=50),
+            "W7. W4 + kassan köper nya topp 20 (högst 3 extra platser)": dict(B, rw_up_rank=20, rw_extra=3),
+            "--- ingen likaviktning alls ---":                            None,
+            "W8. Ingen likaviktning (bara hållregel + påfyllning till 20)": dict(B, reweight=False),
+            "--- robusthet ---":                                          None,
+            "W9. W1, dubbla kostnader":                                   dict(B, rw_up=False, **DBL),
+            "W10. W2, dubbla kostnader":                                  dict(B, rw_up=False, rw_extra=3, **DBL),
+            "W11. W4, dubbla kostnader":                                  dict(B, rw_up_rank=20, **DBL),
+            "W12. A, dubbla kostnader":                                   dict(B, **DBL),
+            "W13. W1, kvartal förskjutet 1 mån":                          dict(B, rw_up=False, reb="Q1"),
+            "W14. W2, kvartal förskjutet 1 mån":                          dict(B, rw_up=False, rw_extra=3, reb="Q1"),
+            "W15. W4, kvartal förskjutet 1 mån":                          dict(B, rw_up_rank=20, reb="Q1"),
+            "W16. A, kvartal förskjutet 1 mån":                           dict(B, reb="Q1"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Likaviktning: eftersläntrare eller nya ledare?  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: vid kvartalsskiftet köper A upp innehav som halkat under målvikt – även om de rankas lågt –")
+        print(f"   före nya aktier i topp 20. Gör pengarna mer nytta i nya ledare?")
+        print(f"   Beslutsregel (skriven innan körning): en variant går in bara om den slår A i CAGR OCH Sharpe,")
+        print(f"   håller vid dubbla kostnader och vid förskjutet kvartalsdatum, och inte fördjupar nedgången.\n")
+        print(f"   {'likaviktat snitt av universumet':<64}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd); st["år"] = yearly(e)
+                st["påfyllningar"] = sum(1 for x in tr if x[0] == "add"); st["trimningar"] = sum(1 for x in tr if x[0] == "trim")
+                res[nm] = st
+                print(f"   {nm:<64}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d  påfyllningar {st['påfyllningar']}  trimningar {st['trimningar']}")
+            except Exception as ex:
+                print(f"   {nm:<64} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        print(f"\n   === ÅR FÖR ÅR (referens A och huvudvarianterna) ===")
+        main = [n for n in names if short[n] in ("A", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8")]
+        yrsall = sorted({y for n in main for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "likaviktning",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Tolka som indikation."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
