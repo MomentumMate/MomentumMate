@@ -310,7 +310,10 @@ def real_cost(amount_sek, ticker, side, cfg):
             if ticker.endswith(k): stamp = amount_sek * v; break
     return cour + fx + stamp
 
+LAST_DIAG = {"snap": [], "exits": []}   # diagnostik från senaste run() med cfg["diag"] (2026-11-04)
+
 def run(close, vol, cfg, vix=None):
+    LAST_DIAG["snap"] = []; LAST_DIAG["exits"] = []
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
     EX = exit_panels(close, cfg)
@@ -451,11 +454,27 @@ def run(close, vol, cfg, vix=None):
                 bad = "12-1 negativt" if (use_m and m121 <= 0) else ("under SMA200" if (use_s and s200 == s200 and px < s200 * buf) else None)
                 if core_mode == "month":
                     if month_end and bad: why = bad
+                    # Trötta innehav (test 2026-11-04): sälj det som legat utanför topp stale_rank i stale_days dagar
+                    # i rad (prövat vid månadsskifte), även om hållregeln gäller. Diagnostik samlas i LAST_DIAG.
+                    if month_end and (cfg.get("stale_rank") or cfg.get("diag")):
+                        if "_rk" not in locals() or _rk_i != i:
+                            _row = sc.iloc[i].dropna(); _rk = _row.rank(ascending=False, method="first"); _rk_i = i
+                        rk_t = float(_rk.get(t, 1e9))
+                        if cfg.get("diag"):
+                            LAST_DIAG["snap"].append((d, t, rk_t, held_days, px / h["px"] - 1))
+                        sr = cfg.get("stale_rank")
+                        if sr:
+                            if rk_t > sr:
+                                if h.get("stale_since") is None: h["stale_since"] = i
+                            else: h["stale_since"] = None
+                            if not why and h.get("stale_since") is not None and i - h["stale_since"] >= cfg.get("stale_days", 252):
+                                why = "trött"
                 else:
                     if bad: h["cbad"] = h.get("cbad", 0) + 1
                     else: h["cbad"] = 0
                     if h["cbad"] >= cfg.get("confirm_days", 5): why = bad
                 if why:
+                    if cfg.get("diag"): LAST_DIAG["exits"].append((d, t, why, held_days, px / h["px"] - 1))
                     cash += h["sh"] * px - fee(h["sh"] * px, t, "sell"); hold_days.append(held_days); trades.append((why, t, d)); del hold[t]
                 continue
             if cfg.get("stop_mode") == "support" and h.get("sr_stop"):
@@ -784,6 +803,7 @@ def main():
     ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
     ap.add_argument("--crash", action="store_true", help="gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher")
+    ap.add_argument("--stale", action="store_true", help="trötta innehav: blir svaga men stigande aktier kvar i åratal, och ska de tvingas ut?")
     ap.add_argument("--smooth", action="store_true", help="jämnhet: gynna aktier som stigit i små steg (prisbaserad kvalitet)?")
     ap.add_argument("--wt", action="store_true", help="vikt efter styrka: mer kapital i de högst rankade i stället för likavikt?")
     ap.add_argument("--tie", action="store_true", help="poängtaket: 30–40 aktier delar topp-poängen – spelar ordningen mellan dem roll?")
@@ -900,6 +920,85 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "krasch",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias och ingen fundamenta. Kraschfönstren är få – tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Trötta innehav (2026-11-04) ----------
+    if a.stale:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Trötta innehav: blir svaga men stigande aktier kvar i åratal?  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Del 1 mäter dagens modell: hur länge innehav ligger kvar, hur de rankas medan de ligger kvar, och vad de")
+        print(f"   långliggande gav. Del 2 testar att tvinga ut dem: sälj det som legat utanför topp N i X månader i rad.")
+        print(f"   Beslutsregel (skriven innan körning): en variant går in bara om den slår A i CAGR OCH Sharpe,")
+        print(f"   håller vid dubbla kostnader och vid förskjutet kvartalsdatum, och inte fördjupar nedgången.\n")
+        # --- Del 1: diagnostik på A ---
+        cfg = dict(DEF); cfg.update(B); cfg["diag"] = True
+        e, tr, hd = run(close, vol, cfg); stA = stats(e, tr, yrs, hd)
+        snap = list(LAST_DIAG["snap"]); exits = list(LAST_DIAG["exits"])
+        hdays = sorted(hd)
+        def pct(v, q): return v[min(len(v) - 1, int(len(v) * q))] if v else None
+        print(f"   A. Kärna (referens)                                               {stA['CAGR_%']:>7} %  Sharpe {stA['Sharpe']}  nedgång {stA['max_nedgång_%']} %")
+        print(f"\n   === INNEHAVSTIDER (avslutade innehav, {len(hdays)} st) ===")
+        print(f"   median {pct(hdays, .5)} d · 75 % {pct(hdays, .75)} d · 90 % {pct(hdays, .9)} d · längsta {hdays[-1] if hdays else '–'} d")
+        print(f"   andel över 1 år: {sum(1 for x in hdays if x > 252) / max(1, len(hdays)) * 100:.0f} % · över 2 år: {sum(1 for x in hdays if x > 504) / max(1, len(hdays)) * 100:.0f} %")
+        print(f"\n   === RANKNINGSPLATS MEDAN INNEHAVET LIGGER KVAR (ögonblicksbilder vid månadsskiften, {len(snap)} st) ===")
+        for lo, hi, lab in ((0, 126, "0–6 mån"), (126, 252, "6–12 mån"), (252, 504, "1–2 år"), (504, 99999, "över 2 år")):
+            grp = [x for x in snap if lo <= x[3] < hi]
+            if not grp: continue
+            rks = sorted(x[2] for x in grp)
+            print(f"   {lab:<10} {len(grp):>5} bilder · median plats {pct(rks, .5):.0f} · andel utanför topp 50: {sum(1 for r_ in rks if r_ > 50) / len(rks) * 100:.0f} % · utanför topp 100: {sum(1 for r_ in rks if r_ > 100) / len(rks) * 100:.0f} %")
+        print(f"\n   === AVKASTNING PÅ AVSLUTADE INNEHAV efter innehavstid (medel och median, köpkurs → säljkurs) ===")
+        for lo, hi, lab in ((0, 126, "0–6 mån"), (126, 252, "6–12 mån"), (252, 504, "1–2 år"), (504, 99999, "över 2 år")):
+            grp = [x[4] * 100 for x in exits if lo <= x[3] < hi]
+            if not grp: continue
+            g2 = sorted(grp)
+            print(f"   {lab:<10} {len(grp):>5} st · medel {sum(grp) / len(grp):>7.1f} % · median {pct(g2, .5):>7.1f} % · per år {sum(grp) / len(grp) / max(0.25, ((lo + min(hi, 1000)) / 2) / 252):>6.1f} %")
+        # --- Del 2: tvinga ut ---
+        VAR = {
+            "A. Kärna (referens)":                                        dict(B),
+            "--- sälj det som legat utanför topp N i X månader i rad ---":  None,
+            "S1. Utanför topp 50 i 12 mån":                               dict(B, stale_rank=50, stale_days=252),
+            "S2. Utanför topp 100 i 12 mån":                              dict(B, stale_rank=100, stale_days=252),
+            "S3. Utanför topp 50 i 6 mån":                                dict(B, stale_rank=50, stale_days=126),
+            "S4. Utanför topp 100 i 6 mån":                               dict(B, stale_rank=100, stale_days=126),
+            "S5. Utanför topp 200 i 12 mån":                              dict(B, stale_rank=200, stale_days=252),
+            "S6. Utanför topp 50 i 18 mån":                               dict(B, stale_rank=50, stale_days=378),
+            "--- robusthet ---":                                          None,
+            "S7. S2, dubbla kostnader":                                   dict(B, stale_rank=100, stale_days=252, **DBL),
+            "S8. S4, dubbla kostnader":                                   dict(B, stale_rank=100, stale_days=126, **DBL),
+            "S9. A, dubbla kostnader":                                    dict(B, **DBL),
+            "S10. S2, kvartal förskjutet 1 mån":                          dict(B, stale_rank=100, stale_days=252, reb="Q1"),
+            "S11. S4, kvartal förskjutet 1 mån":                          dict(B, stale_rank=100, stale_days=126, reb="Q1"),
+            "S12. A, kvartal förskjutet 1 mån":                           dict(B, reb="Q1"),
+        }
+        print(f"\n   === DEL 2: TVINGA UT TRÖTTA INNEHAV ===")
+        res = {"_snitt": bst, "_diag": {"innehavstider": hdays, "bilder": len(snap)}}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd); st["år"] = yearly(e)
+                st["trötta"] = sum(1 for x in tr if x[0] == "trött"); res[nm] = st
+                print(f"   {nm:<64}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d  trötta sålda {st['trötta']}")
+            except Exception as ex:
+                print(f"   {nm:<64} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        main = [n for n in names if short[n] in ("A", "S1", "S2", "S3", "S4", "S5", "S6")]
+        print(f"\n   === ÅR FÖR ÅR ===")
+        yrsall = sorted({y for n in main for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "trötta innehav",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Tolka som indikation."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
