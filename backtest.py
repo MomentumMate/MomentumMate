@@ -924,6 +924,53 @@ def main():
                       f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
             except Exception as ex:
                 print(f"   {nm:<64} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        # Hur mycket av skillnaden är listordningens tur? A med slumpad kolumnordning, tre frön.
+        print(f"\n   === SLUMPAD LISTORDNING: A (tak 60 %, lika poäng i listordning) med aktierna i slumpad ordning ===")
+        rs_ = []
+        for seed in (1, 2, 3):
+            cols = list(close.columns); np.random.default_rng(seed).shuffle(cols)
+            cfg = dict(DEF); cfg.update(B)
+            try:
+                e, tr, hd = run(close[cols], vol[cols], cfg); st = stats(e, tr, yrs, hd); rs_.append(st)
+                print(f"   {'A, slumpordning frö ' + str(seed):<64}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %")
+            except Exception as ex:
+                print(f"   frö {seed}: FEL {str(ex)[:60]}")
+        res["_slumpordning"] = rs_
+        # Delprov: period och marknad
+        print(f"\n   === UPPDELAT: A, X2 (skannerns tak, 12-1 avgör), X4 (tak 150), X6 (percentil) – Sharpe och CAGR per delprov ===")
+        def group(cols):
+            us, nordic, eur = [], [], []
+            for t in cols:
+                if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): nordic.append(t)
+                elif "." in t: eur.append(t)
+                else: us.append(t)
+            return {"USA": us, "Norden": nordic, "Europa": eur}
+        grp = group(list(close.columns)); idx = close.index; mid = idx[len(idx) // 2]
+        segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
+        SUB = {"A": VAR["A. Kärna (referens): tak 60 %, lika poäng i listordning"],
+               "X2": VAR["X2. Tak 80 % (skannerns), lika poäng → högst 12-1 först"],
+               "X4": VAR["X4. Tak 150 %"], "X6": VAR["X6. Inget tak: percentilrankning av 12-1"]}
+        wins = {k: 0 for k in SUB}; split = {}
+        print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>13}" for k in SUB) + "   vinnare")
+        for segn, (s0, s1) in segs.items():
+            for un, cols in [("Alla", list(close.columns))] + list(grp.items()):
+                cols = [c for c in cols if c in close.columns]
+                if len(cols) < 40: continue
+                sub = close.loc[s0:s1, cols]; subv = vol.loc[s0:s1, cols]
+                if len(sub) < 500: continue
+                y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
+                if y2 < 1.5: continue
+                row = {}
+                for k, over in SUB.items():
+                    cfg = dict(DEF); cfg.update(over)
+                    try: e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, y2, hd); row[k] = (st["Sharpe"], st["CAGR_%"])
+                    except Exception: row[k] = (None, None)
+                ok = {k: v for k, v in row.items() if v[0] is not None}
+                if not ok: continue
+                w = max(ok, key=lambda k: ok[k][0]); wins[w] += 1; split[f"{segn} / {un}"] = row
+                print(f"   {segn + ' / ' + un:<28}{len(cols):>7}" + "".join(f"{(str(v[0]) + '  ' + str(v[1]) + '%') if v[0] is not None else '–':>13}" for v in row.values()) + f"   {w}")
+        print("   Antal delprov vunna (Sharpe): " + ", ".join(f"{k} {v}" for k, v in wins.items()))
+        res["_delprov"] = split
         names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
         short = {n: n.split(".")[0] for n in names}
         main = [n for n in names if short[n] in ("A", "X1", "X2", "X3", "X4", "X5", "X6", "X7")]
