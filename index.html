@@ -2285,7 +2285,7 @@ function autoPlan(p,o){
         items.push({t:h.t,a:"SÄLJ",q,note:`Likaviktning: ${f(val/tot1*100,1)} % mot målet ${f(tgtW*100,1)} %.`,why:`Likaviktning vid kvartalsskiftet (${qd.label}): ${f(val/tot1*100,1)} % av portföljen mot målet ${f(tgtW*100,1)} %. Sälj ner till målvikt – vinnarna får inte växa sig för stora.`,n:h.n||"",ccy:s0?s0.ccy:(h.ccy||""),px:r.px,done:false})}}})}
   const budget=free?proceeds:amt+(incl?proceeds:0),tot0=c.tot+(free?0:amt),capF=R.cap>0?R.cap/100:1;
   const secW={};c.rows.forEach(r=>{if(sold.has(r.h.t))return;const k=(r.s&&r.s.sec)||"?";secW[k]=(secW[k]||0)+r.val});
-  const held=new Set(p.h.map(h=>h.t)),avoid=s=>reg.avoid.has(s.sec),cands=[];
+  const held=new Set(p.h.map(h=>h.t)),avoid=R.mode==="sat"?(s=>reg.avoid.has(s.sec)):(()=>false),cands=[];   // regimfiltret (undvik teknik när Nasdaq-bredden faller) är satellitlogik, aldrig validerat – av i kärnan 2026-11-04
   const candT=new Set();   // en aktie får bara en plats på köpsidan (2026-11-03)
   c.rows.forEach(r=>{if(sold.has(r.h.t)||!r.s||candT.has(r.h.t))return;candT.add(r.h.t);
     if(qd&&!rw.has(r.h.t)&&r.val<tgt*0.75&&!newList(r.s)){cands.push({s:r.s,held:true,rw:true,tgt,pri:1e6-rk(r.h.t)});return}   // under målvikt vid kvartal: fyll på först – men aldrig nynoterade (2026-11-04: ingen 12-1-rankning, inget stöd i backtestet)
