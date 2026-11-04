@@ -517,6 +517,15 @@ def run(close, vol, cfg, vix=None):
                 return px_ == px_ and s_ == s_ and px_ > s_
             except Exception:
                 return True
+        def wfac(t, rk_):
+            """Vikt efter styrka (test 2026-11-04): rank_wt=k ger topp-rankad 1+k/2 × målvikt och lägst 1−k/2 ×.
+            rank_top=m ger i stället de m högst rankade dubbel vikt (trappsteg). 0 = likavikt (validerat)."""
+            k = cfg.get("rank_wt", 0); m = cfg.get("rank_top", 0); n_ = cfg["n"]
+            if not k and not m: return 1.0
+            try: pos = min(float(rk_.get(t, n_)), n_)
+            except Exception: pos = n_
+            if m: return 2.0 if pos <= m else 1.0
+            return 1.0 + k * (0.5 - (pos - 1) / max(1, n_ - 1))
         if cfg.get("refill") and d not in rebs and len(hold) < n_eff and _due:
             row_r = sc.iloc[i].dropna()
             mk_r = cfg.get("mkt", "all")
@@ -531,7 +540,7 @@ def run(close, vol, cfg, vix=None):
                 for t in free[:n_eff - len(hold)]:
                     px = p.get(t)
                     if px != px or px <= 0: continue
-                    target = tot_r / max(1, n_eff)
+                    target = tot_r / max(1, n_eff) * wfac(t, rk)
                     if cash < target * 0.2: break
                     amt = min(target, cash)
                     sh = (amt - fee(amt, t, "buy")) / px
@@ -591,6 +600,9 @@ def run(close, vol, cfg, vix=None):
                         px = p.get(t)
                         if px != px or px <= 0: continue
                         target = tot * h.get("w", 1.0) / max(cfg["n"], wsum) if cfg.get("add_at_support") else tot / cfg["n"]
+                        if cfg.get("rank_wt") or cfg.get("rank_top"):   # vikt efter styrka: målvikterna normeras över innehaven
+                            fs_ = sum(wfac(x, rank) for x in hold) or 1.0
+                            target = tot * wfac(t, rank) / fs_ * (len(hold) / cfg["n"])
                         cur = h["sh"] * px
                         if cur > target * (1 + cfg.get("rw_band", 0.25)):
                             sell = (cur - target) / px
@@ -659,7 +671,7 @@ def run(close, vol, cfg, vix=None):
                     for t in picks:
                         px = p.get(t)
                         if px != px or px <= 0: continue
-                        target = tot / max(1, n_eff)
+                        target = tot / max(1, n_eff) * wfac(t, rank)
                         if cash < target * 0.2: break
                         amt = min(target, cash)
                         sh = (amt - fee(amt, t, "buy")) / px
@@ -760,6 +772,7 @@ def main():
     ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
     ap.add_argument("--crash", action="store_true", help="gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher")
+    ap.add_argument("--wt", action="store_true", help="vikt efter styrka: mer kapital i de högst rankade i stället för likavikt?")
     ap.add_argument("--tie", action="store_true", help="poängtaket: 30–40 aktier delar topp-poängen – spelar ordningen mellan dem roll?")
     ap.add_argument("--rw", action="store_true", help="likaviktning: fylla på eftersläntrare eller köpa nya topp-20-aktier?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
@@ -874,6 +887,64 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "krasch",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias och ingen fundamenta. Kraschfönstren är få – tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Vikt efter styrka (2026-11-04): mer kapital i de högst rankade? ----------
+    if a.wt:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        VAR = {
+            "A. Kärna (referens): likavikt 5 % per innehav":              dict(B),
+            "--- linjär lutning efter rankningsplats ---":                None,
+            "Y1. Svag lutning: plats 1 får 6,25 %, plats 20 får 3,75 %":  dict(B, rank_wt=0.5),
+            "Y2. Medel: plats 1 får 7,5 %, plats 20 får 2,5 %":           dict(B, rank_wt=1.0),
+            "Y3. Stark: plats 1 får 8,75 %, plats 20 får 1,25 %":         dict(B, rank_wt=1.5),
+            "--- trappsteg: de högst rankade får dubbel vikt ---":         None,
+            "Y4. Topp 5 dubbel vikt (ca 8 % mot 4 %)":                     dict(B, rank_top=5),
+            "Y5. Topp 10 dubbel vikt (ca 6,7 % mot 3,3 %)":                dict(B, rank_top=10),
+            "--- robusthet ---":                                          None,
+            "Y6. Y1, dubbla kostnader":                                   dict(B, rank_wt=0.5, **DBL),
+            "Y7. Y2, dubbla kostnader":                                   dict(B, rank_wt=1.0, **DBL),
+            "Y8. Y4, dubbla kostnader":                                   dict(B, rank_top=5, **DBL),
+            "Y9. A, dubbla kostnader":                                    dict(B, **DBL),
+            "Y10. Y1, kvartal förskjutet 1 mån":                          dict(B, rank_wt=0.5, reb="Q1"),
+            "Y11. Y2, kvartal förskjutet 1 mån":                          dict(B, rank_wt=1.0, reb="Q1"),
+            "Y12. Y4, kvartal förskjutet 1 mån":                          dict(B, rank_top=5, reb="Q1"),
+            "Y13. A, kvartal förskjutet 1 mån":                           dict(B, reb="Q1"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Vikt efter styrka: mer kapital i de högst rankade?  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan: likavikt ger alla 20 innehav 5 %. Ska de högst rankade få mer, eftersom de starkaste gett mest?")
+        print(f"   Vikten sätts vid köp och återställs vid kvartalets likaviktning efter aktuell rankningsplats.")
+        print(f"   Beslutsregel (skriven innan körning): en variant går in bara om den slår A i CAGR OCH Sharpe,")
+        print(f"   håller vid dubbla kostnader och vid förskjutet kvartalsdatum, och inte fördjupar nedgången.\n")
+        print(f"   {'likaviktat snitt av universumet':<64}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<64}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<64} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        main = [n for n in names if short[n] in ("A", "Y1", "Y2", "Y3", "Y4", "Y5")]
+        print(f"\n   === ÅR FÖR ÅR ===")
+        yrsall = sorted({y for n in main for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "vikt efter styrka",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Tolka som indikation."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
