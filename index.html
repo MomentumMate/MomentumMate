@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-04-u";
+const APPV="2026-11-04-v";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -886,7 +886,8 @@ function act(a,d){
     case"psort":Ui.psort=d.v;try{localStorage.setItem("mm_psort",d.v)}catch(e){}route(true);break;
     case"planapply":planApplySheet(d.pid,+d.i);break;
     case"mchkreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
-      [p].concat(tw?[tw]:[]).forEach(x=>{delete x.mchk;const q=quarterDue(Object.assign({},x,{qrw:null}));if(q)delete x.qrw});
+      // 2026-11-04: sätt ett gammalt datum i stället för att radera – utan datum räknades fönstret som stängt från den 4:e
+      [p].concat(tw?[tw]:[]).forEach(x=>{x.mchk="2000-01-01";const q=quarterDue(Object.assign({},x,{qrw:null}));if(q)delete x.qrw});
       save();refreshAll(p.id,p.cashHint,p.cashIncl);break}
     case"gostock":Ui.back={h:location.hash,y:window.scrollY,label:"Förslag & signaler"};location.hash="#/stock/"+encodeURIComponent(d.t);break;
     case"goback":{const b=Ui.back;Ui.back=null;if(b){location.hash=b.h;setTimeout(()=>window.scrollTo(0,b.y),180)}else history.back();break}
@@ -2100,7 +2101,8 @@ function monthCheckWindow(p){
   const due=d>=thisEnd?thisEnd:lastTradingDay(d.getUTCFullYear(),d.getUTCMonth()-1);
   const dueISO=due.toISOString().slice(0,10);
   const done=p&&p.mchk&&p.mchk>=dueISO;           // förslag redan räknat efter det här månadsskiftet
-  const open=!done&&(d>=thisEnd||d.getUTCDate()<=3||(p&&p.mchk&&p.mchk<dueISO&&day>dueISO));
+  const since=(Date.parse(day)-Date.parse(dueISO))/864e5;   // dagar sedan senaste månadsskifte
+  const open=!done&&(d>=thisEnd||d.getUTCDate()<=3||(since>=0&&since<=10&&(!(p&&p.mchk)||p.mchk<dueISO)));
   const next=d>=thisEnd?lastTradingDay(d.getUTCFullYear(),d.getUTCMonth()+1):thisEnd;
   return{open,label:next.getUTCDate()+" "+MN[next.getUTCMonth()],dueISO}}
 function ruleSignals(p,c){
