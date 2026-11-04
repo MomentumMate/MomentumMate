@@ -143,7 +143,11 @@ def score_panel(close, vol, cfg):
         vam = m121 / ann.replace(0, np.nan)
         mom = ((vam + 0.30) / 2.30).clip(0, 1) * 100
     else:
-        mom = (m121 / 60).clip(0, 1) * 100
+        # Taket (test 2026-11-04): allt över mom_cap % 12-1 får full poäng. Med 60 % (här) eller 80 % (skannern)
+        # ligger 30–40 aktier på exakt samma poäng i toppen, och ordningen mellan dem avgörs av listordningen.
+        mom = (m121 / cfg.get("mom_cap", 60)).clip(0, 1) * 100
+        if cfg.get("mom_rank"):                           # percentilrankning i stället för tak: ingen tar i taket
+            mom = m121.rank(axis=1, pct=True) * 100
     s50 = close.rolling(50, min_periods=40).mean()
     s200 = close.rolling(200, min_periods=160).mean()
     trend = ((close > s50).astype(float) * 30 + (close > s200).astype(float) * 30
@@ -158,6 +162,8 @@ def score_panel(close, vol, cfg):
     else:
         volconf = 0
     sc = mom * wm + trend * wt + volconf * wv
+    if cfg.get("tie_m121"):                               # lika poäng avgörs av högre 12-1 i stället för listordning
+        sc = sc + m121.clip(lower=0) * 1e-6
     if cfg.get("heat"):
         # Överhettningsavdrag: straffa aktier som rusat senaste månaden eller har hög RSI.
         r1m = (close / close.shift(21) - 1) * 100
@@ -753,6 +759,7 @@ def main():
     ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
     ap.add_argument("--crash", action="store_true", help="gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher")
+    ap.add_argument("--tie", action="store_true", help="poängtaket: 30–40 aktier delar topp-poängen – spelar ordningen mellan dem roll?")
     ap.add_argument("--rw", action="store_true", help="likaviktning: fylla på eftersläntrare eller köpa nya topp-20-aktier?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
     a = ap.parse_args()
@@ -866,6 +873,68 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "krasch",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias och ingen fundamenta. Kraschfönstren är få – tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Poängtaket (2026-11-04): ordningen bland aktier som delar topp-poängen ----------
+    if a.tie:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        VAR = {
+            "A. Kärna (referens): tak 60 %, lika poäng i listordning":   dict(B),
+            "--- samma tak, men lika poäng avgörs av högre 12-1 ---":     None,
+            "X1. Tak 60 %, lika poäng → högst 12-1 först":               dict(B, tie_m121=True),
+            "X2. Tak 80 % (skannerns), lika poäng → högst 12-1 först":   dict(B, mom_cap=80, tie_m121=True),
+            "--- högre tak: storleken på 12-1 får slå igenom ---":        None,
+            "X3. Tak 100 %":                                             dict(B, mom_cap=100, tie_m121=True),
+            "X4. Tak 150 %":                                             dict(B, mom_cap=150, tie_m121=True),
+            "X5. Tak 300 %":                                             dict(B, mom_cap=300, tie_m121=True),
+            "X6. Inget tak: percentilrankning av 12-1":                  dict(B, mom_rank=True),
+            "--- lägre tak: bred topp, trenden avgör mer ---":            None,
+            "X7. Tak 40 %, lika poäng → högst 12-1 först":               dict(B, mom_cap=40, tie_m121=True),
+            "--- robusthet ---":                                         None,
+            "X8. X1, dubbla kostnader":                                  dict(B, tie_m121=True, **DBL),
+            "X9. X4, dubbla kostnader":                                  dict(B, mom_cap=150, tie_m121=True, **DBL),
+            "X10. X6, dubbla kostnader":                                 dict(B, mom_rank=True, **DBL),
+            "X11. A, dubbla kostnader":                                  dict(B, **DBL),
+            "X12. X1, kvartal förskjutet 1 mån":                         dict(B, tie_m121=True, reb="Q1"),
+            "X13. X4, kvartal förskjutet 1 mån":                         dict(B, mom_cap=150, tie_m121=True, reb="Q1"),
+            "X14. X6, kvartal förskjutet 1 mån":                         dict(B, mom_rank=True, reb="Q1"),
+            "X15. A, kvartal förskjutet 1 mån":                          dict(B, reb="Q1"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Poängtaket: vilka av de aktier som delar topp-poängen ska köpas?  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Bakgrund: 12-1 över taket ger full momentumpoäng. Med full trendpoäng delar 30–40 aktier poängen 100,")
+        print(f"   och vilka 20 som köps avgörs i dag av listordningen (skannern: nordiska först). Testet frågar om")
+        print(f"   storleken på 12-1 bland dem spelar roll – och åt vilket håll.")
+        print(f"   Beslutsregel (skriven innan körning): en variant går in bara om den slår A i CAGR OCH Sharpe,")
+        print(f"   håller vid dubbla kostnader och vid förskjutet kvartalsdatum, och inte fördjupar nedgången.\n")
+        print(f"   {'likaviktat snitt av universumet':<64}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<64}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  nedgång {st['max_nedgång_%']} %"
+                      f"  köp/år {st['köp_per_år']:>5}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                print(f"   {nm:<64} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        main = [n for n in names if short[n] in ("A", "X1", "X2", "X3", "X4", "X5", "X6", "X7")]
+        print(f"\n   === ÅR FÖR ÅR ===")
+        yrsall = sorted({y for n in main for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "poängtak",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Tolka som indikation."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
