@@ -75,6 +75,10 @@ on:
         description: "Krasch: gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher (--crash)"
         type: boolean
         default: false
+      wt:
+        description: "Vikt efter styrka: mer kapital i de högst rankade i stället för likavikt? (--wt)"
+        type: boolean
+        default: false
       tie:
         description: "Poängtaket: 30–40 aktier delar topp-poängen – spelar ordningen mellan dem roll? (--tie)"
         type: boolean
@@ -124,6 +128,7 @@ jobs:
             ${{ github.event.inputs.momwin == 'true' && format('--momwin --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.core == 'true' && format('--core --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.crash == 'true' && format('--crash --port {0}', github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.wt == 'true' && format('--wt --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.tie == 'true' && format('--tie --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.rw == 'true' && format('--rw --port {0}', github.event.inputs.port || '10000000') || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
