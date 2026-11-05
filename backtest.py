@@ -120,6 +120,19 @@ def load_prices(tickers, years, cache=None):
     return close, vol
 
 # ----------------------------------------------------------------------------- modell
+def cal_shift(close, months):
+    """Kurs för varje aktie 'months' kalendermånader tillbaka: senaste kända stängning på eller före det datumet."""
+    pf = close.ffill()
+    back = close.index - pd.DateOffset(months=months)
+    out = pf.reindex(back, method="ffill")
+    out.index = close.index
+    # ingen kurs får användas innan aktien faktiskt hade data
+    first = close.apply(lambda c: c.first_valid_index())
+    for t in close.columns:
+        f = first[t]
+        if f is not None: out.loc[back < f, t] = np.nan
+    return out
+
 def score_panel(close, vol, cfg):
     """Poäng per aktie och dag, räknad BARA på data till och med dagen i fråga.
 
@@ -129,6 +142,11 @@ def score_panel(close, vol, cfg):
     MP = {"min_periods": None}
     # 12-1: avkastning från t-252 till t-21 (senaste månaden utelämnad)
     m121 = (close.shift(cfg["skip"]) / close.shift(cfg["look"]) - 1) * 100
+    if cfg.get("m121_cal"):
+        # 12-1 i KALENDERMÅNADER (paritetstest 2026-11-05): senaste stängning på eller före samma datum 1 resp. 12 månader
+        # tillbaka. Oberoende av vilka handelsdagar panelen råkar innehålla – samma definition går att använda i appen.
+        p1, p12 = cal_shift(close, 1), cal_shift(close, 12)
+        m121 = (p1 / p12 - 1) * 100
     mw = cfg.get("mom_win", "12-1")
     if mw == "6-1":
         m121 = (close.shift(21) / close.shift(126) - 1) * 100
@@ -179,7 +197,12 @@ def score_panel(close, vol, cfg):
         dn = (-r.clip(upper=0)).rolling(14, min_periods=10).mean()
         rsi = 100 - 100 / (1 + up / dn.replace(0, np.nan))
         heat = heat + (rsi - 80).clip(lower=0) / 20 * 10
-        sc = sc - heat.clip(upper=25).fillna(0)
+        if cfg.get("heat_app"):
+            # Skannerns formel (paritetstest 2026-11-05): månadsavdraget tak 15 vid +50 %, RSI-avdraget fullt redan vid 95
+            heat = ((r1m - 25) / 25).clip(0, 1) * 15 + ((rsi - 80) / 15).clip(0, 1) * 10
+            sc = (sc - heat.fillna(0)).clip(lower=0)
+        else:
+            sc = sc - heat.clip(upper=25).fillna(0)
     # Jämnhet (test 2026-11-04, "frog in the pan", Da/Gurun/Warachka 2014): andel positiva dagar och största
     # nedgång INOM 12-1-fönstret (t-252 → t-21). En uppgång i små steg fortsätter oftare än en i två rapporthopp.
     if cfg.get("tie_smooth") or cfg.get("smooth_w") or cfg.get("dd_max"):
@@ -375,6 +398,7 @@ def run(close, vol, cfg, vix=None):
     # ur värderingen de dagarna och kapitalkurvan ser ut att kollapsa.
     alive = close.notna()
     pxf = close.ffill()
+    CAL = (cal_shift(close, 1), cal_shift(close, 12)) if cfg.get("m121_cal") else None
     last_day = {t: (alive[t][alive[t]].index[-1] if alive[t].any() else None) for t in close.columns}
     dates = close.index
     rebs = set(period_ends(dates, cfg.get("reb", "M")))
@@ -503,7 +527,11 @@ def run(close, vol, cfg, vix=None):
                     prev = close.iat[i - 1, ci]
                     if prev == prev and px <= prev * (1 - gs / 100.0) and h.get("gapday") is None: h["gapday"] = i
                 _sk, _lk = cfg.get("skip", 21), cfg.get("look", 252)
-                m121 = (close.iat[max(0, i - _sk), ci] / close.iat[max(0, i - _lk), ci] - 1) if i >= _lk else 1.0
+                if CAL is not None:
+                    _a, _b = CAL[0].iat[i, ci], CAL[1].iat[i, ci]
+                    m121 = (_a / _b - 1) if (_a == _a and _b == _b and _b > 0) else 1.0
+                else:
+                    m121 = (close.iat[max(0, i - _sk), ci] / close.iat[max(0, i - _lk), ci] - 1) if i >= _lk else 1.0
                 s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
                 buf = 1 - cfg.get("sma_buf", 0) / 100.0
                 use_m, use_s = not cfg.get("hold_no_mom"), not cfg.get("hold_no_sma")   # krasch-testet stänger av villkor
@@ -592,7 +620,8 @@ def run(close, vol, cfg, vix=None):
         # --- påfyllning: sker löpande, inte bara vid ombalansering ---
         #     (stopp och bandutgångar sker dagligen, så kapitalet ska inte ligga i kassa
         #      till nästa kvartalsskifte – appen föreslår ersättare direkt)
-        _rf = cfg.get("refill_days", 1)   # 1 = varje dag, 5 = veckovis, 21 = månadsvis
+        _rf = cfg.get("refill_days", 1)   # 1 = varje dag, 5 = veckovis, 21 = var 21:a handelsdag (fast rutnät)
+        if _rf == "M": _rf = 1 if month_end else 10**9   # "M" (paritetstest 2026-11-05): bara på månadens sista handelsdag, som appen
         # Fast rutnät (i % n) kan sammanfalla systematiskt med ombalanseringsrytmen och
         # skapa falska toppar. Med jitter sprids tillfällena slumpmässigt kring intervallet.
         if cfg.get("refill_jitter") and _rf > 1:
@@ -885,6 +914,7 @@ def main():
     ap.add_argument("--slip", action="store_true", help="marknadspåverkan: bas 5 bp + 2 % × sqrt(post/dagsomsättning), tak 3 % per sida")
     ap.add_argument("--minadv", type=float, default=0, help="likviditetsgolv i KRONOR (20-dagars dagsomsättning), samma för alla marknader")
     ap.add_argument("--mm2", action="store_true", help="2.0-kandidaten: A (T+1 + slippage) mot storbolagsuniversum B, med robusthet och känslighet")
+    ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
     a = ap.parse_args()
 
     if a.universe:
@@ -1399,6 +1429,60 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "mm2",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias (dagens indexmedlemmar) kvarstår i alla varianter. Slippage är en modell, inte uppmätt."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Paritet (2026-11-05, SPEC § 18): gör backtestet samma sak som appen? ----------
+    if a.parity:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        VAR = {
+            "A.  Referens (1.0, T+1 + slippage): köp var 21:a handelsdag, 12-1 på 21/252 rader":  dict(B),
+            "--- köptillfälle ---":                                                           None,
+            "P1. Köp bara på månadens sista handelsdag (som appen)":                          dict(B, refill_days="M"),
+            "--- 12-1 i kalendermånader (oberoende av handelskalender) ---":                 None,
+            "P2. 12-1 = stängning 1 mån tillbaka / 12 mån tillbaka, i rankning och hållregel": dict(B, m121_cal=True),
+            "--- båda ---":                                                                  None,
+            "P3. P1 + P2 (backtestet gör som appen)":                                         dict(B, refill_days="M", m121_cal=True),
+            "--- appens överhettningsformel ---":                                            None,
+            "P4. P3 + skannerns överhettningsformel (tak 15 vid +50 %, RSI fullt vid 95)":    dict(B, refill_days="M", m121_cal=True, heat_app=True),
+            "--- robusthet ---":                                                             None,
+            "R1. P3, dubbla kostnader":                                                       dict(B, refill_days="M", m121_cal=True, **DBL),
+            "R2. P3, kvartal förskjutet 1 mån":                                               dict(B, refill_days="M", m121_cal=True, reb="Q1"),
+            "R3. A, dubbla kostnader":                                                        dict(B, **DBL),
+            "R4. A, kvartal förskjutet 1 mån":                                                dict(B, reb="Q1"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Paritet backtest↔app  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Frågan är inte vilken variant som är bäst utan om backtestets resultat håller när backtestet gör exakt som appen.")
+        print(f"   Beslutsregel (skriven innan körning): P3 blir ny referens om den ligger inom ±3 procentenheter CAGR och ±0,1 Sharpe")
+        print(f"   från A. Ligger den utanför har appen och backtestet aldrig testat samma modell, och den sida som avviker ändras.\n")
+        print(f"   {'likaviktat snitt av universumet':<84}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd, x=LAST_DIAG.get("x")); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<84}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %"
+                      f"  friktion {st.get('friktion_%_per_år')} %/år  köp/år {st['köp_per_år']}  innehav {st['innehavstid_dagar']} d")
+            except Exception as ex:
+                import traceback; traceback.print_exc()
+                print(f"   {nm:<84} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        print(f"\n   === ÅR FÖR ÅR ===")
+        yrsall = sorted({y for n in names for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in names))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in names))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "paritet",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias kvarstår. Slippage är en modell."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 

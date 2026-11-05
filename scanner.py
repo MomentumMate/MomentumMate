@@ -1202,7 +1202,7 @@ def piotroski(tk):
     return (pts[0], n[0]) if n[0] >= 5 else (None, n[0])
 
 def rel_liquidity(recs):
-    """Drar av poäng för aktier som är tunt handlade JÄMFÖRT MED SIN EGEN BÖRS.
+    """Beräknar omsättning JÄMFÖRT MED SIN EGEN BÖRS (information, styr inget sedan 2026-11-05).
 
     En absolut dollargräns straffar nordiska och europeiska bolag systematiskt, eftersom
     deras börser omsätter mindre än de amerikanska. Relativt mått gör urvalet rättvist.
@@ -1213,19 +1213,17 @@ def rel_liquidity(recs):
         if r.get("adv"): by.setdefault(r["m"][0], []).append(r["adv"])
     med = {k: _st.median(v) for k, v in by.items() if len(v) >= 8}
     n = 0
+    # 2026-11-05 (paritet): avdraget −4/−10/−18 togs bort. Det fanns bara i appen – inte i backtestet och inte i SPEC –
+    # och flyttade aktier ut ur toppens liketgrupp på ett sätt som aldrig validerats. Kvoten mot börsens median
+    # sparas som information ("liq"); det enda likviditetsvillkoret som styr är golvet LIGHT_MIN_DV i handelsvalutan.
     for t, r in recs.items():
         m0, adv = r["m"][0], r.get("adv")
         if not adv or m0 not in med: continue
-        ratio = adv / med[m0]
-        cut = 18 if ratio < 0.15 else 10 if ratio < 0.35 else 4 if ratio < 0.6 else 0
-        if cut:
-            r["sc"] = round(max(0.0, r["sc"] - cut), 1); r["liq"] = round(ratio, 2); n += 1
-        else:
-            r["liq"] = round(ratio, 2)
+        r["liq"] = round(adv / med[m0], 2); n += 1
     info_cache_save()
     _nn = sorted(t for t, r in recs.items() if not r.get("n") or r["n"] == t)
     if _nn: print(f"NAMN SAKNAS för {len(_nn)} aktier: {', '.join(_nn)}")
-    print(f"Likviditet: {n} aktier fick avdrag mot medianen på sin egen börs ({len(med)} börser)")
+    print(f"Likviditet: kvot mot börsens median beräknad för {n} aktier ({len(med)} börser); inget avdrag (paritet 2026-11-05)")
     return recs
 
 def earn_date(info):
@@ -1350,13 +1348,14 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     FXU = {"USD": 1.0, "SEK": 0.10, "NOK": 0.096, "DKK": 0.147, "EUR": 1.08, "GBp": 0.0127,
            "GBX": 0.0127, "GBP": 1.27, "CHF": 1.12, "JPY": 0.0066, "HKD": 0.128, "CAD": 0.73,
            "TWD": 0.031, "INR": 0.0119, "AUD": 0.65, "KRW": 0.00072, "NZD": 0.60, "BRL": 0.18}
-    adv = None
+    adv = adv_loc = None
     try:
         v20s = vols.iloc[-20:].astype(float)
         p20s = c.iloc[-len(v20s) - 1:-1].astype(float)
-        adv = float((v20s.values * p20s.values).mean()) * FXU.get((mk0 or {}).get("ccy", "USD"), 1.0)
+        adv_loc = float((v20s.values * p20s.values).mean())                    # i handelsvalutan – samma mått som backtestet
+        adv = adv_loc * FXU.get((mk0 or {}).get("ccy", "USD"), 1.0)            # i USD – visas i appen
     except Exception:
-        adv = None
+        adv = adv_loc = None
     v20 = float(vols.iloc[-20:].mean()) if len(vols) else 0
     volx = float(vols.iloc[-1]) / v20 if v20 else 1.0
     rs = rsi(c)
@@ -1418,9 +1417,12 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # Nyckeltalen sparas och visas på aktiesidan men styr ingenting.
     score = tech
 
-    # Likviditeten bedöms relativt den egna börsen i efterpasset (rel_liquidity).
-    # Här dras bara av för aktier som är otradbara i absoluta tal, oavsett marknad.
-    if adv is not None and adv < 150_000: score -= 20
+    # Likviditetsgolv (paritet med backtestet, 2026-11-05): backtestet ger ingen poäng alls under LIGHT_MIN_DV i
+    # handelsvalutan (minturnover=3e6 i backtest.py), och har aldrig fått äga en sådan aktie. Appen gjorde tidigare
+    # bara ett avdrag på 20 poäng under 150 000 USD, vilket lät den föreslå aktier backtestet aldrig prövat.
+    # Nu: poäng 0 under golvet → aktien rankas inte som köpkandidat. Hållregeln (§ 6) påverkas inte; den läser m121 och a200.
+    liq = not (adv_loc is not None and adv_loc < LIGHT_MIN_DV)          # sparas som "liqok" i posten
+    if not liq: score = 0.0
     score = round(max(0.0, min(100.0, score)), 1)
 
     hit = bool(chg >= 5 or (us and px - pc >= 3) or pre_vol >= 50_000)
@@ -1449,7 +1451,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or NAMES.get(t) or NAMES.get(t.replace(".IL", ".L")) or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq,
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
