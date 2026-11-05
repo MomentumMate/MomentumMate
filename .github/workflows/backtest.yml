@@ -97,9 +97,9 @@ on:
         type: boolean
         default: false
       test2:
-        description: "Tester 2026-11-05: mm2 (2.0-kandidat, T+1+slippage, likviditetsgolv), parity (backtest↔app), smooth2 (jämnt momentum mot A)"
+        description: "Tester 2026-11-05: mm2 (T+1+slippage, likviditetsgolv), parity (backtest↔app), smooth2 (Clenow), costn (antal innehav i kostnadsläge)"
         type: choice
-        options: ["", "mm2", "parity", "smooth2"]
+        options: ["", "mm2", "parity", "smooth2", "costn"]
         default: ""
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"

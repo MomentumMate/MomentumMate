@@ -954,6 +954,7 @@ def main():
     ap.add_argument("--minadv", type=float, default=0, help="likviditetsgolv i KRONOR (20-dagars dagsomsättning), samma för alla marknader")
     ap.add_argument("--mm2", action="store_true", help="2.0-kandidaten: A (T+1 + slippage) mot storbolagsuniversum B, med robusthet och känslighet")
     ap.add_argument("--smooth2", action="store_true", help="2.0 steg C: Clenow lutning×R² och riskjusterad 12-1 mot referens A (T+1 + slippage)")
+    ap.add_argument("--costn", action="store_true", help="kostnadsläge: antal innehav 5/6/7/8/10 vid 60/100/150 tkr, 12-1 (P3) och Clenow 120")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
     a = ap.parse_args()
 
@@ -1572,6 +1573,58 @@ def main():
         for y in yrsall:
             print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main))
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "smooth2",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias kvarstår. Slippage är en modell."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Kostnadsläge (2026-11-05): hur många innehav? ----------
+    if a.costn:
+        B = dict(voladj=False, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", mkt="nordic",
+                 cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        MEAS = {"P3": {}, "C120": dict(mom_measure="clenow", clenow_n=120)}
+        NS = (5, 6, 7, 8, 10); PORTS = (60_000.0, 100_000.0, 150_000.0)
+        VAR = {}
+        for mn, mo in MEAS.items():
+            for pk in PORTS:
+                VAR[f"--- {mn}, {pk/1000:.0f} tkr ---"] = None
+                for n in NS:
+                    VAR[f"{mn}-{n}-{pk/1000:.0f}. {mn}, {n} innehav, {pk/1000:.0f} tkr"] = dict(B, n=n, port_sek=pk, **mo)
+            VAR[f"--- {mn}, 100 tkr, dubbla kostnader ---"] = None
+            for n in NS:
+                VAR[f"{mn}-{n}-100D. {mn}, {n} innehav, 100 tkr, dubbla kostnader"] = dict(B, n=n, port_sek=100_000.0, **mo, **DBL)
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Kostnadsläge: antal innehav  ({close.shape[1]} aktier, bara Norden handlas) ##########")
+        print(f"   Regeln 5 innehav kom från minimicourtaget 29 kr på utländska poster. I kostnadsläget handlas bara Norden (1 kr på .ST).")
+        print(f"   Beslutsregel (skriven innan körning): antalet ändras till N om N slår 5 i Calmar OCH Sharpe vid alla tre kapitalnivåerna")
+        print(f"   för samma mått, och håller vid dubbla kostnader vid 100 tkr. Flera vinnande N: välj det lägsta som vinner.\n")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd, x=LAST_DIAG.get("x")); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<58}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %"
+                      f"  friktion {st.get('friktion_%_per_år')} %/år  köp/år {st['köp_per_år']}")
+            except Exception as ex:
+                print(f"   {nm:<58} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        print(f"\n   === BESLUTSREGEL: N mot 5, per mått ===")
+        for mn in MEAS:
+            def g(n, pk): return res.get(f"{mn}-{n}-{pk}. {mn}, {n} innehav, {pk} tkr", {})
+            def gd(n): return res.get(f"{mn}-{n}-100D. {mn}, {n} innehav, 100 tkr, dubbla kostnader", {})
+            for n in NS[1:]:
+                oks = []
+                for pk in ("60", "100", "150"):
+                    a5, an = g(5, pk), g(n, pk)
+                    oks.append(((an.get("Calmar") or 0) > (a5.get("Calmar") or 0)) and ((an.get("Sharpe") or 0) > (a5.get("Sharpe") or 0)))
+                d5, dn = gd(5), gd(n)
+                oks.append(((dn.get("Calmar") or 0) > (d5.get("Calmar") or 0)) and ((dn.get("Sharpe") or 0) > (d5.get("Sharpe") or 0)))
+                print(f"   {mn:<5} {n:>2} innehav: {'VINNER' if all(oks) else 'faller':<7} 60✓/✗ 100 150 dubbla → " + " ".join("✓" if o else "✗" for o in oks))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "kostnadsläge-antal",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias kvarstår. Slippage är en modell."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
