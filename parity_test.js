@@ -1,4 +1,4 @@
-/* MomentumMate – paritetstest (2026-11-04)
+/* MomentumMate – paritetstest (2026-11-04, modell 2.0 2026-11-05)
    Kör appens förslagsmotor (autoPlan) och en oberoende referens skriven direkt från SPEC.md på samma data
    och samma portföljer, och jämför rad för rad. Avviker de är något oprövat inblandat i appen.
    Körning:  node parity_test.js [katalog med index.html + data.json]   (standard: .)
@@ -11,7 +11,9 @@ const srv=http.createServer((q,r)=>{const u=q.url.split('?')[0];const f=path.joi
 /* ---------- Referensen: SPEC.md § 3–9, skriven utan att titta på appens kod ---------- */
 function reference(ctx,p,o){
   const {S,fx,minTrade,monthOpen,quarterOpen}=ctx;
-  const MIN_POST=32222;
+  const MIN_POST=32222, COST_N=7, FULL_N=20;   // SPEC 2.0 § 4: 7 innehav i kostnadsläge (backtest #78)
+  // SPEC 2.0 § 3: poäng = sc2 (Clenow 120 d), lika poäng → högst cl. Saknas sc2 i datat gäller 1.0 (sc, m121).
+  const SC=x=>typeof x.sc2==="number"?x.sc2:x.sc, TIE=x=>typeof x.cl==="number"?x.cl:(+x.m121||0);
   const isNord=t=>/\.(ST|CO|OL|HE)$/.test(t);
   const num=v=>typeof v==="number"&&isFinite(v);
   const isNew=s=>{const nb=+s.nb||0;if(!nb)return false;return (!!s.sh&&nb<201)||(!num(s.m121)&&nb<300)};
@@ -19,13 +21,13 @@ function reference(ctx,p,o){
   const F=h=>{const s=S[h.t];return fx[s?s.ccy:(h.ccy||"SEK")]||1};
   const val=h=>h.q*px(h)*F(h);
   // § 3 rankning: poäng, lika poäng → högst 12-1
-  const ranked=Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&x.inf!==false).sort((a,b)=>(b.sc-a.sc)||((+b.m121||0)-(+a.m121||0)));
+  const ranked=Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false).sort((a,b)=>(SC(b)-SC(a))||(TIE(b)-TIE(a)));
   const rank={};ranked.forEach((x,i)=>rank[x.t]=i+1);
   const rk=t=>rank[t]||1e9;
   const tot=p.h.reduce((a,h)=>a+val(h),0);
   const amt=+o.cash||0,free=!(amt>0),tot1=tot+(free?0:amt);
   // § 4 portföljstorlek (inkl. nytt kapital)
-  const cost=tot1<MIN_POST*5,want=p.targetN||(cost?5:20);
+  const cost=tot1<MIN_POST*5,want=p.targetN||(cost?COST_N:FULL_N);
   const FLOOR=1500;
   const rows=[];const sold=new Set();let proceeds=0;
   const add=(t,a,q)=>rows.push({t,a,q});
@@ -65,7 +67,7 @@ function reference(ctx,p,o){
   const info=await pg.evaluate(()=>({updated:D.updated,n:Object.keys(S).length,appv:APPV}));
   console.log(`Data ${info.updated} · ${info.n} aktier · app ${info.appv}`);
   const load=f=>{try{return JSON.parse(fs.readFileSync(path.join(DIR,f),'utf8')).h}catch(e){return null}};
-  const top=await pg.evaluate(()=>Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&x.inf!==false).sort((a,b)=>(b.sc-a.sc)||((+b.m121||0)-(+a.m121||0))).map(x=>x.t));
+  const top=await pg.evaluate(()=>Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false).sort(bySc).map(x=>x.t));
   const pick=await pg.evaluate(()=>{const o={};const all=Object.values(S).filter(x=>x&&x.px>0&&typeof x.m121==="number");
     o.bad=all.filter(x=>x.m121<=0||!x.a200).slice(0,6).map(x=>x.t);o.nord=all.filter(x=>/\.ST$/.test(x.t)&&x.a200&&x.m121>0).slice(0,8).map(x=>x.t);
     o.neu=Object.values(S).filter(x=>x&&x.px>0&&x.nb&&x.nb<150).slice(0,2).map(x=>x.t);return o});
@@ -83,7 +85,7 @@ function reference(ctx,p,o){
   scen.push({name:"20 friska, kvartal, en på 3× vikt",p:mk(healthy.map((x,i)=>i===0?Object.assign({},x,{q:x.q*3}):x),{mchk:"2026-11-04"}),o:{cash:0}});
   const bad=await byVal(pick.bad.slice(0,4).concat(top.slice(0,12)),100000);scen.push({name:"4 brutna + 12 friska, månadsfönster öppet",p:mk(bad,{mchk:"2026-10-01",qrw:"2026-10-20"}),o:{cash:0}});
   scen.push({name:"samma, fönster stängt",p:mk(bad,{mchk:"2026-11-04",qrw:"2026-10-20"}),o:{cash:0}});
-  const small=await byVal(["AAPL","MSFT"].concat(pick.nord.slice(0,3)),20000);scen.push({name:"kostnadsläge 100 000 kr med 2 utländska",p:mk(small,{mchk:"2026-10-01"}),o:{cash:0}});
+  const small=await byVal(["AAPL","MSFT"].concat(pick.nord.slice(0,5)),14000);scen.push({name:"kostnadsläge 100 000 kr med 2 utländska",p:mk(small,{mchk:"2026-10-01"}),o:{cash:0}});
   const many=await byVal(top.slice(0,24),80000);scen.push({name:"24 innehav (fler än målet)",p:mk(many,{mchk:"2026-11-04",qrw:"2026-10-20"}),o:{cash:0}});
   if(pick.neu.length){const nh=await byVal(top.slice(0,19).concat([pick.neu[0]]),100000);nh[19].q=Math.max(1,Math.floor(nh[19].q/5));scen.push({name:"nynoterad under målvikt vid kvartal",p:mk(nh,{mchk:"2026-11-04"}),o:{cash:50000,incl:false}})}
   scen.push({name:"tom portfölj, 1 000 000 nytt",p:mk([],{}),o:{cash:1000000}});
@@ -93,7 +95,7 @@ function reference(ctx,p,o){
     const ticks=[...new Set(sc.p.h.map(h=>h.t).concat(top.slice(0,40)))];
     const ctx=await pg.evaluate(([p,ticks])=>{const mt={};ticks.forEach(t=>mt[t]=minTrade(t));const fxm={};Object.values(S).forEach(s=>{if(s&&s.ccy&&!(s.ccy in fxm))fxm[s.ccy]=fx(s.ccy)});fxm.SEK=1;
       return{fx:fxm,minTrade:mt,monthOpen:monthCheckWindow(p).open,quarterOpen:!!quarterDue(p)}},[sc.p,ticks]);
-    const Sdump=await pg.evaluate(()=>{const o={};Object.values(S).forEach(s=>{if(s)o[s.t]={t:s.t,px:s.px,sc:s.sc,m121:s.m121,a200:s.a200,sh:s.sh,nb:s.nb,ccy:s.ccy,inf:s.inf}});return o});
+    const Sdump=await pg.evaluate(()=>{const o={};Object.values(S).forEach(s=>{if(s)o[s.t]={t:s.t,px:s.px,sc:s.sc,sc2:s.sc2,cl:s.cl,m121:s.m121,a200:s.a200,sh:s.sh,nb:s.nb,ccy:s.ccy,inf:s.inf}});return o});
     const app=await pg.evaluate(([p,o])=>autoPlan(p,o).items.map(i=>({t:i.t,a:i.a,q:i.q})),[sc.p,sc.o]);
     const ref=reference(Object.assign({S:Sdump},ctx),sc.p,sc.o);
     const key=r=>r.t+"|"+r.a+"|"+(r.a==="BEHÅLL"?0:r.q);

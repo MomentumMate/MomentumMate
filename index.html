@@ -364,7 +364,7 @@ async function loadData(){
 }
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-04-v";
+const APPV="2026-11-05-x";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -649,7 +649,7 @@ function vPort(id){
   const p=getP(id)||getP(P.cur)||P.ps[0];P.cur=p.id;save();const c=calc(p);
   const sigs=c.rows.filter(r=>["SELL","TRIM","BUY","WATCH"].includes(r.sig.k)),rot=[],needAct=c.rows.some(r=>r.sig.k==="SELL"||r.sig.k==="TRIM");
   const held=new Set(p.h.map(h=>h.t)),_cmI=costMode(p,c),_nordI=t=>/\.(ST|CO|OL|HE)$/.test(t),
-    ideas=needAct?((_cmI.onlyNordic?Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&_nordI(x.t)).sort((a,b)=>b.sc-a.sc).map(x=>x.t):(D.rank.ALL?D.rank.ALL.mom:[])).map(t=>S[t]).filter(s=>s&&!held.has(s.t)&&s.sc>=60).slice(0,5)):[];   // kostnadsläge: bara nordiska idéer
+    ideas=needAct?((_cmI.onlyNordic?Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&_nordI(x.t)).sort(bySc).map(x=>x.t):(D.rank.ALL?D.rank.ALL.mom:[])).map(t=>S[t]).filter(s=>s&&!held.has(s.t)&&s.sc>=60).slice(0,5)):[];   // kostnadsläge: bara nordiska idéer
   const hzw={};c.rows.forEach(r=>{const k=r.s?r.s.h:"none";hzw[k]=(hzw[k]||0)+r.w});
   const snap=(P.snap&&P.snap[p.id])||[];
   view(`${topbar("Portfölj",true,topBtn(`data-act="pmenu" data-pid="${p.id}"`,"⋯","Meny")+topBtn(`data-act="propinfo"`,'<span class="ii">ⓘ</span>',"Om förslagen"))}
@@ -2063,12 +2063,19 @@ function propHTML(p,c,sigs,rot,ideas){
    direkt översättning av backtestets run() och får inte innehålla något som inte står i specifikationen.
    Satellitläget (band, stopp, vinstmål, tak, RSI-filter, regimfilter, ersättningsförslag) togs bort 2026-11-04. */
 const RULE_DEF={mode:"core",absMom:true,sma200:true,cap:0,stop:0,tp:0,tpSell:0,bandIn:0,bandOut:0,trail:false,confirm:0,maxRsi:0,repl:0};
-const rulesTxt=(R,cap)=>`KÄRNA · köp ur topp ${(cap>0&&cap<MIN_POST*5)?"5 (nordiska)":"20"} i rankningsordning · håll så länge 12-1 > 0 och kurs > SMA200 · prövas vid månadsskiftet · likavikt vid kvartalsskiftet · inget stopp, inget band, inget tak`;
+/* MODELLVERSION (SPEC.md). 2.0 (2026-11-05): momentumpoängen räknas på Clenow lutning × R² över 120 dagar (fält sc2, cl i data.json)
+   i stället för 12-1; lika poäng → högst Clenow-värde. Kostnadsläge 7 innehav (var 5). Håll/sälj, månadsprövning och likaviktning oförändrade.
+   Validerat i backtest #76/#78/#79. Saknar skanningen sc2 (äldre data.json) används 1.0-poängen sc, så att appen aldrig står utan rankning. */
+const MODEL={v:"2.0",date:"2026-11-05",costN:7,fullN:20,measure:"clenow120"};
+const SC=x=>(MODEL.measure==="clenow120"&&typeof x.sc2==="number")?x.sc2:x.sc;              // poäng enligt gällande modell
+const TIE=x=>(MODEL.measure==="clenow120"&&typeof x.cl==="number")?x.cl:(+x.m121||0);        // avgörare vid lika poäng
+const bySc=(a,b)=>(SC(b)-SC(a))||(TIE(b)-TIE(a));
+const rulesTxt=(R,cap)=>`MODELL ${MODEL.v} · köp ur topp ${(cap>0&&cap<MIN_POST*5)?MODEL.costN+" (nordiska)":MODEL.fullN} i rankningsordning · håll så länge 12-1 > 0 och kurs > SMA200 · prövas vid månadsskiftet · likavikt vid kvartalsskiftet · inget stopp, inget band, inget tak`;
 const RLAB={ABSM:"MOMENTUM SLUT",SMA:"TREND BRUTEN",TAK:"MINSKA",TREND:"SÄLJ"};
 let RANKC=null;
 function rankMap(){
   if(RANKC&&RANKC.u===(D.updated||""))return RANKC;
-  const arr=Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&x.inf!==false).sort((a,b)=>(b.sc-a.sc)||((+b.m121||0)-(+a.m121||0)));   // lika poäng → högst 12-1 (2026-11-04)
+  const arr=Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false).sort(bySc);   // 2.0: sc2, lika poäng → högst Clenow (2026-11-05)
   const m={};arr.forEach((x,i)=>m[x.t]=i+1);
   RANKC={u:D.updated||"",m,n:arr.length};return RANKC}
 const rankOf=t=>rankMap().m[t]||null;
@@ -2164,13 +2171,15 @@ function rulesSheet(pid){
   const p=getP(pid);if(!p)return;const c=calc(p),pr=profileFor(c.tot),want=p.targetN||(pr?pr.n:20);
   sheet(`<h3>Strategiregler – ${esc(p.name)}</h3>
   <p class="mu" style="margin-top:-4px">Det finns en regeluppsättning, och den är validerad i backtest. Den går inte att ändra per portfölj – det som gick att ställa in tidigare (stopp, band, vinstmål, tak) är testat och förkastat.</p>
-  <div class="k">• <b>Rankning:</b> 80 % 12-1-momentum (full poäng vid 150 %), 20 % trendkvalitet, överhettningsavdrag. Lika poäng → högst 12-1 först.</div>
-  <div class="k">• <b>Köp:</b> när plats finns (färre än ${want} innehav), de högst rankade som inte ägs, i rankningsordning. ${want===5?"Bara nordiska aktier (kostnadsläge under 161 000 kr).":"Alla marknader."}</div>
+  <div class="k">• <b>Modell ${MODEL.v}</b> (${MODEL.date}). ${Object.values(S).some(x=>x&&typeof x.sc2==="number")?"Skanningen innehåller 2.0-poäng.":"<b>Skanningen saknar 2.0-poäng – rankningen visar tills vidare 1.0.</b>"}</div>
+  <div class="k">• <b>Rankning:</b> 80 % momentum = Clenow-lutning × R² över 120 dagar (full poäng vid 150 %), 20 % trendkvalitet, överhettningsavdrag. Lika poäng → högst Clenow-värde först. Under 3 M i dagsomsättning (handelsvalutan): ingen poäng.</div>
+  <div class="k">• <b>Köp:</b> när plats finns (färre än ${want} innehav), de högst rankade som inte ägs, i rankningsordning. ${want===MODEL.costN?"Bara nordiska aktier (kostnadsläge under 161 000 kr).":"Alla marknader."}</div>
   <div class="k">• <b>Håll:</b> så länge 12-1 > 0 och kurs > SMA200. Prövas vid månadsskiftet. Rankningsplats, RSI, vinst och innehavstid påverkar inte.</div>
   <div class="k">• <b>Sälj:</b> hela innehavet när ett hållvillkor bryts vid prövningen. Inget stopp, inget band, inget vinstmål.</div>
   <div class="k">• <b>Likaviktning:</b> vid kvartalsskiftet – minska över 1,25 × målvikt (${f(125/want,1)} %), öka under 0,75 × (${f(75/want,1)} %). Inget tak däremellan.</div>
   <div class="k">• <b>Målantal:</b> ${want} innehav, målvikt ${f(100/want,1)} %.</div>
-  <div class="mu" style="font-size:11.5px;margin:8px 0">Backtest 2015–2026: 36 % per år, Sharpe 1,2, största nedgång −40 %. Räkna med 20–25 % i verkligheten. Hela specifikationen: <span class="lnk" data-i="valid">validering</span>.</div>
+  <div class="mu" style="font-size:11.5px;margin:8px 0">Backtest 2015–2026 (fyllnad dagen efter, slippage, köp vid månadsslut): 2.0 43 % per år, Sharpe 1,2, största nedgång −43 %; 1.0 gav 34 %. Överlevnadsbias oräknad – räkna med hälften. Hela specifikationen: <span class="lnk" data-i="valid">validering</span>.</div>
+  <div class="k" style="margin-top:8px"><b>Topp ${want} just nu – 2.0 mot 1.0</b> (för jämförelse under övergången):<br>${(()=>{const base=Object.values(S).filter(x=>x&&x.px>0&&x.inf!==false&&(want===MODEL.costN?/\.(ST|CO|OL|HE)$/.test(x.t):true));const a=base.filter(x=>SC(x)>0).sort(bySc).slice(0,want).map(x=>x.t);const b=base.filter(x=>x.sc>0).sort((x,y)=>(y.sc-x.sc)||((+y.m121||0)-(+x.m121||0))).slice(0,want).map(x=>x.t);const only=t=>!b.includes(t);return`<span class="mu">2.0:</span> ${a.map(t=>only(t)?"<b>"+esc(t)+"</b>":esc(t)).join(", ")}<br><span class="mu">1.0:</span> ${b.map(t=>a.includes(t)?esc(t):"<b>"+esc(t)+"</b>").join(", ")}<br><span class="mu">Fetstil = finns bara i den ena listan.</span>`})()}</div>
   ${p.rules&&Object.keys(p.rules).some(k=>RULE_DEF[k]!==p.rules[k])?'<div class="acts"><button class="btn ghost" id="rdel">Rensa gamla sparade inställningar</button></div>':""}`,()=>{
     if($("#rdel"))$("#rdel").onclick=()=>{p.rules=Object.assign({},RULE_DEF);save();closeSheet();route(true);toast("Kärnans regler gäller")}})
 }
@@ -2211,7 +2220,7 @@ function autoPlan(p,o){
   // § 5 Köp: lediga platser fylls ur topp want, i rankningsordning; likaviktningsköp först
   const budget=free?proceeds:amt+(incl?proceeds:0),held=new Set(p.h.map(h=>h.t));
   const top=cm.onlyNordic
-    ?Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&x.inf!==false&&isNord(x.t)).sort((a,b)=>(b.sc-a.sc)||((+b.m121||0)-(+a.m121||0))).slice(0,want)
+    ?Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false&&isNord(x.t)).sort(bySc).slice(0,want)
     :Object.values(S).filter(x=>x&&x.px>0&&x.inf!==false&&(rankOf(x.t)||1e9)<=want).sort((a,b)=>rk(a.t)-rk(b.t));
   const slots=Math.max(0,want-live.length);
   const fresh=top.filter(x=>!held.has(x.t)&&!sold.has(x.t)&&!newList(x)).slice(0,slots).map(x=>({s:x,cur:0,rw:false}));
@@ -2266,9 +2275,9 @@ function buildPortfolio(cap,hz,o){
   /* SPEC § 4–5: ny portfölj = målantalet högst rankade (nordiska i kostnadsläge), likaviktade. Ingen kostnadsjustering,
      ingen sektorspridning, ingen lutning – inget av det ingick i det validerade urvalet (omskrivet 2026-11-04). */
   o=o||{};const C=HZ_CFG[hz]||HZ_CFG["3-6"],reg=regimeNote();
-  const pr=profileFor(cap),nWant=pr?pr.n:20,onlyN=!!(pr&&pr.n===5),isN=t=>/\.(ST|CO|OL|HE)$/.test(t);
+  const pr=profileFor(cap),nWant=pr?pr.n:MODEL.fullN,onlyN=!!(pr&&pr.n===MODEL.costN),isN=t=>/\.(ST|CO|OL|HE)$/.test(t);
   const pool=onlyN
-    ?Object.values(S).filter(x=>x&&x.px>0&&x.sc>0&&x.inf!==false&&isN(x.t)&&!newList(x)).sort((a,b)=>(b.sc-a.sc)||((+b.m121||0)-(+a.m121||0)))
+    ?Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false&&isN(x.t)&&!newList(x)).sort(bySc)
     :Object.values(S).filter(x=>x&&x.px>0&&x.inf!==false&&!newList(x)&&(rankOf(x.t)||1e9)<=nWant).sort((a,b)=>(rankOf(a.t)||1e9)-(rankOf(b.t)||1e9));
   const picks=pool.slice(0,nWant),budget=cap*0.98,tgt=budget/Math.max(1,picks.length);
   const items=picks.map(s=>{const per=s.px*fx(s.ccy),q=Math.max(0,Math.floor(tgt/per));return{t:s.t,a:"KÖP",q,pri:1e5-(rankOf(s.t)||1e5),n:s.n,ccy:s.ccy,px:s.px,per,
@@ -2535,10 +2544,10 @@ const MIN_POST=32222;
 function profileFor(cap){
   if(!(cap>0))return null;
   return cap<MIN_POST*5
-    ? {n:5, stop:0, band:[10,20], why:"liten portfölj – minimicourtaget på 29 kr dominerar annars; bara nordiska aktier",
-       cagr:"ej separat validerat i kärnläge", dd:"djupare än −35 % (få innehav)"}
-    : {n:20, stop:0, band:[10,30], why:"kapitalet bär full spridning",
-       cagr:"22,6 %", dd:"ca −35 %"};
+    ? {n:MODEL.costN, stop:0, band:[10,20], why:"liten portfölj – bara nordiska aktier; 7 innehav slog 5 i backtest #78 (2026-11-05)",
+       cagr:"ca 27–29 % i backtest, räkna med hälften", dd:"ca −47 %"}
+    : {n:MODEL.fullN, stop:0, band:[10,30], why:"kapitalet bär full spridning",
+       cagr:"ca 43 % i backtest (2.0), räkna med hälften", dd:"ca −43 %"};
 }
 function profileLine(p,c){
   const cap=(c&&c.tot)||0,pr=profileFor(cap);if(!pr)return"";

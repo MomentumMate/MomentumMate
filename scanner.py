@@ -1535,7 +1535,10 @@ def finalize(recs, markets):
         members = [t for t, r in recs.items() if member(k, r)]
         if not members: continue
         # Lika poäng avgörs av högre 12-1 (backtest --tie 2026-11-04) – inte av skanningsordningen.
-        by_sc = sorted(members, key=lambda t: (-recs[t]["sc"], -(recs[t].get("m121") if isinstance(recs[t].get("m121"), (int, float)) else -1e9)))
+        # Modell 2.0 (2026-11-05): listorna sorteras på sc2 med Clenow-värdet som avgörare, samma ordning som appens förslagsmotor.
+        _sc = lambda r: r.get("sc2") if isinstance(r.get("sc2"), (int, float)) else r["sc"]
+        _tie = lambda r: r.get("cl") if isinstance(r.get("cl"), (int, float)) else (r.get("m121") if isinstance(r.get("m121"), (int, float)) else -1e9)
+        by_sc = sorted(members, key=lambda t: (-_sc(recs[t]), -_tie(recs[t])))
         mom = by_sc[:25]          # poängordning, 12-1 bryter lika – samma ordning som fliken Alla
         rank[k] = {"mom": mom, "all": by_sc}
     rank["DT"] = rank_dt(recs)

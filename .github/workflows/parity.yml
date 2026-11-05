@@ -1,0 +1,53 @@
+name: Paritetstest
+
+# Kör appens förslagsmotor (index.html) mot en oberoende referens skriven från SPEC.md (parity_test.js).
+# Körs vid varje push som rör appen, referensen eller specifikationen, och manuellt. Röd körning = appen avviker från SPEC.
+on:
+  push:
+    branches: [main]
+    paths: ["index.html", "parity_test.js", "SPEC.md", "data.json", ".github/workflows/parity.yml"]
+  workflow_dispatch:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm i playwright@1
+      - run: npx playwright install --with-deps chromium
+      - name: Paritet på skanningens data
+        run: node parity_test.js . 2>&1 | tee parity.log
+      - name: Paritet på data med 2.0-fält (syntetiska om skanningen saknar dem)
+        run: |
+          python3 - <<'EOF'
+          import json, os, shutil
+          os.makedirs("/tmp/p2", exist_ok=True)
+          for f in os.listdir("."):
+              if f.endswith((".json", ".html", ".js")): shutil.copy(f, "/tmp/p2/" + f)
+          d = json.load(open("/tmp/p2/data.json", encoding="utf-8"))
+          S = d.get("stocks") or d.get("S") or d.get("recs") or {}
+          if isinstance(S, list): S = {x["t"]: x for x in S if isinstance(x, dict) and "t" in x}
+          n = 0
+          for t, x in S.items():
+              if not isinstance(x, dict) or isinstance(x.get("sc2"), (int, float)): continue
+              m = x.get("m121") if isinstance(x.get("m121"), (int, float)) else 0.0
+              sc = x.get("sc") or 0.0
+              # syntetisk 2.0-poäng: annan ordning än 1.0 så att rankningsvägen verkligen prövas
+              x["cl"] = round(max(0.0, m) * 0.7 + (hash(t) % 23), 1)
+              x["sc2"] = round(min(100.0, max(0.0, min(x["cl"], 150) / 150 * 80 + sc * 0.2)), 1) if sc > 0 else 0.0
+              n += 1
+          json.dump(d, open("/tmp/p2/data.json", "w", encoding="utf-8"), ensure_ascii=False)
+          print(f"{n} aktier fick syntetiska 2.0-fält" if n else "data.json har redan 2.0-fält")
+          EOF
+          node parity_test.js /tmp/p2 2>&1 | tee parity2.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parity
+          path: |
+            parity.log
+            parity2.log
