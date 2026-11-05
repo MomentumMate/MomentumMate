@@ -51,7 +51,9 @@ Rankningsplats = ordning efter poäng, hela universumet. Platsen är ett **intr�
 - Kapital < 161 000 kr (**kostnadsläge**): **7 innehav, bara nordiska aktier**, rankade sinsemellan. Målvikt 1/7 ≈ 14,3 %.
   Utländska poster som kapitalet inte bär säljs, lägst rankad först.
   *(Gränsen 161 000: mix-test 2026-10, minimicourtaget 29 kr på utländska poster. Antalet 7: #78 2026-11-05 – 5/6/7/8/10 innehav vid 60/100/150 tkr;
-  alla > 5 slog 5 i Calmar och Sharpe, 7 bäst under 2.0; kapitalnivån saknade betydelse eftersom .ST kostar 1 kr i courtage.)*
+  alla > 5 slog 5 i Calmar och Sharpe, 7 bäst under 2.0; kapitalnivån saknade betydelse eftersom .ST kostar 1 kr i courtage.
+  Delprov #83 efter listkällornas städning: under 2.0 vinner 7 över 5 på Sharpe (1,05 mot 0,92), Calmar och nedgång över hela perioden och i första halvan,
+  men inte i andra halvan; kostnadsläget är känsligt för små universumändringar. Ägarens beslut 2026-11-05: 7 behålls – spridningen kostar inget och nedgången är grundare.)*
 - Fler innehav än målet (bara möjligt efter manuella köp): lägst rankad säljs ner till målantalet.
 
 ## 5. Köp
