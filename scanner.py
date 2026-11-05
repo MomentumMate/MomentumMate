@@ -1264,14 +1264,20 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
         past = d[d.index.date < intr["day"]]
         if len(past) < 60: return None
         prev = past.iloc[-1]; px = intr["last"]; closes = past["Close"].tolist() + [px]
+        cdates = list(past.index) + [pd.Timestamp(intr["day"])]
         opn, pre_high, pre_vol = intr["open"], intr["pre_high"], intr["pre_vol"]
         vols = past["Volume"]
     else:
         prev = d.iloc[-2]; px = float(d["Close"].iloc[-1]); closes = d["Close"].tolist()
+        cdates = list(d.index)
         opn = float(d["Open"].iloc[-1]) if "Open" in d else None
         pre_high, pre_vol = None, 0
         vols = d["Volume"].iloc[:-1]
     c = pd.Series(closes, dtype="float64")
+    try:
+        cd = pd.Series(closes, index=pd.DatetimeIndex(cdates).tz_localize(None), dtype="float64")   # daterad kopia för kalender-12-1
+    except Exception:
+        cd = None
     s50, s200 = c.rolling(50).mean(), c.rolling(200).mean()
     sma50, sma200, sma200_prev, sma50_prev = float(s50.iloc[-1]), float(s200.iloc[-1]), float(s200.iloc[-2]), float(s50.iloc[-2])
     ema12, ema26 = float(c.ewm(span=12).mean().iloc[-1]), float(c.ewm(span=26).mean().iloc[-1])
@@ -1281,12 +1287,33 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
 
     # --- 12-1-momentum: 12 månaders avkastning EXKLUSIVE den senaste månaden.
     # Senaste månaden utelämnas för att den statistiskt tenderar att vända (kortsiktig reversal).
+    # 2026-11-05 (SPEC 2.0 § 3, paritetstest P2): 12-1 räknas i KALENDERMÅNADER – senaste stängning på eller före samma
+    # datum en respektive tolv månader tillbaka – inte 21/252 egna handelsdagar. Samma definition som backtestets m121_cal.
     m121, m_short = None, False
-    if len(c) > 253:
-        m121 = (float(c.iloc[-22]) / float(c.iloc[-253]) - 1) * 100
+    cl_ = None
+    if cd is not None:
+        _d = cd.index[-1]
+        _p1 = cd.asof(_d - pd.DateOffset(months=1)); _p12 = cd.asof(_d - pd.DateOffset(months=12))
+        if cd.index[0] <= _d - pd.DateOffset(months=12) and _p1 == _p1 and _p12 == _p12 and _p12 > 0:
+            m121 = (float(_p1) / float(_p12) - 1) * 100
+        elif len(c) > 127:
+            m121 = (float(c.iloc[-22]) / float(c.iloc[-127]) - 1) * 100   # 6-1 som reserv
+            m_short = True
+    elif len(c) > 253:
+        m121 = (float(c.iloc[-22]) / float(c.iloc[-253]) - 1) * 100       # reserv utan datum (ska inte inträffa)
     elif len(c) > 127:
-        m121 = (float(c.iloc[-22]) / float(c.iloc[-127]) - 1) * 100   # 6-1 som reserv
-        m_short = True
+        m121 = (float(c.iloc[-22]) / float(c.iloc[-127]) - 1) * 100; m_short = True
+    # Clenow-momentum (SPEC 2.0 § 3): årstaktad lutning i regression av log-kurs mot tid över CLENOW_N dagar, gånger R², i procent.
+    # Samma formel som backtest.py clenow_panel (validerad #76/#79, 2026-11-05).
+    if len(c) >= CLENOW_N:
+        try:
+            _y = np.log(c.iloc[-CLENOW_N:].astype(float).values); _x = np.arange(CLENOW_N, dtype=float)
+            _slope, _icpt = np.polyfit(_x, _y, 1)
+            _fit = _slope * _x + _icpt; _ss = ((_y - _y.mean()) ** 2).sum()
+            _r2 = 1 - ((_y - _fit) ** 2).sum() / _ss if _ss > 0 else 0.0
+            cl_ = float((math.exp(_slope * 252) - 1) * 100 * max(0.0, float(_r2)))
+        except Exception:
+            cl_ = None
 
     # --- volatilitet: årlig standardavvikelse på dagsavkastning (126 dagar) ---
     vol = None
@@ -1419,14 +1446,17 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     roe = info.get("returnOnEquity")
     # Nyckeltalen sparas och visas på aktiesidan men styr ingenting.
     score = tech
+    # Modell 2.0 (2026-11-05): Clenow-måttet ersätter 12-1 i momentumpoängen, samma tak 150, samma trend och överhettning.
+    mom2 = min(max(cl_, 0), MOM_CAP) / MOM_CAP * 100 if cl_ is not None else mom
+    score2 = max(0.0, min(100.0, mom2 * .80 + trend * .20 - heat))
 
     # Likviditetsgolv (paritet med backtestet, 2026-11-05): backtestet ger ingen poäng alls under LIGHT_MIN_DV i
     # handelsvalutan (minturnover=3e6 i backtest.py), och har aldrig fått äga en sådan aktie. Appen gjorde tidigare
     # bara ett avdrag på 20 poäng under 150 000 USD, vilket lät den föreslå aktier backtestet aldrig prövat.
     # Nu: poäng 0 under golvet → aktien rankas inte som köpkandidat. Hållregeln (§ 6) påverkas inte; den läser m121 och a200.
     liq = not (adv_loc is not None and adv_loc < LIGHT_MIN_DV)          # sparas som "liqok" i posten
-    if not liq: score = 0.0
-    score = round(max(0.0, min(100.0, score)), 1)
+    if not liq: score = score2 = 0.0
+    score = round(max(0.0, min(100.0, float(score))), 1); score2 = round(max(0.0, min(100.0, float(score2))), 1)
 
     hit = bool(chg >= 5 or (us and px - pc >= 3) or pre_vol >= 50_000)
     c1 = bool(px > float(prev["High"])); c2 = bool(pc > sma200_prev) if sma200_prev == sma200_prev else None
@@ -1454,7 +1484,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or NAMES.get(t) or NAMES.get(t.replace(".IL", ".L")) or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq,
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq, "sc2": score2, "cl": (round(cl_, 1) if cl_ is not None else None),
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
@@ -1488,7 +1518,8 @@ def horizon(s):
         return "12-24", "Långsiktig trend intakt över SMA200 med positiv halvårsavkastning."
     return "none", "Ingen tydlig trend just nu – avvakta."
 
-MOM_CAP = 150   # 12-1 i procent som ger full momentumpoäng (var 80; backtest --tie 2026-11-04)
+MOM_CAP = 150   # 12-1 i procent som ger full momentumpoäng (var 80; backtest --tie 2026-11-04). Samma tak för Clenow-måttet (2.0).
+CLENOW_N = 120  # fönster i handelsdagar för Clenow lutning × R² (SPEC 2.0 § 3; backtest --smooth2 #76/#79 2026-11-05: 90–180 vann, 120 = mitten)
 
 def finalize(recs, markets):
     keys = [m["k"] for m in markets]
