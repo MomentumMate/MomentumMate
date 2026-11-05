@@ -1,13 +1,13 @@
 {
-"updated": "2026-11-05T17:18:11Z",
+"updated": "2026-11-05T17:25:37Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
-"antal": 241,
+"antal": 207,
 "senaste": "2026-11-04",
 "tysta": 0,
-"flaggade": 45
+"flaggade": 11
 },
 "USA": {
 "antal": 1600,
@@ -16,16 +16,52 @@
 "flaggade": 16
 },
 "Europa": {
-"antal": 513,
+"antal": 512,
 "senaste": "2026-11-05",
 "tysta": 1,
-"flaggade": 20
+"flaggade": 19
 }
 },
-"n": 2354,
+"n": 2319,
 "silent": 7,
-"flagged": 81,
-"gone": [],
+"flagged": 46,
+"gone": [
+"ASSA.ST",
+"ATCO.ST",
+"BALD.ST",
+"BT.A",
+"CARL.CO",
+"COLO.CO",
+"EPI.ST",
+"ERIC.ST",
+"ESSITY.ST",
+"GETI.ST",
+"HEXA.ST",
+"HM.ST",
+"INVE.ST",
+"LATO.ST",
+"LIFCO.ST",
+"LUND.ST",
+"MAERSK.CO",
+"NIBE.ST",
+"NOVO.CO",
+"NSIS.CO",
+"ROCK.CO",
+"SAAB.ST",
+"SAGA.ST",
+"SCA.ST",
+"SEB.ST",
+"SECU.ST",
+"SHB.ST",
+"SKA.ST",
+"SKF.ST",
+"SSAB.ST",
+"SWEC.ST",
+"SWED.ST",
+"TEL2.ST",
+"TREL.ST",
+"VOLV.ST"
+],
 "own_flagged": [],
 "issues": {
 "ACA": [
@@ -40,12 +76,6 @@
 "ALK.CO": [
 "ingen kursdata"
 ],
-"ASSA.ST": [
-"ingen kursdata"
-],
-"ATCO.ST": [
-"ingen kursdata"
-],
 "AV-.L": [
 "ingen kursdata"
 ],
@@ -53,9 +83,6 @@
 "ingen kursdata"
 ],
 "BA-.L": [
-"ingen kursdata"
-],
-"BALD.ST": [
 "ingen kursdata"
 ],
 "BEIJ.ST": [
@@ -67,52 +94,25 @@
 "BP-.L": [
 "ingen kursdata"
 ],
-"BT.A": [
-"ingen kursdata"
-],
 "CAJ": [
-"ingen kursdata"
-],
-"CARL.CO": [
 "ingen kursdata"
 ],
 "CCH.L": [
 "EODHD 4934.00 mot Yahoo 4052.00"
 ],
-"COLO.CO": [
-"ingen kursdata"
-],
 "CWEN-A": [
-"ingen kursdata"
-],
-"EPI.ST": [
-"ingen kursdata"
-],
-"ERIC.ST": [
 "ingen kursdata"
 ],
 "ERJ": [
 "ingen kursdata"
 ],
-"ESSITY.ST": [
-"ingen kursdata"
-],
 "FLTR.L": [
-"ingen kursdata"
-],
-"GETI.ST": [
 "ingen kursdata"
 ],
 "HDFC.IL": [
 "ingen kursdata"
 ],
-"HEXA.ST": [
-"ingen kursdata"
-],
 "HLX": [
-"ingen kursdata"
-],
-"HM.ST": [
 "ingen kursdata"
 ],
 "HOLM.ST": [
@@ -127,35 +127,20 @@
 "INFY.IL": [
 "ingen kursdata"
 ],
-"INVE.ST": [
-"ingen kursdata"
-],
 "KYOCY": [
 "ingen kursdata"
 ],
 "LAGR.ST": [
 "ingen kursdata"
 ],
-"LATO.ST": [
-"ingen kursdata"
-],
 "LEG": [
-"ingen kursdata"
-],
-"LIFCO.ST": [
 "ingen kursdata"
 ],
 "LQDA": [
 "dagsrörelse -57 % den 2026-09-30"
 ],
-"LUND.ST": [
-"ingen kursdata"
-],
 "LXP": [
 "tyst sedan 2026-10-30"
-],
-"MAERSK.CO": [
-"ingen kursdata"
 ],
 "MT.PA": [
 "ingen kursdata"
@@ -164,15 +149,6 @@
 "ingen kursdata"
 ],
 "NG-.L": [
-"ingen kursdata"
-],
-"NIBE.ST": [
-"ingen kursdata"
-],
-"NOVO.CO": [
-"ingen kursdata"
-],
-"NSIS.CO": [
 "ingen kursdata"
 ],
 "OCTV.ST": [
@@ -190,68 +166,29 @@
 "RAMP": [
 "tyst sedan 2026-10-30"
 ],
-"ROCK.CO": [
-"ingen kursdata"
-],
 "ROG.SW": [
 "ingen kursdata"
 ],
 "RR-.L": [
 "ingen kursdata"
 ],
-"SAAB.ST": [
-"ingen kursdata"
-],
-"SAGA.ST": [
-"ingen kursdata"
-],
-"SCA.ST": [
-"ingen kursdata"
-],
 "SDR.L": [
 "tyst sedan 2026-10-01"
-],
-"SEB.ST": [
-"ingen kursdata"
 ],
 "SECT.ST": [
 "ingen kursdata"
 ],
-"SECU.ST": [
-"ingen kursdata"
-],
-"SHB.ST": [
-"ingen kursdata"
-],
-"SKA.ST": [
-"ingen kursdata"
-],
-"SKF.ST": [
-"ingen kursdata"
-],
 "SN-.L": [
-"ingen kursdata"
-],
-"SSAB.ST": [
 "ingen kursdata"
 ],
 "SSNLF": [
 "nollvolym 5 dagar",
 "stillastående 10 dagar"
 ],
-"SWEC.ST": [
-"ingen kursdata"
-],
-"SWED.ST": [
-"ingen kursdata"
-],
 "SYDB.CO": [
 "ingen kursdata"
 ],
 "TATA.IL": [
-"ingen kursdata"
-],
-"TEL2.ST": [
 "ingen kursdata"
 ],
 "TOELY": [
@@ -260,16 +197,10 @@
 "TOP.CO": [
 "ingen kursdata"
 ],
-"TREL.ST": [
-"ingen kursdata"
-],
 "TW-.L": [
 "ingen kursdata"
 ],
 "UU-.L": [
-"ingen kursdata"
-],
-"VOLV.ST": [
 "ingen kursdata"
 ]
 },
@@ -505,12 +436,10 @@
 "ASO",
 "ASRNL.AS",
 "ASSA-B.ST",
-"ASSA.ST",
 "ASTE",
 "ASTH",
 "ATCO-A.ST",
 "ATCO-B.ST",
-"ATCO.ST",
 "ATEN",
 "ATEYY",
 "ATI",
@@ -561,7 +490,6 @@
 "BAH",
 "BAKKA.OL",
 "BALD-B.ST",
-"BALD.ST",
 "BALL",
 "BAMI.MI",
 "BAMNB.AS",
@@ -673,7 +601,6 @@
 "BSX",
 "BSY",
 "BT-A.L",
-"BT.A",
 "BTI",
 "BTRW.L",
 "BTSG",
@@ -708,7 +635,6 @@
 "CAR",
 "CARG",
 "CARL-B.CO",
-"CARL.CO",
 "CARR",
 "CART",
 "CASH",
@@ -803,7 +729,6 @@
 "COLL",
 "COLM",
 "COLO-B.CO",
-"COLO.CO",
 "CON",
 "CON.DE",
 "COO",
@@ -1030,7 +955,6 @@
 "EPAM",
 "EPC",
 "EPI-A.ST",
-"EPI.ST",
 "EPR",
 "EPRT",
 "EQH",
@@ -1040,7 +964,6 @@
 "EQT.ST",
 "ERF.PA",
 "ERIC-B.ST",
-"ERIC.ST",
 "ERIE",
 "ERJ",
 "ES",
@@ -1050,7 +973,6 @@
 "ESNT",
 "ESS",
 "ESSITY-B.ST",
-"ESSITY.ST",
 "ETN",
 "ETR",
 "ETSY",
@@ -1189,7 +1111,6 @@
 "GEO",
 "GET.PA",
 "GETI-B.ST",
-"GETI.ST",
 "GEV",
 "GF.SW",
 "GFC.PA",
@@ -1271,7 +1192,6 @@
 "HEN3.DE",
 "HER.MI",
 "HEXA-B.ST",
-"HEXA.ST",
 "HFG.DE",
 "HFWA",
 "HGV",
@@ -1291,7 +1211,6 @@
 "HLT",
 "HLX",
 "HM-B.ST",
-"HM.ST",
 "HMC",
 "HMN",
 "HNI",
@@ -1394,7 +1313,6 @@
 "INTU",
 "INVA",
 "INVE-B.ST",
-"INVE.ST",
 "INVH",
 "INVP.L",
 "INVX",
@@ -1515,7 +1433,6 @@
 "LAMR",
 "LAND.L",
 "LATO-B.ST",
-"LATO.ST",
 "LAUR",
 "LAZ",
 "LBRT",
@@ -1541,7 +1458,6 @@
 "LIAB.ST",
 "LIF",
 "LIFCO-B.ST",
-"LIFCO.ST",
 "LII",
 "LIME.ST",
 "LIN",
@@ -1583,7 +1499,6 @@
 "LULU",
 "LUMN",
 "LUND-B.ST",
-"LUND.ST",
 "LUV",
 "LVS",
 "LW",
@@ -1600,7 +1515,6 @@
 "MAC",
 "MAERSK-A.CO",
 "MAERSK-B.CO",
-"MAERSK.CO",
 "MAN",
 "MANH",
 "MANTA.HE",
@@ -1767,7 +1681,6 @@
 "NHY.OL",
 "NI",
 "NIBE-B.ST",
-"NIBE.ST",
 "NIC",
 "NIO",
 "NJR",
@@ -1787,7 +1700,6 @@
 "NOV",
 "NOVN.SW",
 "NOVO-B.CO",
-"NOVO.CO",
 "NOVT",
 "NOW",
 "NP3.ST",
@@ -1796,7 +1708,6 @@
 "NRG",
 "NSC",
 "NSIS-B.CO",
-"NSIS.CO",
 "NSIT",
 "NSP",
 "NSSC",
@@ -2072,7 +1983,6 @@
 "ROAD",
 "ROCK",
 "ROCK-B.CO",
-"ROCK.CO",
 "ROG",
 "ROG.SW",
 "ROIV",
@@ -2108,14 +2018,12 @@
 "RYAN",
 "RYN",
 "SAAB-B.ST",
-"SAAB.ST",
 "SAB.MC",
 "SABR",
 "SAF.PA",
 "SAFE",
 "SAFT",
 "SAGA-B.ST",
-"SAGA.ST",
 "SAH",
 "SAIA",
 "SAIC",
@@ -2141,7 +2049,6 @@
 "SBSI",
 "SBUX",
 "SCA-B.ST",
-"SCA.ST",
 "SCATC.OL",
 "SCHL",
 "SCHP.SW",
@@ -2161,11 +2068,9 @@
 "SDZ.SW",
 "SE",
 "SEB-A.ST",
-"SEB.ST",
 "SECT-B.ST",
 "SECT.ST",
 "SECU-B.ST",
-"SECU.ST",
 "SEDG",
 "SEI",
 "SEIC",
@@ -2184,7 +2089,6 @@
 "SGSN.SW",
 "SHAK",
 "SHB-A.ST",
-"SHB.ST",
 "SHC",
 "SHC.L",
 "SHEL",
@@ -2206,9 +2110,7 @@
 "SITM",
 "SJM",
 "SKA-B.ST",
-"SKA.ST",
 "SKF-B.ST",
-"SKF.ST",
 "SKT",
 "SKY",
 "SKYD",
@@ -2272,7 +2174,6 @@
 "SRPT",
 "SRT3.DE",
 "SSAB-A.ST",
-"SSAB.ST",
 "SSB",
 "SSD",
 "SSE.L",
@@ -2313,9 +2214,7 @@
 "SW",
 "SW.PA",
 "SWEC-B.ST",
-"SWEC.ST",
 "SWED-A.ST",
-"SWED.ST",
 "SWK",
 "SWKS",
 "SWX",
@@ -2350,7 +2249,6 @@
 "TEL",
 "TEL.OL",
 "TEL2-B.ST",
-"TEL2.ST",
 "TELIA.ST",
 "TEMN.SW",
 "TEN.MI",
@@ -2396,7 +2294,6 @@
 "TPRO.MI",
 "TR",
 "TREL-B.ST",
-"TREL.ST",
 "TREX",
 "TRGP",
 "TRI",
@@ -2530,7 +2427,6 @@
 "VOE.VI",
 "VOLCAR-B.ST",
 "VOLV-B.ST",
-"VOLV.ST",
 "VONN.SW",
 "VOW3.DE",
 "VOYA",
