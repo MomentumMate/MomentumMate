@@ -115,6 +115,28 @@ def load_prices(tickers, years, cache=None):
     print(f"  {close.shape[1]} aktier med data, {close.shape[0]} handelsdagar")
     return close, vol
 
+def sp500_entry_dates():
+    """Inträdesdatum för dagens S&P 500-medlemmar ur Wikipedias tabell (kolumnen "Date added"). {ticker: Timestamp}."""
+    import requests, io
+    try:
+        r = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+                         headers={"User-Agent": "Mozilla/5.0 (MomentumMate backtest)"}, timeout=30); r.raise_for_status()
+        tabs = pd.read_html(io.StringIO(r.text))
+        out = {}
+        for tb in tabs:
+            cols = {str(c).strip().lower(): c for c in tb.columns}
+            sym = next((cols[c] for c in cols if c in ("symbol", "ticker")), None)
+            add = next((cols[c] for c in cols if c.startswith("date added") or c.startswith("date first added")), None)
+            if sym is None or add is None: continue
+            for _, row in tb.iterrows():
+                t = str(row[sym]).strip().replace(".", "-"); d = pd.to_datetime(str(row[add])[:10], errors="coerce")
+                if t and d == d: out[t] = d
+            break
+        print(f"  S&P 500: inträdesdatum för {len(out)} bolag ({sum(1 for d in out.values() if d >= pd.Timestamp('2015-01-01'))} tillagda sedan 2015)")
+        return out
+    except Exception as ex:
+        print(f"  S&P 500-inträdesdatum kunde inte hämtas: {str(ex)[:70]}"); return {}
+
 def repair_glitches(close, up=3.0, dn=-0.8, back_days=5):
     """Hittar dagsrörelser över +up / under dn. Är kursen tillbaka inom ±50 % av nivån före inom back_days handelsdagar
     ersätts de felaktiga dagarna med föregående stängning. Returnerar (close, lagade, kvarstående)."""
@@ -285,6 +307,11 @@ def score_panel(close, vol, cfg):
     if cfg["minturnover"] > 0 and vol is not None:
         turn = (close * vol).rolling(20, min_periods=12).mean()
         sc = sc.where(turn >= cfg["minturnover"])       # OBS: i lokal valuta (3 M USD för USA, 3 M pence för London)
+    if cfg.get("entry_dates"):
+        # Överlevnadsbias (test 2026-11-05, --survive): en aktie får vara köpkandidat först från den dag den togs in i sitt index.
+        # Dagens indexmedlemmar togs ofta in EFTER en stor uppgång; utan maskering får backtestet köpa den uppgången.
+        for t, d0 in cfg["entry_dates"].items():
+            if t in sc.columns: sc.loc[sc.index < d0, t] = np.nan
     if cfg.get("minadv_sek", 0) > 0 and vol is not None:
         # Likviditetsgolv i KRONOR (test 2026-11-05, --minadv): samma gräns för alla marknader.
         turn_sek = (close * vol).rolling(20, min_periods=12).mean() * pd.Series({t: fx_sek(t) for t in close.columns})
@@ -980,6 +1007,7 @@ def main():
     ap.add_argument("--smooth2", action="store_true", help="2.0 steg C: Clenow lutning×R² och riskjusterad 12-1 mot referens A (T+1 + slippage)")
     ap.add_argument("--costn", action="store_true", help="kostnadsläge: antal innehav 5/6/7/8/10 vid 60/100/150 tkr, 12-1 (P3) och Clenow 120")
     ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
+    ap.add_argument("--survive", action="store_true", help="överlevnadsbias: S&P 500-medlemmar som kandidater först från sitt inträdesdatum (Wikipedia)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
     a = ap.parse_args()
 
@@ -1701,6 +1729,57 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "fullt-antal",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias kvarstår. Slippage är en modell."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Överlevnadsbias (2026-11-05): hur mycket av 2.0:s resultat är uppgången FÖRE indexinträdet? ----------
+    if a.survive:
+        ED = sp500_entry_dates()
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", mom_measure="clenow", clenow_n=120,
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
+        sp = [t for t in close.columns if t in ED]
+        VAR = {
+            "E0. 2.0, hela universumet (som #76/#80)":                                   dict(B),
+            "E1. 2.0, hela universumet, S&P 500-aktier kandidater först från inträdet":   dict(B, entry_dates=ED),
+            "--- bara USA ---":                                                           None,
+            "U0. 2.0, USA (S&P 500/400/600 m.fl.)":                                       dict(B, mkt="us"),
+            "U1. U0, S&P 500-aktier först från inträdet":                                 dict(B, mkt="us", entry_dates=ED),
+            "--- bara S&P 500 (där inträdesdatum finns) ---":                             None,
+            "S0. 2.0, bara dagens S&P 500-medlemmar":                                     dict(B, universe=sp),
+            "S1. S0, kandidater först från inträdet":                                     dict(B, universe=sp, entry_dates=ED),
+            "--- 1.0 (12-1) för jämförelse ---":                                          None,
+            "P0. 1.0 (P3), hela universumet":                                             dict(B, mom_measure=None),
+            "P1. P0, S&P 500-aktier först från inträdet":                                 dict(B, mom_measure=None, entry_dates=ED),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Överlevnadsbias: kandidater först från indexinträdet  ({close.shape[1]} aktier, {len(sp)} i S&P 500 med datum) ##########")
+        print(f"   Universumet är dagens indexmedlemmar. Den del av resultatet som kommer från uppgången FÖRE inträdet var aldrig")
+        print(f"   investerbar med dagens lista. Skillnaden E0−E1 (och S0−S1 för rena storbolag) är en nedre gräns för biasen:")
+        print(f"   bolag som fallit ur index eller gått under saknas helt i båda och kan inte mätas här.\n")
+        print(f"   {'likaviktat snitt av universumet':<72}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over); uni = cfg.pop("universe", None)
+            cl_, vo_ = (close[uni], vol[uni]) if uni else (close, vol)
+            try:
+                e, tr, hd = run(cl_, vo_, cfg); st = stats(e, tr, yrs, hd, x=LAST_DIAG.get("x")); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<72}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %  köp/år {st['köp_per_år']}")
+            except Exception as ex:
+                import traceback; traceback.print_exc()
+                print(f"   {nm:<72} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [k for k in VAR if VAR[k] is not None and k in res and "år" in res[k]]
+        short = {k: k.split(".")[0] for k in names}
+        print(f"\n   === ÅR FÖR ÅR ===")
+        yrsall = sorted({y for k in names for y in res[k]["år"]})
+        print(f"   {'år':<8}" + "".join(f"{short[k]:>8}" for k in names))
+        for y in yrsall: print(f"   {y:<8}" + "".join(f"{res[k]['år'].get(y, '–'):>8}" for k in names))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "överlevnadsbias",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "sp500_med_datum": len(sp), "jämförelseindex": bst, "varianter": res,
+               "varning": "Nedre gräns: bolag som försvunnit ur index saknas helt. Slippage är en modell."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
