@@ -1681,6 +1681,25 @@ def main():
                 d5, dn = gd(5), gd(n)
                 oks.append(((dn.get("Calmar") or 0) > (d5.get("Calmar") or 0)) and ((dn.get("Sharpe") or 0) > (d5.get("Sharpe") or 0)))
                 print(f"   {mn:<5} {n:>2} innehav: {'VINNER' if all(oks) else 'faller':<7} 60✓/✗ 100 150 dubbla → " + " ".join("✓" if o else "✗" for o in oks))
+        # Delprov (2026-11-05 kväll): håller 7 mot 5 i båda halvorna? Bara tidsdelning – kostnadsläget handlar bara Norden.
+        print(f"\n   === DELPROV (100 tkr): Sharpe och CAGR per period ===")
+        SUBSET = {"P3-5": dict(B, n=5, port_sek=100_000.0), "P3-7": dict(B, n=7, port_sek=100_000.0),
+                  "C120-5": dict(B, n=5, port_sek=100_000.0, **MEAS["C120"]), "C120-7": dict(B, n=7, port_sek=100_000.0, **MEAS["C120"])}
+        idx = close.index; mid = idx[len(idx) // 2]
+        segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
+        split = {}
+        print(f"   {'delprov':<16}" + "".join(f"{k:>16}" for k in SUBSET))
+        for segn, (s0, s1) in segs.items():
+            sub = close.loc[s0:s1]; subv = vol.loc[s0:s1]
+            y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
+            row = {}
+            for k, over in SUBSET.items():
+                cfg = dict(DEF); cfg.update(over)
+                try: e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, y2, hd); row[k] = (st["Sharpe"], st["CAGR_%"], st["max_nedgång_%"])
+                except Exception: row[k] = (None, None, None)
+            split[segn] = row
+            print(f"   {segn:<16}" + "".join(f"{(str(v[0]) + ' ' + str(v[1]) + '% ' + str(v[2]) + '%') if v[0] is not None else '–':>16}" for v in row.values()))
+        res["_delprov"] = split
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "kostnadsläge-antal",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias kvarstår. Slippage är en modell."}
