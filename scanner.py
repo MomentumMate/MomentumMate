@@ -650,7 +650,9 @@ def dl(tickers, **kw):
     for i in range(0, len(tickers), CHUNK):
         ch = tickers[i:i + CHUNK]
         try:
-            df = retry(lambda: yf.download(ch, group_by="ticker", auto_adjust=False, progress=False, threads=True, timeout=45, **kw))
+            # auto_adjust=True sedan 2026-11-05 (SPEC § 18): split- och utdelningsjusterade kurser, samma som EODHD-vägen (adjusted_close)
+            # och backtestet. Med ojusterade kurser såg en split ut som en krasch och lagningen i repair_closes kunde "rätta" fel.
+            df = retry(lambda: yf.download(ch, group_by="ticker", auto_adjust=True, progress=False, threads=True, timeout=45, **kw))
             got = split_frames(df, ch)
             out.update(got)
             miss = [t for t in ch if t not in got]

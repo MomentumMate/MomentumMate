@@ -120,7 +120,7 @@ def main():
         sample = rng.sample([t for t in tick if t in last], min(60, len(last)))
         try:
             import yfinance as yf
-            y = yf.download(sample, period="5d", interval="1d", auto_adjust=False, progress=False, threads=True, group_by="ticker")
+            y = yf.download(sample, period="5d", interval="1d", auto_adjust=True, progress=False, threads=True, group_by="ticker")
             for t in sample:
                 try:
                     yc = y[t]["Close"].dropna() if isinstance(y.columns, pd.MultiIndex) else y["Close"].dropna()
