@@ -155,7 +155,12 @@ på skanningens data och på data med 2.0-fält. Röd körning = appen avviker f
 Backtest 2015–2026 med fyllnad dagen efter, slippage, köp vid månadsslut (#76/#79): **2.0: 42,8 % per år, Sharpe 1,20, Calmar 1,00, största nedgång −43 %.**
 1.0 på samma villkor: 34,1 %, Sharpe 1,11, −44 %. Likaviktat snitt av universumet: 19,1 %.
 Siffrorna bygger på dagens indexmedlemmar (överlevnadsbias) och tio års in-sample-tester. Körning-till-körning-bruset är ±3–4 procentenheter.
-**Räkna med hälften: 20–25 % per år, enskilda år mellan −30 och +100 %, största nedgång omkring −50 %.** Kostnadsläge: se § 8.
+
+**Överlevnadsbias, mätt nedre gräns (#81, 2026-11-05, `--survive`):** när dagens S&P 500-medlemmar får vara kandidater först från sitt inträdesdatum
+(189 av 503 tillagda sedan 2015) faller 2.0 från 44,0 till **36,4 %** (Sharpe 1,29 → 1,11, Calmar 1,05 → 0,89); bara USA 36,6 → 29,6 %; bara S&P 500 31,7 → **17,5 %**.
+1.0 faller 35,5 → 31,3 %. Korrigeringen gäller bara en femtedel av universumet och fångar inte bolag som fallit ur index eller gått under;
+den verkliga biasen är större. 2.0 slår 1.0 även efter korrigering (36,4 mot 31,3 %, Calmar 0,89 mot 0,73).
+**Räkna därför med hälften av backtestet: 20–25 % per år, enskilda år mellan −30 och +100 %, största nedgång omkring −50 %.** Kostnadsläge: se § 8.
 
 ## 15. Riskanalys (information)
 
