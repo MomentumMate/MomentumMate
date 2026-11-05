@@ -17,7 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm i playwright@1
+      - name: Installera Playwright (nytt försök vid tillfälligt registerfel, annars fast version)
+        run: npm i playwright@1 || (sleep 60 && npm i playwright@1) || npm i playwright@1.56.0
       - run: npx playwright install --with-deps chromium
       - name: Paritet på skanningens data
         run: node parity_test.js . 2>&1 | tee parity.log
