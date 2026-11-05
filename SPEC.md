@@ -163,6 +163,11 @@ Siffrorna bygger på dagens indexmedlemmar (överlevnadsbias) och tio års in-sa
 den verkliga biasen är större. 2.0 slår 1.0 även efter korrigering (36,4 mot 31,3 %, Calmar 0,89 mot 0,73).
 **Räkna därför med hälften av backtestet: 20–25 % per år, enskilda år mellan −30 och +100 %, största nedgång omkring −50 %.** Kostnadsläge: se § 8.
 
+**Kraschfönster (#82, 2026-11-05, 2.0 mot 1.0 på samma basis):** 2015–16 −16,5 mot −21,9 %; 2018 Q4 −24,0 mot −31,1 %; covid −39,0 mot −38,4 %;
+2022 (jan–okt) **−12,8 mot +3,1 %**; våren 2025 **−26,9 mot −22,4 %**. Återhämtningar: 2020 +122 mot +139 %, 2022–23 +50 mot +27 %.
+2.0 faller alltså mindre i de snabba nedgångarna 2015–16 och 2018 men mer i den utdragna björnmarknaden 2022 och våren 2025; en känd egenskap, inte ett fel.
+Hållvillkoret 12-1 > 0 utlöser sällan under 2.0 (11 försäljningar på tio år mot 247 för SMA200) men behålls som validerat. Förskjuten månadsprövning (den 15:e): 40,5 % mot 44,0 – inom bruset.
+
 ## 15. Riskanalys (information)
 
 Appen visar, utan att något av det ändrar en rad i förslaget: exponering per marknad (Norden/USA/Europa), per valuta och per sektor;
