@@ -204,8 +204,8 @@ genomfört belopp och pris, courtage. Loggen ger: modellportfölj mot verklig po
 | Likviditetsgolv | 3 M i handelsvalutan → ingen poäng | Samma sedan 2026-11-05 (`liqok`) |
 | Poänggolv | Inget golv, ingen övre gräns | 0–100 (påverkar inte ordningen i toppen) |
 | Lika Clenow-värde | Kolumnordning (alfabetisk ticker) | Listordning – **ska fastställas** |
-| Felkurser | Kastar aktien (ska ändras till: lagar dagen, § 16) | Ingen kontroll (ska få § 16) |
+| Felkurser | Lagar dagen (`repair_glitches`), kastar bara om felet består | Lagar dagen (`repair_closes`) – samma regel sedan 2026-11-05 |
 | Avnotering | Säljs till sista kända kurs | Varning (§ 16) |
 | Avknoppning/split | Yahoo `auto_adjust`; EODHD justerad stängning | Samma datakällor – ska verifieras |
 
-Kvar att harmonisera: felkurser (§ 16), lika Clenow-värde, avknoppningar.
+Kvar att harmonisera: lika Clenow-värde, avknoppningar.
