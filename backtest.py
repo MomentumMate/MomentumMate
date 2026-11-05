@@ -590,6 +590,8 @@ def run(close, vol, cfg, vix=None):
         # --- dagliga stopp (gäller mellan ombalanseringarna) ---
         core_mode = cfg.get("core")          # kärnlager: absoluta hållvillkor, prövade månadsvis
         month_end = (i + 1 >= len(dates)) or (dates[i + 1].month != d.month)
+        if cfg.get("chk_mid"):      # förskjuten månadsprövning (robusthetstest 2026-11-05): första handelsdagen på/efter den 15:e
+            month_end = d.day >= 15 and (i == 0 or dates[i - 1].day < 15 or dates[i - 1].month != d.month)
         for t in list(hold):
             px = p.get(t)
             if px != px:   # NaN
@@ -977,20 +979,20 @@ def main():
     ap.add_argument("--out", default="backtest.json")
     ap.add_argument("--cache", default=None)
     ap.add_argument("--quick", action="store_true", help="kör bara grundfallet")
-    ap.add_argument("--combo", action="store_true", help="testa kombinationer i stället för en ändring i taget")
-    ap.add_argument("--robust", action="store_true", help="håller vinnaren på data den inte valts på?")
-    ap.add_argument("--exits", action="store_true", help="jämför utgångsmekanismer för swinghandel")
-    ap.add_argument("--vix", action="store_true", help="testar om volatilitetsindex skyddar mot momentumkrascher")
+    ap.add_argument("--combo", action="store_true", help="[historiskt, satellitläge, gammal basis] testa kombinationer i stället för en ändring i taget")
+    ap.add_argument("--robust", action="store_true", help="[historiskt, satellitläge, gammal basis] håller vinnaren på data den inte valts på?")
+    ap.add_argument("--exits", action="store_true", help="[historiskt, satellitläge, gammal basis] jämför utgångsmekanismer för swinghandel")
+    ap.add_argument("--vix", action="store_true", help="[historiskt, satellitläge, gammal basis] testar om volatilitetsindex skyddar mot momentumkrascher")
     ap.add_argument("--vixindex", default="^VIX", help="^VIX, ^VXN eller ^V2TX")
-    ap.add_argument("--entry", action="store_true", help="kostnader + poststorlek + rekyltajming")
-    ap.add_argument("--mix", action="store_true", help="bästa kombination av antal, marknad och hålltid per portföljstorlek")
-    ap.add_argument("--freq", action="store_true", help="hur ofta lönar det sig att handla?")
-    ap.add_argument("--conc", action="store_true", help="få innehav, inget stopp, låt vinnare löpa")
-    ap.add_argument("--decay", action="store_true", help="fångar volymbalans, ATH-avstånd och lägre toppar försämring i tid?")
-    ap.add_argument("--tp", action="store_true", help="kapar vinstmålet vinnarna? (appens tp=35/tpSell=50 är aldrig testad)")
-    ap.add_argument("--score", action="store_true", help="är appens poängmodell bättre än backtestets enklare?")
-    ap.add_argument("--srstop", action="store_true", help="stopp strax under närmaste stöd mot fast procent")
-    ap.add_argument("--momwin", action="store_true", help="momentumfönster: 12-1 mot 6-1, blandat, viktat")
+    ap.add_argument("--entry", action="store_true", help="[historiskt, satellitläge, gammal basis] kostnader + poststorlek + rekyltajming")
+    ap.add_argument("--mix", action="store_true", help="[historiskt, satellitläge, gammal basis] bästa kombination av antal, marknad och hålltid per portföljstorlek")
+    ap.add_argument("--freq", action="store_true", help="[historiskt, satellitläge, gammal basis] hur ofta lönar det sig att handla?")
+    ap.add_argument("--conc", action="store_true", help="[historiskt, satellitläge, gammal basis] få innehav, inget stopp, låt vinnare löpa")
+    ap.add_argument("--decay", action="store_true", help="[historiskt, satellitläge, gammal basis] fångar volymbalans, ATH-avstånd och lägre toppar försämring i tid?")
+    ap.add_argument("--tp", action="store_true", help="[historiskt, satellitläge, gammal basis] kapar vinstmålet vinnarna? (appens tp=35/tpSell=50 är aldrig testad)")
+    ap.add_argument("--score", action="store_true", help="[historiskt, satellitläge, gammal basis] är appens poängmodell bättre än backtestets enklare?")
+    ap.add_argument("--srstop", action="store_true", help="[historiskt, satellitläge, gammal basis] stopp strax under närmaste stöd mot fast procent")
+    ap.add_argument("--momwin", action="store_true", help="[historiskt, satellitläge, gammal basis] momentumfönster: 12-1 mot 6-1, blandat, viktat")
     ap.add_argument("--core", action="store_true", help="kärnlager: absoluta hållvillkor, månadsprövning, brusfilter")
     ap.add_argument("--crash", action="store_true", help="gapsäljning efter rapportsmällar + stå kvar genom marknadskrascher")
     ap.add_argument("--stale", action="store_true", help="trötta innehav: blir svaga men stigande aktier kvar i åratal, och ska de tvingas ut?")
@@ -1059,37 +1061,40 @@ def main():
 
     # ---------- Krasch (2026-11-02): rapportsmällar och marknadskrascher ----------
     if a.crash:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        M2 = dict(B, mom_measure="clenow", clenow_n=120)              # modell 2.0 (2026-11-05)
         VAR = {
-            "A. Kärna (referens): 12-1>0 & >SMA200, månadsvis":        dict(B),
-            "--- rapportsmällar: sälj dagen efter ett dagsfall ---":    None,
-            "G1. A + gap 15 %":                                         dict(B, gap_sell=15),
-            "G2. A + gap 20 %":                                         dict(B, gap_sell=20),
-            "G3. A + gap 25 %":                                         dict(B, gap_sell=25),
-            "G4. A + gap 20 %, dubbla kostnader":                       dict(B, gap_sell=20, **DBL),
-            "G5. A + gap 20 %, kvartal förskjutet 1 mån":               dict(B, gap_sell=20, reb="Q1"),
-            "--- inträdesfilter: köp bara om kursen ligger över SMA200 ---": None,
-            "G6. A + inträde kräver kurs > SMA200":                     dict(B, entry_sma200=True),
-            "G7. G6, dubbla kostnader":                                  dict(B, entry_sma200=True, **DBL),
-            "G8. G6, kvartal förskjutet 1 mån":                         dict(B, entry_sma200=True, reb="Q1"),
-            "--- marknadskrascher: stå kvar i stället för att sälja ---": None,
-            "H1. Bara 12-1 > 0 som hållvillkor (utan SMA200)":          dict(B, hold_no_sma=True),
-            "H2. Bara kurs > SMA200 som hållvillkor (utan 12-1)":       dict(B, hold_no_mom=True),
-            "H3. Inga hållvillkor alls – säljer bara ner till 20 vid kvartal": dict(B, hold_no_sma=True, hold_no_mom=True),
-            "H4. H1, kvartal förskjutet 1 mån":                         dict(B, hold_no_sma=True, reb="Q1"),
-            "H5. H3, kvartal förskjutet 1 mån":                         dict(B, hold_no_sma=True, hold_no_mom=True, reb="Q1"),
+            "A.  Modell 2.0 (referens): Clenow 120, håll 12-1>0 & >SMA200, månadsvis": dict(M2),
+            "A1. Modell 1.0 (12-1) på samma basis, för jämförelse":   dict(B),
+            "--- rapportsmällar: sälj dagen efter ett dagsfall (2.0) ---": None,
+            "G1. A + gap 15 %":                                         dict(M2, gap_sell=15),
+            "G2. A + gap 20 %":                                         dict(M2, gap_sell=20),
+            "G3. A + gap 25 %":                                         dict(M2, gap_sell=25),
+            "G4. A + gap 20 %, dubbla kostnader":                       dict(M2, gap_sell=20, **DBL),
+            "G5. A + gap 20 %, kvartal förskjutet 1 mån":               dict(M2, gap_sell=20, reb="Q1"),
+            "--- marknadskrascher: stå kvar i stället för att sälja (2.0) ---": None,
+            "H1. Bara 12-1 > 0 som hållvillkor (utan SMA200)":          dict(M2, hold_no_sma=True),
+            "H2. Bara kurs > SMA200 som hållvillkor (utan 12-1)":       dict(M2, hold_no_mom=True),
+            "H3. Inga hållvillkor alls – säljer bara ner till 20 vid kvartal": dict(M2, hold_no_sma=True, hold_no_mom=True),
+            "H4. H1, kvartal förskjutet 1 mån":                         dict(M2, hold_no_sma=True, reb="Q1"),
+            "H5. H3, kvartal förskjutet 1 mån":                         dict(M2, hold_no_sma=True, hold_no_mom=True, reb="Q1"),
+            "--- förskjuten månadsprövning: prövning och köp mitt i månaden i stället för vid månadsslut (2.0) ---": None,
+            "S1. A med prövning den 15:e":                              dict(M2, chk_mid=True),
+            "S2. A1 (1.0) med prövning den 15:e":                       dict(B, chk_mid=True),
         }
         yrs = (close.index[-1] - close.index[210]).days / 365.25
         be, bst = benchmark(close, yrs)
         # kraschfönster: hur gick det just där det gjorde ont?
-        WIN = {"2018 Q4 (okt 1 – dec 24)": ("2018-10-01", "2018-12-24"),
+        WIN = {"2015–16 (aug 1 – feb 11)": ("2015-08-01", "2016-02-11"),
+               "2018 Q4 (okt 1 – dec 24)": ("2018-10-01", "2018-12-24"),
                "2020 covid (feb 19 – mar 23)": ("2020-02-19", "2020-03-23"),
                "2020 återhämtning (mar 23 – aug 31)": ("2020-03-23", "2020-08-31"),
                "2022 björn (jan 3 – okt 12)": ("2022-01-03", "2022-10-12"),
-               "2022–23 återhämtning (okt 12 – jul 31)": ("2022-10-12", "2023-07-31")}
+               "2022–23 återhämtning (okt 12 – jul 31)": ("2022-10-12", "2023-07-31"),
+               "2025 vår (feb 19 – apr 8)": ("2025-02-19", "2025-04-08")}
         def window(e, s0, s1):
             seg = e.loc[s0:s1]
             return round(float(seg.iloc[-1] / seg.iloc[0] - 1) * 100, 1) if len(seg) > 5 else None
@@ -1129,8 +1134,8 @@ def main():
 
     # ---------- Trötta innehav (2026-11-04) ----------
     if a.stale:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         yrs = (close.index[-1] - close.index[210]).days / 365.25
@@ -1208,8 +1213,8 @@ def main():
 
     # ---------- Jämnhet (2026-11-04): prisbaserad kvalitet ----------
     if a.smooth:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         VAR = {
@@ -1269,8 +1274,8 @@ def main():
 
     # ---------- Vikt efter styrka (2026-11-04): mer kapital i de högst rankade? ----------
     if a.wt:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         VAR = {
@@ -1327,8 +1332,8 @@ def main():
 
     # ---------- Poängtaket (2026-11-04): ordningen bland aktier som delar topp-poängen ----------
     if a.tie:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         VAR = {
@@ -1436,8 +1441,8 @@ def main():
 
     # ---------- 2.0-kandidaten (2026-11-05, TESTPLAN_2.0.md § 1–3): realistisk fyllnad + storbolagsuniversum ----------
     if a.mm2:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         R = dict(t1=True, slip=True)                   # realistisk fyllnad: nästa dags stängning + marknadspåverkan
@@ -1839,8 +1844,8 @@ def main():
 
     # ---------- Likaviktning (2026-11-04): fylla på eftersläntrare eller köpa nya ledare? ----------
     if a.rw:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
-                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis sedan 2026-11-05 (köp vid månadsslut, kalender-12-1, T+1, slippage)
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         VAR = {
