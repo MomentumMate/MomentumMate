@@ -47,7 +47,7 @@ Rankningsplats = ordning efter poäng, hela universumet. Platsen är ett **intr�
 
 ## 4. Portföljstorlek
 
-- Kapital ≥ 161 000 kr (5 × 32 222): **20 innehav**, alla marknader. Målvikt 5 %.
+- Kapital ≥ 161 000 kr (5 × 32 222): **20 innehav**, alla marknader. Målvikt 5 %. *(Prövat om under 2.0, #80 2026-11-05: 15/20/25/30 – 20 står kvar.)*
 - Kapital < 161 000 kr (**kostnadsläge**): **7 innehav, bara nordiska aktier**, rankade sinsemellan. Målvikt 1/7 ≈ 14,3 %.
   Utländska poster som kapitalet inte bär säljs, lägst rankad först.
   *(Gränsen 161 000: mix-test 2026-10, minimicourtaget 29 kr på utländska poster. Antalet 7: #78 2026-11-05 – 5/6/7/8/10 innehav vid 60/100/150 tkr;
@@ -136,6 +136,7 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 | Clenow-fönster 60 eller 250 dagar | #76 2026-11-05 | faller; 90–180 vinner |
 | Clenows gapfilter (ingen kandidat med dagsrörelse > 15 %) | #76 2026-11-05 | sämre |
 | Relativt likviditetsavdrag mot börsens median (fanns bara i appen) | aldrig validerat | borttaget 2026-11-05 |
+| 15, 25 eller 30 innehav i fullt läge | #80 2026-11-05 | 15 faller på förskjutet kvartal; 25/30 sämre |
 
 ## 12. Information som visas men inte styr
 
@@ -171,15 +172,15 @@ hur stor del av kapitalet som ligger i strategin och lägger resten i indexfond/
 
 ## 16. Datakvalitet och exekvering (information och spärr)
 
-- **Daglig datakontroll** (`datacheck.yml`, före skanningen): per aktie senaste stängning (högst två handelsdagar gammal i aktiens egen kalender),
+- **Daglig datakontroll** (`datacheck.yml`, 03:30 UTC natten efter varje handelsdag): per aktie senaste stängning (högst två handelsdagar gammal i aktiens egen marknad),
   orimlig kurs (dagsrörelse > +100 %/−50 %, nollvolym fem dagar, stillastående tio dagar, dubbletter, EODHD mot Yahoo > 20 %), borta ur lista sedan
-  i går (med orsak), indexkällor minst 90 % av gårdagens antal. Resultat i `datacheck.json` och `datacheck.md`.
+  i går (med orsak), indexkällor minst 90 % av gårdagens antal. Resultat i `datacheck.json` och `datacheck.md` på main.
   Jobbet blir rött vid mer än 2 % tysta aktier, en hel marknad saknad eller ett eget innehav flaggat.
-- **Spärr i appen:** om kontrollen är röd eller äldre än ett dygn visas "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" i stället för ett förslag.
+- **Spärr i appen:** om kontrollen är röd, eller inte har körts natten efter senaste handelsdag, visas "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" i stället för ett förslag.
   Spärren är det enda i § 15–18 som hindrar ett förslag; den ändrar aldrig en rads innehåll.
 - **Felaktiga kurser lagas, kastas inte:** en dagsrörelse över +300 %/under −80 % som är tillbaka inom fem handelsdagar ersätts med föregående stängning,
-  i både backtest och skanner. Bara aktier där felet består tas bort. *(Före 2026-11-05 kastade backtestet 20 aktier helt, bland dem tolv nordiska
-  med korrupta EODHD-rader 2019-06-10 och 2019-08-05, medan skannern behöll dem.)*
+  i både backtest (`repair_glitches`) och skanner (`repair_closes`). Bara aktier där felet består tas bort. *(Före 2026-11-05 kastade backtestet 20 aktier helt, bland dem tolv nordiska
+  med korrupta EODHD-rader 2019-06-10 och 2019-08-05, medan skannern behöll dem. Nu lagas 10, 10 kastas.)*
 - Avnoterade innehav: backtestet säljer till sista kända kurs; appen visar innehavet med varning tills ägaren registrerar försäljningen.
 - Signal räknas på stängningen; tidigaste handel är nästa handelsdag.
 
@@ -202,6 +203,7 @@ genomfört belopp och pris, courtage. Loggen ger: modellportfölj mot verklig po
 | SMA200 stigande | SMA200 i dag > i går | Samma |
 | Överhettning | (r1m − 25)/25 × 15 + (RSI − 80)/20 × 10, tak 25 | Samma sedan 2026-11-05 |
 | Likviditetsgolv | 3 M i handelsvalutan → ingen poäng | Samma sedan 2026-11-05 (`liqok`) |
+| Universum | `get_tickers` + `collapse_share_classes` | Samma sedan 2026-11-05 |
 | Poänggolv | Inget golv, ingen övre gräns | 0–100 (påverkar inte ordningen i toppen) |
 | Lika Clenow-värde | Kolumnordning (alfabetisk ticker) | Listordning – **ska fastställas** |
 | Felkurser | Lagar dagen (`repair_glitches`), kastar bara om felet består | Lagar dagen (`repair_closes`) – samma regel sedan 2026-11-05 |
