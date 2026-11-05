@@ -4,7 +4,7 @@ name: Datakontroll
 # GitHub mejlar ägaren, och appen visar "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" tills nästa gröna kontroll.
 on:
   schedule:
-    - cron: "45 11 * * 1-5"   # 11:45 UTC, före skanningen 12:30
+    - cron: "30 3 * * 2-6"    # 03:30 UTC (04:30 svensk tid) natten efter varje handelsdag: alla marknader stängda, EODHD har gårdagens slutkurser, nio timmar före skanningen 12:30
   workflow_dispatch:
 
 permissions:

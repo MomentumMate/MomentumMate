@@ -991,11 +991,9 @@ def main():
         # Samma marknader som skannern kör skarpt, så att backtestet validerar rätt universum
         for m in SC.MARKETS:
             k = m["k"]
-            v = m.get("source") or m.get("tickers")
-            if callable(v):
-                try: v = v()
-                except Exception as ex:
-                    print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
+            try: v = SC.get_tickers(m)      # 2026-11-05: samma normalisering som skannern (tog tidigare råa namn → döda dubbletter)
+            except Exception as ex:
+                print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
             if isinstance(v, list) and v:
                 tick += v; print(f"  {k}: {len(v)} aktier")
             else: print(f"  VARNING: {k} gav 0 aktier")

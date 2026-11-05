@@ -36,12 +36,10 @@ def universe():
     """Samma listor som skannern och backtestet. Returnerar (tickers, {marknadsnyckel: antal})."""
     tick, per_src = [], {}
     for m in SC.MARKETS:
-        k = m["k"]; v = m.get("source") or m.get("tickers")
-        if callable(v):
-            try: v = v()
-            except Exception as ex: print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
-        if isinstance(v, list):
-            per_src[k] = len(v); tick += v
+        k = m["k"]
+        try: v = SC.get_tickers(m)          # samma normalisering som skannern (ASSA.ST → ASSA-B.ST osv.)
+        except Exception as ex: print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
+        per_src[k] = len(v); tick += v
     return sorted(set(tick)), per_src
 
 def own_holdings():
