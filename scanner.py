@@ -1255,9 +1255,26 @@ def short_about(txt, n=240):
         out = (out + " " + sent).strip()
     return out or (t[:n - 1].rsplit(" ", 1)[0] + "…")
 
+def repair_closes(d, up=3.0, dn=-0.8, back_days=5):
+    """Laga i stället för kasta (SPEC § 16, 2026-11-05) – samma regel som backtest.repair_glitches: en dagsrörelse över +up /
+    under dn som är tillbaka inom ±50 % inom back_days handelsdagar ersätts med föregående stängning. Felet som består lämnas."""
+    try:
+        c = d["Close"].astype(float).values.copy(); n_fix = 0
+        for i0 in range(1, len(c)):
+            b = c[i0 - 1]
+            if not (b == b and b > 0) or c[i0] != c[i0] or (c[i0] / b - 1 <= up and c[i0] / b - 1 >= dn): continue
+            j = next((k for k in range(i0, min(len(c), i0 + back_days + 1)) if c[k] == c[k] and 0.5 <= c[k] / b <= 2.0), None)
+            if j is None: continue
+            c[i0:j] = b; n_fix += j - i0
+        if n_fix:
+            d = d.copy(); d["Close"] = c
+    except Exception:
+        pass
+    return d
+
 def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     """Räknar fram en aktiepost. Ren funktion – inget nätverk."""
-    d = d.dropna(subset=["Close"])
+    d = repair_closes(d.dropna(subset=["Close"]))
     if len(d) < 61: return None
     us = is_us(t)
     if intr:

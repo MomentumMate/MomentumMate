@@ -96,20 +96,16 @@ def load_prices(tickers, years, cache=None):
     # En aktie som på EN dag rör sig mer än +300 % eller −80 % utan att komma tillbaka inom fem dagar
     # är nästan alltid ett datafel (fel valuta, saknad split, decimalfel). Sådana aktier rapporteras
     # och tas bort helt – hellre 10 aktier färre än en fiktiv vinnare.
-    r = close.pct_change()
-    bad = {}
-    for t in close.columns:
-        rt = r[t].dropna()
-        if rt.empty: continue
-        hi, lo = rt.max(), rt.min()
-        if hi > 3.0 or lo < -0.8:
-            d0 = rt.idxmax() if hi > 3.0 else rt.idxmin()
-            i0 = close.index.get_loc(d0)
-            before = close[t].iloc[max(0, i0 - 1)]; after = close[t].iloc[min(len(close) - 1, i0 + 5)]
-            ratio = after / before if before and before == before and before > 0 else np.nan
-            bad[t] = f"{d0.date()} {hi*100:+.0f}%/{lo*100:+.0f}%, kurs 5 d senare {ratio:.2f}× före"
+    # Laga i stället för kasta (SPEC § 16, 2026-11-05): korrupta dagar som är tillbaka inom fem handelsdagar ersätts med
+    # föregående stängning; aktien behålls. Bara aktier där felet består (kursen kommer inte tillbaka) tas bort.
+    # Tidigare kastades hela aktien, vilket tog bort 12 nordiska bolag (Bufab, Instalco, Troax, Hexatronic m.fl.) ur alla
+    # tio åren på grund av korrupta EODHD-rader 2019-06-10 och 2019-08-05, medan skannern behöll dem.
+    close, fixed, bad = repair_glitches(close)
+    if fixed:
+        print(f"  FELKURSER LAGADE: {len(fixed)} aktier (dagar ersatta med föregående stängning):")
+        for t, why in list(fixed.items())[:25]: print(f"    {t:<14} {why}")
     if bad:
-        print(f"  FELKURSFILTER: {len(bad)} aktier bortfiltrerade (extrem dagsrörelse):")
+        print(f"  FELKURSFILTER: {len(bad)} aktier bortfiltrerade (felet består):")
         for t, why in list(bad.items())[:25]: print(f"    {t:<14} {why}")
         close = close.drop(columns=list(bad))
     vol = vol.reindex(columns=close.columns)
@@ -118,6 +114,34 @@ def load_prices(tickers, years, cache=None):
         except Exception: pass
     print(f"  {close.shape[1]} aktier med data, {close.shape[0]} handelsdagar")
     return close, vol
+
+def repair_glitches(close, up=3.0, dn=-0.8, back_days=5):
+    """Hittar dagsrörelser över +up / under dn. Är kursen tillbaka inom ±50 % av nivån före inom back_days handelsdagar
+    ersätts de felaktiga dagarna med föregående stängning. Returnerar (close, lagade, kvarstående)."""
+    close = close.copy(); fixed, bad = {}, {}
+    r = close.pct_change()
+    for t in close.columns:
+        rt = r[t]
+        hits = rt.index[(rt > up) | (rt < dn)]
+        if len(hits) == 0: continue
+        col = close[t].values.copy(); idx = close.index
+        ok = True; n_fix = 0; first = None
+        for d0 in hits:
+            i0 = idx.get_loc(d0)
+            if i0 < 1: continue
+            before = col[i0 - 1]
+            if not (before == before and before > 0): continue
+            if 0.5 <= col[i0] / before <= 2.0: continue            # redan lagad av en tidigare träff
+            j = None
+            for k in range(i0, min(len(col), i0 + back_days + 1)):
+                v = col[k]
+                if v == v and 0.5 <= v / before <= 2.0: j = k; break
+            if j is None:
+                ok = False; bad[t] = f"{d0.date()} {rt.loc[d0]*100:+.0f} %, kommer inte tillbaka inom {back_days} dagar"; break
+            col[i0:j] = before; n_fix += j - i0; first = first or d0
+        if ok and n_fix:
+            close[t] = col; fixed[t] = f"{first.date()} ({n_fix} dag{'ar' if n_fix > 1 else ''})"
+    return close, fixed, bad
 
 # ----------------------------------------------------------------------------- modell
 def cal_shift(close, months):
