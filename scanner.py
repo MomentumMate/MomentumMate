@@ -1403,9 +1403,12 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     volconf = min(volx, 2.5) / 2.5 * 100                   # volymbekräftelse
 
     # Överhettning: extrem uppgång senaste månaden och extremt RSI vänder oftare ned
+    # Samma formel som backtestet (paritet 2026-11-05): månadsavdraget utan eget tak, RSI-avdraget fullt vid 100, summan högst 25.
+    # Paritetstestet P4 visade att den gamla formeln (tak 15 vid +50 %, RSI fullt vid 95) gav identiskt resultat; vi följer den validerade.
     heat = 0.0
-    if r1 > 25: heat += min((r1 - 25) / 25, 1) * 15
-    if rs > 80: heat += min((rs - 80) / 15, 1) * 10
+    if r1 > 25: heat += (r1 - 25) / 25 * 15
+    if rs > 80: heat += (rs - 80) / 20 * 10
+    heat = min(heat, 25.0)
 
     # Vikter efter backtest 2026-10-16 (1 481 aktier, 10 år): mom 80 / trend 20 gav 16,00 %
     # mot 15,56 % för 65/35 och 13,73 % när volymbekräftelsen vägdes in med 15 %.
