@@ -40,6 +40,8 @@ def universe():
         try: v = SC.get_tickers(m)          # samma normalisering som skannern (ASSA.ST → ASSA-B.ST osv.)
         except Exception as ex: print(f"  VARNING: {k} kunde inte hämtas ({str(ex)[:60]})"); v = []
         per_src[k] = len(v); tick += v
+    m = SC.collapse_share_classes(sorted(set(tick)))
+    tick = [m.get(t, t) for t in tick]
     return sorted(set(tick)), per_src
 
 def own_holdings():

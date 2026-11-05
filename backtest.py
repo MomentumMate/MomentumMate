@@ -1004,7 +1004,8 @@ def main():
                 fb = getattr(SC, nm, None)
                 if isinstance(fb, (list, tuple)) and fb:
                     tick += list(fb); print(f"  använder {nm} ({len(fb)} aktier)")
-        tick = sorted(set(tick))
+        m = SC.collapse_share_classes(sorted(set(tick)))      # 2026-11-05: ADDT.ST + ADDT-B.ST = samma bolag
+        tick = sorted(set(m.get(t, t) for t in tick))
     def _grp(t):
         if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
         return "Europa/övrigt" if "." in t else "USA"

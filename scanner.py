@@ -311,7 +311,7 @@ LIGHT_MIN_DV = 3_000_000   # lägsta genomsnittliga omsättning per dag (i hande
 PRESETS = {
     "OMXC": {"n": "OMX Köpenhamn", "flag": "🇩🇰", "cur": "kr", "ccy": "DKK", "reg": "EU", "tickers": [
         "NOVO-B.CO","DSV.CO","MAERSK-B.CO","MAERSK-A.CO","VWS.CO","ORSTED.CO","CARL-B.CO","COLO-B.CO","GMAB.CO","DANSKE.CO","PNDORA.CO","TRYG.CO",
-        "NSIS-B.CO","DEMANT.CO","GN.CO","FLS.CO","ROCK-B.CO","AMBU-B.CO","ISS.CO","JYSK.CO","NKT.CO","RBREW.CO","BAVA.CO","ZEAL.CO","ALMB.CO","SYDB.CO","TOP.CO","NETC.CO"]},
+        "NSIS-B.CO","DEMANT.CO","GN.CO","FLS.CO","ROCK-B.CO","AMBU-B.CO","ISS.CO","JYSK.CO","NKT.CO","RBREW.CO","BAVA.CO","ZEAL.CO","ALMB.CO","SYDB.CO","NETC.CO"]},   # TOP.CO (Topdanmark) uppköpt av Sampo 2024, borttagen 2026-11-05
     "OSE": {"n": "Oslo Børs", "flag": "🇳🇴", "cur": "kr", "ccy": "NOK", "reg": "EU", "tickers": [
         "EQNR.OL","DNB.OL","MOWI.OL","TEL.OL","ORK.OL","YAR.OL","NHY.OL","AKRBP.OL","SALM.OL","SUBC.OL","STB.OL","GJF.OL","KOG.OL","TOM.OL","NAS.OL",
         "AUTO.OL","FRO.OL","BAKKA.OL","AKER.OL","SCATC.OL","KIT.OL","LSG.OL","ENTRA.OL","HAFNI.OL","VAR.OL","WAWI.OL","ELK.OL","NOD.OL","TGS.OL","BWLPG.OL","AFG.OL"]},
@@ -362,7 +362,7 @@ PRESETS = {
         # --- Noterade på NYSE eller Nasdaq: full likviditet, normal handel ---
         "TSM","SONY","TM","HMC","MUFG","SMFG","MFG","NMR","CAJ","IX",              # Taiwan, Japan
         "BABA","PDD","JD","NTES","BIDU","TCOM","BEKE","YUMC","ZTO","LI","NIO","XPEV","BILI","TME","VIPS",  # Kina
-        "INFY","WIT","HDB","IBN","RDY","MMYT","AZRE",                               # Indien
+        "INFY","WIT","HDB","IBN","RDY","MMYT",                                      # Indien (AZRE avnoterad 2023, borttagen 2026-11-05)
         "KB","SHG","WF","PKX","KEP",                                                # Sydkorea
         "SE","GRAB","CPNG",                                                         # Sydostasien
         "BHP","RIO","WDS",                                                          # Australien
@@ -462,7 +462,23 @@ RENAME = {"AKERBP.OL": "AKRBP.OL", "ASMI.AS": "ASM.AS", "BNPP.PA": "BNP.PA", "AM
           "AIRP.PA": "AI.PA", "AMBU.CO": "AMBU-B.CO", "ATOS.PA": "ATO.PA", "BEB.SW": "BEAN.SW",
           "BT.A": "BT-A.L", "CAGR.PA": "ACA.PA", "CAPP.PA": "CAP.PA", "CARR.PA": "CA.PA", "DANO.PA": "BN.PA",
           "ESLX.PA": "EL.PA", "FERR.MI": "RACE.MI", "ENX.AS": "ENX.AS", "DSM.SW": "DSFIR.AS", "CASP.ST": "CAST.ST",
-          "FALK.CO": "FLS.CO", "EFGI.PA": "EFI.PA", "CCH.SW": "CCH.L", "CTS.DE": "CTEC.L"}
+          "FALK.CO": "FLS.CO", "EFGI.PA": "EFI.PA", "CCH.SW": "CCH.L", "CTS.DE": "CTEC.L",
+          # 2026-11-05 (datakontrollen): namn som gav ingen kursdata
+          "NDA.HE": "NDA-FI.HE", "MT.PA": "MT.AS", "CAJ": "CAJPY", "HOLM.ST": "HOLM-B.ST", "INDU.ST": "INDU-C.ST",
+          "ALK.CO": "ALK-B.CO", "BEIJ.ST": "BEIJ-B.ST", "ADDT.ST": "ADDT-B.ST", "LAGR.ST": "LAGR-B.ST", "SECT.ST": "SECT-B.ST"}
+def collapse_share_classes(tickers):
+    """2026-11-05 (datakontrollen): "ADDT.ST" från en Wikipedia-lista och "ADDT-B.ST" från en handkurerad är samma bolag.
+    Returnerar {råticker: klassticker} för alla fall där en klassvariant (-A/-B/-C) finns bland tickers."""
+    have = set(tickers); m = {}
+    for t in tickers:
+        if "." not in t: continue
+        base, suf = t.rsplit(".", 1)
+        if "-" in base: continue
+        for cls in ("A", "B", "C"):
+            c = f"{base}-{cls}.{suf}"
+            if c in have: m[t] = c; break
+    return m
+
 _KNOWN = None
 def known_tickers():
     """Alla tickers ur de handkurerade listorna (inte Wikipedia-skrapningarna)."""
@@ -477,6 +493,8 @@ def known_tickers():
     return _KNOWN
 def normalize_ticker(t):
     """Översätter en osäker ticker till den kända formen om en sådan finns."""
+    if t in RENAME: return RENAME[t]
+    if t.endswith("-.L"): t = t[:-3] + ".L"          # 2026-11-05: "AV." i STOXX-listan blev "AV-.L"; Yahoo heter AV.L
     if t in RENAME: return RENAME[t]
     K = known_tickers()
     if t in K or "." not in t: return t
@@ -1896,6 +1914,10 @@ def main():
     if extra:
         markets_used.append({"k": "EXTRA", "n": "Egna tickers", "flag": "⭐", "cur": "$", "ccy": "USD", "hidden": True, "mixed": True, "source": extra})
         for t in extra: uni[t] = ["OWNED"]   # bara en etikett för var de kom ifrån, ingen särbehandling
+    # 2026-11-05: samma bolag från två listor med och utan aktieklass slås ihop (ADDT.ST → ADDT-B.ST)
+    for raw, cls in collapse_share_classes(list(uni)).items():
+        for k in uni.pop(raw, []):
+            if k not in uni.setdefault(cls, []): uni[cls].append(k)
     tickers = list(uni)
     print(f"Universum: {len(tickers)} aktier i {len(markets_used)} marknader")
 
