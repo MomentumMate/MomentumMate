@@ -250,6 +250,10 @@ def score_panel(close, vol, cfg):
             rm = close.rolling(231, min_periods=180).max()
             mdd = (1 - close / rm).rolling(231, min_periods=180).max().shift(cfg["skip"]) * 100
             sc = sc.where(~(mdd > cfg["dd_max"]))              # bort med dem som fallit mer än dd_max % inom fönstret
+    if cfg.get("gap_max"):
+        # Clenows gapfilter (test 2026-11-05): ingen köpkandidat som haft en dagsrörelse större än gap_max % inom fönstret
+        big = (r.abs() > cfg["gap_max"] / 100.0).astype(float).rolling(cfg.get("clenow_n", 90), min_periods=1).max() > 0
+        sc = sc.where(~big)
     if cfg.get("sector_cap"):
         pass   # sektortaket hanteras vid urvalet, inte i poängen
     if cfg["trendfilter"]:
@@ -1470,28 +1474,37 @@ def main():
 
     # ---------- 2.0 steg C (2026-11-05, TESTPLAN_2.0.md): jämnt/riskjusterat momentum mot A ----------
     if a.smooth2:
-        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+        # Omgång 2 (efter #74): referens är nu P3 (köp vid månadsslut, 12-1 i kalendermånader). Fönstersvep för att se om
+        # 90/120 var tur, plus Clenows gapfilter. Omgång 1 (#74, mot A): C1 90 d 40,8 %, C2 120 d 43,6 %, A 37,8 %.
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,
                  w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        CL = lambda n, **k: dict(B, mom_measure="clenow", clenow_n=n, **k)
         VAR = {
-            "A.  Referens (1.0, T+1 + slippage): 12-1, lika poäng → högst 12-1":          dict(B),
-            "--- Clenow lutning × R² (90 d) ---":                                         None,
-            "C1. Clenow ersätter 12-1 i poäng och avgörare (hållregel oförändrad)":        dict(B, mom_measure="clenow"),
-            "C2. Clenow 120 d ersätter 12-1":                                             dict(B, mom_measure="clenow", clenow_n=120),
-            "C3. 12-1 ger poängen, Clenow avgör lika poäng":                               dict(B, tie_m121=False, tie_clenow=True),
-            "--- riskjusterat 12-1 ---":                                                  None,
-            "C4. 12-1 ger poängen, 12-1/volatilitet avgör lika poäng":                     dict(B, tie_m121=False, tie_volm=True),
-            "C5. Jämnhet (andel positiva dagar) avgör lika poäng (Z1 från 2026-11-04)":    dict(B, tie_m121=False, tie_smooth=True),
-            "--- robusthet ---":                                                          None,
-            "R1. C1, dubbla kostnader":                                                    dict(B, mom_measure="clenow", **DBL),
-            "R2. C3, dubbla kostnader":                                                    dict(B, tie_m121=False, tie_clenow=True, **DBL),
-            "R3. C4, dubbla kostnader":                                                    dict(B, tie_m121=False, tie_volm=True, **DBL),
-            "R4. A, dubbla kostnader":                                                     dict(B, **DBL),
-            "R5. C1, kvartal förskjutet 1 mån":                                            dict(B, mom_measure="clenow", reb="Q1"),
-            "R6. C3, kvartal förskjutet 1 mån":                                            dict(B, tie_m121=False, tie_clenow=True, reb="Q1"),
-            "R7. C4, kvartal förskjutet 1 mån":                                            dict(B, tie_m121=False, tie_volm=True, reb="Q1"),
-            "R8. A, kvartal förskjutet 1 mån":                                             dict(B, reb="Q1"),
+            "A.  Referens P3 (1.0 som appen: månadsslut, kalender-12-1, T+1, slippage)":   dict(B),
+            "--- Clenow lutning × R² ersätter 12-1 i poäng och avgörare; hållregeln läser 12-1 ---": None,
+            "C60.  fönster 60 d":                                                           CL(60),
+            "C90.  fönster 90 d":                                                           CL(90),
+            "C120. fönster 120 d":                                                          CL(120),
+            "C150. fönster 150 d":                                                          CL(150),
+            "C180. fönster 180 d":                                                          CL(180),
+            "C250. fönster 250 d":                                                          CL(250),
+            "--- Clenows gapfilter: inget köp om en dagsrörelse > 15 % inom fönstret ---": None,
+            "G90.  90 d + gap 15 %":                                                        CL(90, gap_max=15),
+            "G120. 120 d + gap 15 %":                                                       CL(120, gap_max=15),
+            "G120b. 120 d + gap 25 %":                                                      CL(120, gap_max=25),
+            "--- robusthet ---":                                                           None,
+            "R1. C90, dubbla kostnader":                                                    CL(90, **DBL),
+            "R2. C120, dubbla kostnader":                                                   CL(120, **DBL),
+            "R3. C150, dubbla kostnader":                                                   CL(150, **DBL),
+            "R4. G120, dubbla kostnader":                                                   CL(120, gap_max=15, **DBL),
+            "R5. A, dubbla kostnader":                                                      dict(B, **DBL),
+            "R6. C90, kvartal förskjutet 1 mån":                                            CL(90, reb="Q1"),
+            "R7. C120, kvartal förskjutet 1 mån":                                           CL(120, reb="Q1"),
+            "R8. C150, kvartal förskjutet 1 mån":                                           CL(150, reb="Q1"),
+            "R9. G120, kvartal förskjutet 1 mån":                                           CL(120, gap_max=15, reb="Q1"),
+            "R10. A, kvartal förskjutet 1 mån":                                             dict(B, reb="Q1"),
         }
         yrs = (close.index[-1] - close.index[210]).days / 365.25
         be, bst = benchmark(close, yrs)
@@ -1516,10 +1529,10 @@ def main():
         A = next((res[n] for n in names if short[n] == "A"), None)
         if A:
             print(f"\n   === BESLUTSREGEL mot A (CAGR {A['CAGR_%']} %, Sharpe {A['Sharpe']}, Calmar {A['Calmar']}, nedgång {A['max_nedgång_%']} %) ===")
-            rob = {"C1": ("R1", "R5"), "C3": ("R2", "R6"), "C4": ("R3", "R7")}
+            rob = {"C90": ("R1", "R6"), "C120": ("R2", "R7"), "C150": ("R3", "R8"), "G120": ("R4", "R9")}
             for n in names:
                 k = short[n]
-                if not k.startswith("C"): continue
+                if not (k.startswith("C") or k.startswith("G")): continue
                 s_ = res[n]; ok = [("Calmar>", (s_.get("Calmar") or 0) > (A.get("Calmar") or 0)),
                                    ("Sharpe≥", (s_.get("Sharpe") or 0) >= (A.get("Sharpe") or 0)),
                                    ("CAGR≥A−5", s_["CAGR_%"] >= A["CAGR_%"] - 5),
@@ -1529,7 +1542,7 @@ def main():
                     ok.append(("robust", all((r_.get("Calmar") or 0) > (A.get("Calmar") or 0) for r_ in rr) if rr else False))
                 print(f"   {k:<4} {'VINNER' if all(v for _, v in ok) else 'faller':<8} " + "  ".join(f"{nm_}{'✓' if v else '✗'}" for nm_, v in ok))
         print(f"\n   === ÅR FÖR ÅR ===")
-        main = [n for n in names if short[n] in ("A", "C1", "C2", "C3", "C4", "C5")]
+        main = [n for n in names if short[n] in ("A", "C60", "C90", "C120", "C150", "C180", "C250", "G90", "G120")]
         yrsall = sorted({y for n in main for y in res[n]['år']})
         print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
         for y in yrsall:
