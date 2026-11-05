@@ -125,6 +125,7 @@ jobs:
         env:
           EODHD_KEY: ${{ secrets.EODHD_KEY }}
         run: |
+          set -o pipefail
           python backtest.py --years "${{ github.event.inputs.years || 10 }}" \
             ${{ github.event.inputs.quick == 'true' && '--quick' || '' }} \
             ${{ github.event.inputs.combo == 'true' && '--combo' || '' }} \

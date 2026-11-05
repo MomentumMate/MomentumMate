@@ -1482,7 +1482,7 @@ def main():
                  w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
-        CL = lambda n, **k: dict(B, mom_measure="clenow", clenow_n=n, **k)
+        CL = lambda nd, **k: dict(B, mom_measure="clenow", clenow_n=nd, **k)
         K = dict(n=5, mkt="nordic", port_sek=100_000.0)
         VAR = {
             "A.  Referens P3 (1.0 som appen: månadsslut, kalender-12-1, T+1, slippage)":   dict(B),
