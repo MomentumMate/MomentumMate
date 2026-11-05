@@ -979,6 +979,7 @@ def main():
     ap.add_argument("--mm2", action="store_true", help="2.0-kandidaten: A (T+1 + slippage) mot storbolagsuniversum B, med robusthet och känslighet")
     ap.add_argument("--smooth2", action="store_true", help="2.0 steg C: Clenow lutning×R² och riskjusterad 12-1 mot referens A (T+1 + slippage)")
     ap.add_argument("--costn", action="store_true", help="kostnadsläge: antal innehav 5/6/7/8/10 vid 60/100/150 tkr, 12-1 (P3) och Clenow 120")
+    ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
     a = ap.parse_args()
 
@@ -1647,6 +1648,56 @@ def main():
                 oks.append(((dn.get("Calmar") or 0) > (d5.get("Calmar") or 0)) and ((dn.get("Sharpe") or 0) > (d5.get("Sharpe") or 0)))
                 print(f"   {mn:<5} {n:>2} innehav: {'VINNER' if all(oks) else 'faller':<7} 60✓/✗ 100 150 dubbla → " + " ".join("✓" if o else "✗" for o in oks))
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "kostnadsläge-antal",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias kvarstår. Slippage är en modell."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Fullt läge (2026-11-05): antal innehav under modell 2.0 ----------
+    if a.fulln:
+        B = dict(voladj=False, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", mom_measure="clenow", clenow_n=120,
+                 cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        NS = (15, 20, 25, 30)
+        VAR = {}
+        for pk in (10_000_000.0, 600_000.0):
+            VAR[f"--- 2.0, {pk/1e6:g} Mkr ---"] = None
+            for n in NS: VAR[f"N{n}-{pk/1e6:g}. {n} innehav, {pk/1e6:g} Mkr"] = dict(B, n=n, port_sek=pk)
+        VAR["--- robusthet, 10 Mkr ---"] = None
+        for n in NS: VAR[f"N{n}-D. {n} innehav, dubbla kostnader"] = dict(B, n=n, port_sek=10_000_000.0, **DBL)
+        for n in NS: VAR[f"N{n}-Q. {n} innehav, kvartal förskjutet 1 mån"] = dict(B, n=n, port_sek=10_000_000.0, reb="Q1")
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## Fullt läge: antal innehav under modell 2.0  ({close.shape[1]} aktier) ##########")
+        print(f"   20 innehav validerades för 1.0 (mix-test 2026-10: 10/20/30). I kostnadsläget skilde sig optimum mellan måtten (#78).")
+        print(f"   Beslutsregel (skriven innan körning): antalet ändras från 20 till N bara om N slår 20 i Calmar OCH Sharpe vid båda")
+        print(f"   kapitalnivåerna och håller vid dubbla kostnader och förskjutet kvartal. Flera vinnande N: det närmast 20.\n")
+        print(f"   {'likaviktat snitt av universumet':<52}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd, x=LAST_DIAG.get("x")); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<52}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %"
+                      f"  friktion {st.get('friktion_%_per_år')} %/år  köp/år {st['köp_per_år']}  ADV {st.get('median_ADV_vid_köp_Mkr')} Mkr")
+            except Exception as ex:
+                print(f"   {nm:<52} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        def g(pref): return next((res[k] for k in res if k.startswith(pref + ".")), {})
+        print(f"\n   === BESLUTSREGEL: N mot 20 ===")
+        better = lambda a_, b_: (a_.get("Calmar") or 0) > (b_.get("Calmar") or 0) and (a_.get("Sharpe") or 0) > (b_.get("Sharpe") or 0)
+        for n in NS:
+            if n == 20: continue
+            oks = [better(g(f"N{n}-10"), g("N20-10")), better(g(f"N{n}-0.6"), g("N20-0.6")), better(g(f"N{n}-D"), g("N20-D")), better(g(f"N{n}-Q"), g("N20-Q"))]
+            print(f"   {n:>2} innehav: {'VINNER' if all(oks) else 'faller':<7} 10 Mkr / 600 tkr / dubbla / förskjutet → " + " ".join("✓" if o else "✗" for o in oks))
+        print(f"\n   === ÅR FÖR ÅR (10 Mkr) ===")
+        names = [k for k in res if k.endswith("Mkr") and "-10." in k]
+        yrsall = sorted({y for k in names for y in res[k]["år"]})
+        print(f"   {'år':<8}" + "".join(f"{k.split('.')[0]:>9}" for k in names))
+        for y in yrsall: print(f"   {y:<8}" + "".join(f"{res[k]['år'].get(y, '–'):>9}" for k in names))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "fullt-antal",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias kvarstår. Slippage är en modell."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
