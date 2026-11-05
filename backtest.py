@@ -2,8 +2,14 @@
 """
 backtest.py – validerar den TEKNISKA kärnan i MomentumMate.
 
-Vad som testas: momentumurval (12-1 volatilitetsjusterat), trendfilter, likviditetsfilter,
-bandning, stopp och ombalansering – samt vad courtaget äter.
+Vad som testas: momentumurval (12-1, tak 150 %, lika poäng → högre 12-1), trendfilter, likviditetsfilter,
+månadsvis hållregel, kvartalslikaviktning – samt vad courtaget äter. Modell 1.0 = SPEC.md 2026-11-04.
+
+Fyllnad (2026-11-05): utan --t1 fylls alla affärer på SIGNALDAGENS stängning, vilket är hur alla resultat
+t.o.m. 2026-11-04 mätts. Med --t1 fylls de på nästa handelsdags stängning, som appen handlar. --slip lägger
+till marknadspåverkan (kvadratrotsmodell mot dagsomsättning). --minadv X sätter ett likviditetsgolv i kronor;
+det gamla golvet 3 M (minturnover) är i lokal valuta och betyder 3 M USD för USA men 3 M pence för London.
+--mm2 kör 2.0-kandidaten enligt TESTPLAN_2.0.md.
 
 Vad som INTE testas: fundamenta (tillväxt, ROE, Graham, Magic Formula, Piotroski).
 Yahoo levererar bara dagens nyckeltal, inte historiska, så de går inte att återskapa bakåt
@@ -149,7 +155,8 @@ def score_panel(close, vol, cfg):
         if cfg.get("mom_rank"):                           # percentilrankning i stället för tak: ingen tar i taket
             mom = m121.rank(axis=1, pct=True) * 100
     s50 = close.rolling(50, min_periods=40).mean()
-    s200 = close.rolling(200, min_periods=160).mean()
+    L = cfg.get("sma_long", 200)                       # SMA200; sma_long=180/220 i känslighetstestet 2026-11-05
+    s200 = close.rolling(L, min_periods=int(L * 0.8)).mean()
     trend = ((close > s50).astype(float) * 30 + (close > s200).astype(float) * 30
              + (s50 > s200).astype(float) * 20 + (s200 > s200.shift(1)).astype(float) * 20)
     # Appens formel: mom 55 % + trend 30 % + volymbekräftelse 15 %, minus överhettning.
@@ -191,7 +198,11 @@ def score_panel(close, vol, cfg):
         sc = sc.where(close > s200)                      # bara aktier över sitt långa medelvärde
     if cfg["minturnover"] > 0 and vol is not None:
         turn = (close * vol).rolling(20, min_periods=12).mean()
-        sc = sc.where(turn >= cfg["minturnover"])
+        sc = sc.where(turn >= cfg["minturnover"])       # OBS: i lokal valuta (3 M USD för USA, 3 M pence för London)
+    if cfg.get("minadv_sek", 0) > 0 and vol is not None:
+        # Likviditetsgolv i KRONOR (test 2026-11-05, --minadv): samma gräns för alla marknader.
+        turn_sek = (close * vol).rolling(20, min_periods=12).mean() * pd.Series({t: fx_sek(t) for t in close.columns})
+        sc = sc.where(turn_sek >= cfg["minadv_sek"])
     return sc, m121
 
 def score_to_return(close, sc, horizon=63):
@@ -267,7 +278,8 @@ def exit_panels(close, cfg):
     if cfg.get("exit_sma50"):
         out["sma50"] = close.rolling(50, min_periods=40).mean()
     if cfg.get("exit_sma200"):
-        out["sma200"] = close.rolling(200, min_periods=160).mean()
+        L = cfg.get("sma_long", 200)
+        out["sma200"] = close.rolling(L, min_periods=int(L * 0.8)).mean()
     if cfg.get("exit_atr"):
         # ATR saknar high/low i panelen, så vi använder dagsrörelsens standardavvikelse som motsvarighet
         out["atr"] = (close.pct_change().abs().rolling(14, min_periods=10).mean() * close) * 1.6
@@ -295,6 +307,27 @@ def vix_exposure(vix, idx, cfg):
 # Transaktionsskatt vid KÖP: Storbritannien 0,50 %, Frankrike 0,40 %, Spanien 0,20 %, Italien 0,10 %.
 NORDIC = (".ST", ".CO", ".OL", ".HE")
 STAMP_BT = {".L": 0.0050, ".PA": 0.0040, ".MC": 0.0020, ".MI": 0.0010}
+
+# Ungefärlig växelkurs till kronor per handelsvaluta (2026-11-05). Används BARA för likviditetsgolv och
+# slippage, där ±10 % i kursen saknar betydelse. Avkastningen räknas som tidigare i lokal valuta.
+# Tickersuffix → valuta följer Yahoo: .L noteras i pence.
+FX_SEK = {"SEK": 1.0, "NOK": 0.96, "DKK": 1.47, "EUR": 11.0, "USD": 10.0, "GBp": 0.126, "CHF": 11.5, "CAD": 7.3}
+_SFX_CCY = {".ST": "SEK", ".OL": "NOK", ".CO": "DKK", ".HE": "EUR", ".DE": "EUR", ".PA": "EUR", ".AS": "EUR", ".BR": "EUR",
+            ".MC": "EUR", ".MI": "EUR", ".VI": "EUR", ".LS": "EUR", ".IR": "EUR", ".L": "GBp", ".SW": "CHF", ".TO": "CAD"}
+def fx_sek(ticker):
+    for s, c in _SFX_CCY.items():
+        if ticker.endswith(s): return FX_SEK[c]
+    return FX_SEK["USD"] if "." not in ticker else FX_SEK["EUR"]
+
+def slippage(amount_sek, adv_sek, cfg):
+    """Marknadspåverkan per sida som andel av beloppet (test 2026-11-05, --slip).
+
+    Kvadratrotsmodell: bas + k × sqrt(post / dagsomsättning), tak slip_cap. Med k = 2 % kostar en post på
+    1 % av dagsomsättningen ca 0,25 %, 10 % ca 0,7 %. Saknas omsättningsdata antas taket."""
+    if not cfg.get("slip"): return 0.0
+    base, k, cap = cfg.get("slip_base", 0.0005), cfg.get("slip_k", 0.02), cfg.get("slip_cap", 0.03)
+    if adv_sek is None or adv_sek != adv_sek or adv_sek <= 0: return cap
+    return min(cap, base + k * math.sqrt(max(0.0, amount_sek) / adv_sek))
 
 def real_cost(amount_sek, ticker, side, cfg):
     """Kostnad i kronor för en affär. amount_sek är affärens belopp."""
@@ -355,10 +388,31 @@ def run(close, vol, cfg, vix=None):
     cut_days = 0          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
     eq, eqdates, trades = [], [], []
     PORT = cfg.get("port_sek", 10_000_000.0)      # portföljens storlek i kronor, styr poststorleken
+    # Dagsomsättning (20 d) i kronor per aktie – för slippage och rapport. Räknas bara när den behövs.
+    ADV = ((close * vol).rolling(20, min_periods=12).mean() * pd.Series({t: fx_sek(t) for t in close.columns})
+           if (cfg.get("slip") or cfg.get("report_adv")) and vol is not None else None)
+    X = LAST_DIAG["x"] = {"cost": 0.0, "slip": 0.0, "traded": 0.0, "adv_buy": []}   # enheter: andel av startkapital
+    cur_i = [0]
     def fee(val_units, t, side):
-        """val_units är positionens andel av kapitalet (1.0 = hela). Returnerar samma enhet."""
+        """val_units är positionens andel av kapitalet (1.0 = hela). Returnerar samma enhet.
+        Innehåller courtage, växling, stämpelskatt och (med --slip) marknadspåverkan."""
         amt = max(0.0, val_units) * PORT
-        return real_cost(amt, t, side, cfg) / PORT if amt > 0 else 0.0
+        if amt <= 0: return 0.0
+        c = real_cost(amt, t, side, cfg) / PORT
+        s = 0.0
+        if cfg.get("slip") and ADV is not None:
+            adv = ADV.iat[cur_i[0], close.columns.get_loc(t)]
+            s = val_units * slippage(amt, adv, cfg)
+        X["cost"] += c; X["slip"] += s; X["traded"] += val_units
+        return c + s
+    def fpx(t, i, px_sig):
+        """Fyllnadskurs. Standard: signaldagens stängning (så backtestet mätts t.o.m. 2026-11-04).
+        --t1: nästa handelsdags stängning – signalen finns först efter stängning och kan handlas tidigast dagen efter."""
+        if not cfg.get("t1"): return px_sig
+        j = i + 1
+        if j >= len(dates): return px_sig
+        q = pxf.iat[j, close.columns.get_loc(t)]
+        return q if q == q and q > 0 else px_sig
 
     def value(i):
         p = pxf.iloc[i]
@@ -369,7 +423,7 @@ def run(close, vol, cfg, vix=None):
         return v
 
     for i in range(start_i, len(dates)):
-        d, p = dates[i], pxf.iloc[i]
+        d, p = dates[i], pxf.iloc[i]; cur_i[0] = i
         # avnoterade bolag säljs till sista kända kurs i stället för att tyst försvinna
         for t in list(hold):
             ld = last_day.get(t)
@@ -386,7 +440,7 @@ def run(close, vol, cfg, vix=None):
                 if px != px or px <= 0: continue
                 if px >= h["px"] * (1 + cfg["tp"] / 100.0):
                     frac = cfg.get("tp_sell", 50) / 100.0
-                    sh = h["sh"] * frac
+                    sh = h["sh"] * frac; px = fpx(t, i, px)
                     cash += sh * px - fee(sh * px, t, "sell")
                     h["sh"] -= sh
                     h["tp_done"] = True          # utlöses bara en gång per position
@@ -443,11 +497,13 @@ def run(close, vol, cfg, vix=None):
                 gs = cfg.get("gap_sell", 0)
                 if gs and i > 0:
                     if h.get("gapday") is not None and i > h["gapday"]:
-                        cash += h["sh"] * px - fee(h["sh"] * px, t, "sell"); hold_days.append(held_days); trades.append(("gap", t, d)); del hold[t]
+                        pf = fpx(t, i, px)
+                        cash += h["sh"] * pf - fee(h["sh"] * pf, t, "sell"); hold_days.append(held_days); trades.append(("gap", t, d)); del hold[t]
                         continue
                     prev = close.iat[i - 1, ci]
                     if prev == prev and px <= prev * (1 - gs / 100.0) and h.get("gapday") is None: h["gapday"] = i
-                m121 = (close.iat[max(0, i - 21), ci] / close.iat[max(0, i - 252), ci] - 1) if i >= 252 else 1.0
+                _sk, _lk = cfg.get("skip", 21), cfg.get("look", 252)
+                m121 = (close.iat[max(0, i - _sk), ci] / close.iat[max(0, i - _lk), ci] - 1) if i >= _lk else 1.0
                 s200 = EX["sma200"].iat[i, ci] if "sma200" in EX else np.nan
                 buf = 1 - cfg.get("sma_buf", 0) / 100.0
                 use_m, use_s = not cfg.get("hold_no_mom"), not cfg.get("hold_no_sma")   # krasch-testet stänger av villkor
@@ -475,7 +531,8 @@ def run(close, vol, cfg, vix=None):
                     if h["cbad"] >= cfg.get("confirm_days", 5): why = bad
                 if why:
                     if cfg.get("diag"): LAST_DIAG["exits"].append((d, t, why, held_days, px / h["px"] - 1))
-                    cash += h["sh"] * px - fee(h["sh"] * px, t, "sell"); hold_days.append(held_days); trades.append((why, t, d)); del hold[t]
+                    pf = fpx(t, i, px)
+                    cash += h["sh"] * pf - fee(h["sh"] * pf, t, "sell"); hold_days.append(held_days); trades.append((why, t, d)); del hold[t]
                 continue
             if cfg.get("stop_mode") == "support" and h.get("sr_stop"):
                 if px <= h["sr_stop"]: why = "stopp vid stöd"
@@ -513,7 +570,8 @@ def run(close, vol, cfg, vix=None):
                 s_ = sc.iat[i, close.columns.get_loc(t)]
                 if s_ == s_ and s_ < cfg["exit_score"]: why = "svag poäng"
             if why:
-                cash += h["sh"] * px - fee(h["sh"] * px, t, "sell")
+                pf = fpx(t, i, px)
+                cash += h["sh"] * pf - fee(h["sh"] * pf, t, "sell")
                 hold_days.append((i - h["i"]))
                 trades.append((why, t, d)); del hold[t]
 
@@ -526,6 +584,7 @@ def run(close, vol, cfg, vix=None):
             for t in sorted(hold, key=lambda x: sc_row.get(x, -1e9))[:len(hold) - n_eff]:
                 px = p.get(t)
                 if px == px:
+                    px = fpx(t, i, px)
                     cash += hold[t]["sh"] * px - fee(hold[t]["sh"] * px, t, "sell"); hold_days.append(i - hold[t]["i"])
                     trades.append(("vix", t, d))
                 del hold[t]
@@ -573,9 +632,10 @@ def run(close, vol, cfg, vix=None):
                     if px != px or px <= 0: continue
                     target = tot_r / max(1, n_eff) * wfac(t, rk)
                     if cash < target * 0.2: break
-                    amt = min(target, cash)
+                    amt = min(target, cash); px = fpx(t, i, px)
                     sh = (amt - fee(amt, t, "buy")) / px
                     cash -= amt
+                    if ADV is not None: X["adv_buy"].append(float(ADV.iat[i, close.columns.get_loc(t)]))
                     hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
 
         # --- ombalansering ---
@@ -610,6 +670,7 @@ def run(close, vol, cfg, vix=None):
                     if t not in keep:
                         px = p.get(t)
                         if px == px:
+                            px = fpx(t, i, px)
                             cash += hold[t]["sh"] * px - fee(hold[t]["sh"] * px, t, "sell"); hold_days.append(i - hold[t]["i"]); trades.append(("band", t, d))
                         del hold[t]
                 # Öka vid stöd: innehav som just nu testar ett stöd får 1,5× vikt i den här ombalanseringen
@@ -636,16 +697,16 @@ def run(close, vol, cfg, vix=None):
                             target = tot * wfac(t, rank) / fs_ * (len(hold) / cfg["n"])
                         cur = h["sh"] * px
                         if cur > target * (1 + cfg.get("rw_band", 0.25)):
-                            sell = (cur - target) / px
-                            h["sh"] -= sell; cash += sell * px - fee(sell * px, t, "sell"); trades.append(("trim", t, d))
+                            sell = (cur - target) / px; pf = fpx(t, i, px)
+                            h["sh"] -= sell; cash += sell * pf - fee(sell * pf, t, "sell"); trades.append(("trim", t, d))
                         elif cur < target * (1 - cfg.get("rw_band", 0.25)) and cash > 0:
                             # Påfyllning av eftersläntrare (test 2026-11-04): rw_up=False stänger av den helt,
                             # rw_up_rank=N fyller bara på innehav som själva rankas topp N. Frågan är om
                             # pengarna gör mer nytta i nya topp-20-aktier än i innehav som halkat efter.
                             if cfg.get("rw_up", True) is False: continue
                             if cfg.get("rw_up_rank") and rank.get(t, 1e9) > cfg["rw_up_rank"]: continue
-                            add = min(target - cur, cash)
-                            h["sh"] += (add - fee(add, t, "buy")) / px; cash -= add; trades.append(("add", t, d))
+                            add = min(target - cur, cash); pf = fpx(t, i, px)
+                            h["sh"] += (add - fee(add, t, "buy")) / pf; cash -= add; trades.append(("add", t, d))
                 # fyll på upp till n med de högst rankade
                 room = n_eff_now() - len(hold)
                 if room > 0:
@@ -704,9 +765,10 @@ def run(close, vol, cfg, vix=None):
                         if px != px or px <= 0: continue
                         target = tot / max(1, n_eff) * wfac(t, rank)
                         if cash < target * 0.2: break
-                        amt = min(target, cash)
+                        amt = min(target, cash); px = fpx(t, i, px)
                         sh = (amt - fee(amt, t, "buy")) / px
                         cash -= amt
+                        if ADV is not None: X["adv_buy"].append(float(ADV.iat[i, close.columns.get_loc(t)]))
                         hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
                 # Extra platser (test 2026-11-04): kassa som blivit över när eftersläntrare INTE fylls på
                 # får köpa nya topp-N-aktier utöver målantalet, högst rw_extra stycken.
@@ -717,7 +779,7 @@ def run(close, vol, cfg, vix=None):
                         if len(hold) >= cfg["n"] + cfg["rw_extra"] or cash < target * 0.5: break
                         px = p.get(t)
                         if px != px or px <= 0: continue
-                        amt = min(target, cash)
+                        amt = min(target, cash); px = fpx(t, i, px)
                         sh = (amt - fee(amt, t, "buy")) / px
                         cash -= amt
                         hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
@@ -737,7 +799,7 @@ def yearly(e):
             out[int(y)] = round(float(grp.iloc[-1] / grp.iloc[0] - 1) * 100, 1)
     return out
 
-def stats(e, trades, years, hold_days=None):
+def stats(e, trades, years, hold_days=None, x=None):
     if len(e) < 30: return {}
     r = e.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
     if not len(r) or e.iloc[0] <= 0: return {}
@@ -745,11 +807,20 @@ def stats(e, trades, years, hold_days=None):
     vol = r.std() * math.sqrt(252)
     dd = (e / e.cummax() - 1).min()
     buys = sum(1 for t in trades if t[0] == "buy")
+    extra = {}
+    if x:   # friktion och likviditet (2026-11-05): LAST_DIAG["x"] från run()
+        avg = float(e.mean()) or 1.0
+        extra = {"omsättning_ggr_per_år": round(x["traded"] / avg / years, 2),
+                 "friktion_%_per_år": round((x["cost"] + x["slip"]) / avg / years * 100, 2),
+                 "varav_slippage_%_per_år": round(x["slip"] / avg / years * 100, 2),
+                 "median_ADV_vid_köp_Mkr": (round(float(np.nanmedian(x["adv_buy"])) / 1e6, 1) if x["adv_buy"] else None)}
     return {"slutkapital": round(float(e.iloc[-1]), 3),
             "CAGR_%": round(cagr * 100, 2),
             "volatilitet_%": round(float(vol) * 100, 1),
             "Sharpe": round(float(cagr / vol), 2) if vol > 0 else None,
             "max_nedgång_%": round(float(dd) * 100, 1),
+            "Calmar": round(float(-cagr / dd), 2) if dd < 0 else None,
+            **extra,
             "affärer": len(trades), "köp": buys,
             "köp_per_år": round(buys / years, 1),
             "innehavstid_dagar": (round(float(np.median(hold_days)) * 1.4) if hold_days else None),
@@ -809,6 +880,11 @@ def main():
     ap.add_argument("--tie", action="store_true", help="poängtaket: 30–40 aktier delar topp-poängen – spelar ordningen mellan dem roll?")
     ap.add_argument("--rw", action="store_true", help="likaviktning: fylla på eftersläntrare eller köpa nya topp-20-aktier?")
     ap.add_argument("--port", type=float, default=10_000_000, help="portföljstorlek i kronor")
+    # 2026-11-05 (TESTPLAN_2.0.md): realistisk fyllnad och 2.0-kandidaten
+    ap.add_argument("--t1", action="store_true", help="fyll alla affärer på NÄSTA handelsdags stängning i stället för signaldagens")
+    ap.add_argument("--slip", action="store_true", help="marknadspåverkan: bas 5 bp + 2 % × sqrt(post/dagsomsättning), tak 3 % per sida")
+    ap.add_argument("--minadv", type=float, default=0, help="likviditetsgolv i KRONOR (20-dagars dagsomsättning), samma för alla marknader")
+    ap.add_argument("--mm2", action="store_true", help="2.0-kandidaten: A (T+1 + slippage) mot storbolagsuniversum B, med robusthet och känslighet")
     a = ap.parse_args()
 
     if a.universe:
@@ -846,6 +922,11 @@ def main():
 
     close, vol = load_prices(tick, a.years, a.cache)
     years = (close.index[-1] - close.index[210]).days / 365.25
+    # Globala fyllnads- och likviditetsval (2026-11-05): gäller alla testlägen när de ges.
+    if a.t1: DEF["t1"] = True
+    if a.slip: DEF["slip"] = True
+    if a.minadv > 0: DEF["minadv_sek"] = a.minadv
+    DEF["report_adv"] = True
 
     comp2 = Counter(_grp(t) for t in close.columns)
     print("Nedladdat: " + ", ".join(f"{k} {v}" for k, v in sorted(comp2.items())))
@@ -1227,6 +1308,97 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "poängtak",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias och ingen fundamenta. Tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- 2.0-kandidaten (2026-11-05, TESTPLAN_2.0.md § 1–3): realistisk fyllnad + storbolagsuniversum ----------
+    if a.mm2:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        R = dict(t1=True, slip=True)                   # realistisk fyllnad: nästa dags stängning + marknadspåverkan
+        VAR = {
+            "A0. Modell 1.0 som den mätts t.o.m. 2026-11-04 (fyllnad på signaldagen, utan slippage)": dict(B),
+            "A1. 1.0 med fyllnad nästa dag (T+1), utan slippage":                 dict(B, t1=True),
+            "A.  1.0 med T+1 + slippage  (NY REFERENS)":                          dict(B, **R),
+            "--- B: storbolagsuniversum – likviditetsgolv i kronor, samma för alla marknader ---": None,
+            "B1. A + dagsomsättning ≥ 20 Mkr":                                    dict(B, **R, minadv_sek=20e6),
+            "B2. A + dagsomsättning ≥ 50 Mkr":                                    dict(B, **R, minadv_sek=50e6),
+            "B3. A + dagsomsättning ≥ 100 Mkr":                                   dict(B, **R, minadv_sek=100e6),
+            "B4. A + dagsomsättning ≥ 250 Mkr":                                   dict(B, **R, minadv_sek=250e6),
+            "--- robusthet: dubbla kostnader och förskjutet kvartal ---":         None,
+            "R1. A, dubbla kostnader":                                            dict(B, **R, **DBL),
+            "R2. B1, dubbla kostnader":                                           dict(B, **R, minadv_sek=20e6, **DBL),
+            "R3. B2, dubbla kostnader":                                           dict(B, **R, minadv_sek=50e6, **DBL),
+            "R4. B3, dubbla kostnader":                                           dict(B, **R, minadv_sek=100e6, **DBL),
+            "R5. A, kvartal förskjutet 1 mån":                                    dict(B, **R, reb="Q1"),
+            "R6. B1, kvartal förskjutet 1 mån":                                   dict(B, **R, minadv_sek=20e6, reb="Q1"),
+            "R7. B2, kvartal förskjutet 1 mån":                                   dict(B, **R, minadv_sek=50e6, reb="Q1"),
+            "R8. B3, kvartal förskjutet 1 mån":                                   dict(B, **R, minadv_sek=100e6, reb="Q1"),
+            "--- känslighet (A): fönster och medelvärde ---":                     None,
+            "S1. A med 11-1":                                                     dict(B, **R, look=231),
+            "S2. A med 13-1":                                                     dict(B, **R, look=273),
+            "S3. A med SMA180":                                                   dict(B, **R, sma_long=180),
+            "S4. A med SMA220":                                                   dict(B, **R, sma_long=220),
+            "--- kostnadsläge (SPEC § 4): 5 innehav, bara Norden, 100 000 kr ---": None,
+            "K1. 1.0 kostnadsläge, T+1 + slippage":                               dict(B, **R, n=5, mkt="nordic", port_sek=100_000.0),
+            "K2. K1 + dagsomsättning ≥ 20 Mkr":                                   dict(B, **R, n=5, mkt="nordic", port_sek=100_000.0, minadv_sek=20e6),
+            "K3. 1.0 kostnadsläge, 4 innehav":                                    dict(B, **R, n=4, mkt="nordic", port_sek=100_000.0),
+            "K4. 1.0 kostnadsläge, 6 innehav":                                    dict(B, **R, n=6, mkt="nordic", port_sek=100_000.0),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## 2.0-kandidaten: realistisk fyllnad och storbolagsuniversum  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Steg 0: hur mycket av 1.0:s resultat försvinner med fyllnad dagen efter signalen och med marknadspåverkan?")
+        print(f"   Steg 1: B = samma modell på aktier med dagsomsättning över ett golv i KRONOR (1.0:s golv 3 M är i lokal valuta).")
+        print(f"   Beslutsregel (TESTPLAN_2.0.md § 3, skriven innan körning): B vinner över A om Calmar är högre, Sharpe inte lägre,")
+        print(f"   CAGR faller högst 5 procentenheter, nedgången inte är djupare, det håller vid dubbla kostnader och förskjutet")
+        print(f"   kvartal, och median-dagsomsättningen vid köp är minst 5 × A:s.\n")
+        print(f"   {'likaviktat snitt av universumet':<78}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd, x=LAST_DIAG.get("x")); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<78}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %"
+                      f"  friktion {st.get('friktion_%_per_år')} %/år  oms {st.get('omsättning_ggr_per_år')}×  ADV-median {st.get('median_ADV_vid_köp_Mkr')} Mkr"
+                      f"  köp/år {st['köp_per_år']}")
+            except Exception as ex:
+                print(f"   {nm:<78} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        # Beslutsregeln mekaniskt
+        A = next((res[n] for n in names if short[n] == "A"), None)
+        if A:
+            print(f"\n   === BESLUTSREGEL mot A (CAGR {A['CAGR_%']} %, Sharpe {A['Sharpe']}, Calmar {A['Calmar']}, nedgång {A['max_nedgång_%']} %, ADV {A.get('median_ADV_vid_köp_Mkr')} Mkr) ===")
+            for n in names:
+                k = short[n]
+                if not k.startswith("B"): continue
+                s = res[n]; ok = []
+                ok.append(("Calmar>", (s.get("Calmar") or 0) > (A.get("Calmar") or 0)))
+                ok.append(("Sharpe≥", (s.get("Sharpe") or 0) >= (A.get("Sharpe") or 0)))
+                ok.append(("CAGR≥A−5", s["CAGR_%"] >= A["CAGR_%"] - 5))
+                ok.append(("nedgång≤", s["max_nedgång_%"] >= A["max_nedgång_%"]))
+                ok.append(("ADV≥5×", (s.get("median_ADV_vid_köp_Mkr") or 0) >= 5 * (A.get("median_ADV_vid_köp_Mkr") or 1e9)))
+                rk = {"B1": ("R2", "R6"), "B2": ("R3", "R7"), "B3": ("R4", "R8")}.get(k)
+                if rk:
+                    rr = [res[x] for x in names if short[x] in rk]
+                    ok.append(("robust", all((r.get("Calmar") or 0) > (A.get("Calmar") or 0) for r in rr) if rr else False))
+                verdict = "VINNER" if all(v for _, v in ok) else "faller"
+                print(f"   {k:<4} {verdict:<8} " + "  ".join(f"{nm_}{'✓' if v else '✗'}" for nm_, v in ok))
+        print(f"\n   === ÅR FÖR ÅR ===")
+        main = [n for n in names if short[n] in ("A0", "A", "B1", "B2", "B3", "B4", "K1", "K2")]
+        yrsall = sorted({y for n in main for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main) + f"{'snitt':>7}")
+        by = yearly(be) if be is not None else {}
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main) + f"{by.get(y, '–'):>7}")
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "mm2",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias (dagens indexmedlemmar) kvarstår i alla varianter. Slippage är en modell, inte uppmätt."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 

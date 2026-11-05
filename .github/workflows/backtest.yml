@@ -95,6 +95,21 @@ on:
         description: "Likaviktning: fylla på eftersläntrare eller köpa nya topp 20-aktier? (--rw)"
         type: boolean
         default: false
+      mm2:
+        description: "2.0-kandidaten: T+1-fyllnad + slippage, storbolagsgolv 20/50/100/250 Mkr, robusthet, känslighet, kostnadsläge (--mm2)"
+        type: boolean
+        default: false
+      t1:
+        description: "Fyll alla affärer på nästa handelsdags stängning (gäller alla testlägen)"
+        type: boolean
+        default: false
+      slip:
+        description: "Marknadspåverkan: 5 bp + 2 % × sqrt(post/dagsomsättning), tak 3 % per sida (gäller alla testlägen)"
+        type: boolean
+        default: false
+      minadv:
+        description: "Likviditetsgolv i kronor, 20-dagars dagsomsättning, 0 = av (gäller alla testlägen)"
+        default: "0"
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"
         default: "10000000"
@@ -141,6 +156,10 @@ jobs:
             ${{ github.event.inputs.wt == 'true' && format('--wt --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.tie == 'true' && format('--tie --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.rw == 'true' && format('--rw --port {0}', github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.mm2 == 'true' && format('--mm2 --port {0}', github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.t1 == 'true' && '--t1' || '' }} \
+            ${{ github.event.inputs.slip == 'true' && '--slip' || '' }} \
+            ${{ (github.event.inputs.minadv || '0') != '0' && format('--minadv {0}', github.event.inputs.minadv) || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |
