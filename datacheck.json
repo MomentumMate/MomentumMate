@@ -1,104 +1,63 @@
 {
-"updated": "2026-11-05T17:25:37Z",
+"updated": "2026-11-05T18:00:55Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
-"antal": 207,
-"senaste": "2026-11-04",
+"antal": 201,
+"senaste": "2026-11-05",
 "tysta": 0,
-"flaggade": 11
+"flaggade": 2
 },
 "USA": {
-"antal": 1600,
+"antal": 1599,
 "senaste": "2026-11-04",
 "tysta": 6,
-"flaggade": 16
+"flaggade": 14
 },
 "Europa": {
-"antal": 512,
+"antal": 503,
 "senaste": "2026-11-05",
 "tysta": 1,
-"flaggade": 19
+"flaggade": 8
 }
 },
-"n": 2319,
+"n": 2303,
 "silent": 7,
-"flagged": 46,
+"flagged": 24,
 "gone": [
-"ASSA.ST",
-"ATCO.ST",
-"BALD.ST",
-"BT.A",
-"CARL.CO",
-"COLO.CO",
-"EPI.ST",
-"ERIC.ST",
-"ESSITY.ST",
-"GETI.ST",
-"HEXA.ST",
-"HM.ST",
-"INVE.ST",
-"LATO.ST",
-"LIFCO.ST",
-"LUND.ST",
-"MAERSK.CO",
-"NIBE.ST",
-"NOVO.CO",
-"NSIS.CO",
-"ROCK.CO",
-"SAAB.ST",
-"SAGA.ST",
-"SCA.ST",
-"SEB.ST",
-"SECU.ST",
-"SHB.ST",
-"SKA.ST",
-"SKF.ST",
-"SSAB.ST",
-"SWEC.ST",
-"SWED.ST",
-"TEL2.ST",
-"TREL.ST",
-"VOLV.ST"
+"ADDT.ST",
+"ALK.CO",
+"AV-.L",
+"AZRE",
+"BA-.L",
+"BEIJ.ST",
+"BP-.L",
+"CAJ",
+"HOLM.ST",
+"INDU.ST",
+"LAGR.ST",
+"MT.PA",
+"NDA.HE",
+"NG-.L",
+"QQ-.L",
+"RR-.L",
+"SECT.ST",
+"SN-.L",
+"TOP.CO",
+"TW-.L",
+"UU-.L"
 ],
 "own_flagged": [],
 "issues": {
 "ACA": [
 "tyst sedan 2026-10-22"
 ],
-"ADDT.ST": [
-"ingen kursdata"
-],
 "AHT.L": [
-"ingen kursdata"
-],
-"ALK.CO": [
-"ingen kursdata"
-],
-"AV-.L": [
-"ingen kursdata"
-],
-"AZRE": [
-"ingen kursdata"
-],
-"BA-.L": [
-"ingen kursdata"
-],
-"BEIJ.ST": [
 "ingen kursdata"
 ],
 "BLFS": [
 "tyst sedan 2026-10-07"
-],
-"BP-.L": [
-"ingen kursdata"
-],
-"CAJ": [
-"ingen kursdata"
-],
-"CCH.L": [
-"EODHD 4934.00 mot Yahoo 4052.00"
 ],
 "CWEN-A": [
 "ingen kursdata"
@@ -115,22 +74,13 @@
 "HLX": [
 "ingen kursdata"
 ],
-"HOLM.ST": [
-"ingen kursdata"
-],
 "HYMTF": [
-"ingen kursdata"
-],
-"INDU.ST": [
 "ingen kursdata"
 ],
 "INFY.IL": [
 "ingen kursdata"
 ],
 "KYOCY": [
-"ingen kursdata"
-],
-"LAGR.ST": [
 "ingen kursdata"
 ],
 "LEG": [
@@ -142,22 +92,10 @@
 "LXP": [
 "tyst sedan 2026-10-30"
 ],
-"MT.PA": [
-"ingen kursdata"
-],
-"NDA.HE": [
-"ingen kursdata"
-],
-"NG-.L": [
-"ingen kursdata"
-],
 "OCTV.ST": [
 "ingen kursdata"
 ],
 "PHNX.L": [
-"ingen kursdata"
-],
-"QQ-.L": [
 "ingen kursdata"
 ],
 "QRVO": [
@@ -169,17 +107,8 @@
 "ROG.SW": [
 "ingen kursdata"
 ],
-"RR-.L": [
-"ingen kursdata"
-],
 "SDR.L": [
 "tyst sedan 2026-10-01"
-],
-"SECT.ST": [
-"ingen kursdata"
-],
-"SN-.L": [
-"ingen kursdata"
 ],
 "SSNLF": [
 "nollvolym 5 dagar",
@@ -193,30 +122,15 @@
 ],
 "TOELY": [
 "tyst sedan 2026-10-06"
-],
-"TOP.CO": [
-"ingen kursdata"
-],
-"TW-.L": [
-"ingen kursdata"
-],
-"UU-.L": [
-"ingen kursdata"
 ]
 },
-"xcheck": [
-{
-"t": "CCH.L",
-"eodhd": 4934.0,
-"yahoo": 4052.0
-}
-],
+"xcheck": [],
 "sources": {
 "OMXS": 110,
 "SP500": 503,
 "NASDAQ": 101,
 "DOW": 30,
-"OMXC": 28,
+"OMXC": 27,
 "OSE": 31,
 "OMXH": 17,
 "DAX": 48,
@@ -229,7 +143,7 @@
 "SP400": 400,
 "SP600": 603,
 "STOXX600": 590,
-"ADR": 86,
+"ADR": 85,
 "SMSN": 5
 },
 "universe": [
@@ -286,7 +200,6 @@
 "ADBE",
 "ADC",
 "ADDT-B.ST",
-"ADDT.ST",
 "ADEA",
 "ADEN.SW",
 "ADI",
@@ -354,7 +267,7 @@
 "ALHC",
 "ALIV-SDB.ST",
 "ALK",
-"ALK.CO",
+"ALK-B.CO",
 "ALKS",
 "ALL",
 "ALLE",
@@ -451,7 +364,6 @@
 "AUB",
 "AUTO.L",
 "AUTO.OL",
-"AV-.L",
 "AV.L",
 "AVA",
 "AVAV",
@@ -477,11 +389,9 @@
 "AZN.L",
 "AZN.ST",
 "AZO",
-"AZRE",
 "AZTA",
 "AZZ",
 "BA",
-"BA-.L",
 "BA.L",
 "BAB.L",
 "BABA",
@@ -524,7 +434,6 @@
 "BEAN.SW",
 "BEI.DE",
 "BEIJ-B.ST",
-"BEIJ.ST",
 "BEKE",
 "BEN",
 "BESI.AS",
@@ -585,7 +494,6 @@
 "BOOT",
 "BOX",
 "BP",
-"BP-.L",
 "BP.L",
 "BPE.MI",
 "BPT.L",
@@ -626,7 +534,7 @@
 "CACI",
 "CAG",
 "CAH",
-"CAJ",
+"CAJPY",
 "CAKE",
 "CALM",
 "CALX",
@@ -1219,7 +1127,7 @@
 "HOC.L",
 "HOFI.ST",
 "HOG",
-"HOLM.ST",
+"HOLM-B.ST",
 "HOLN.SW",
 "HOMB",
 "HON",
@@ -1297,7 +1205,7 @@
 "INCY",
 "INDB",
 "INDT.ST",
-"INDU.ST",
+"INDU-C.ST",
 "INDV",
 "INF.L",
 "INFY",
@@ -1429,7 +1337,6 @@
 "L",
 "LAD",
 "LAGR-B.ST",
-"LAGR.ST",
 "LAMR",
 "LAND.L",
 "LATO-B.ST",
@@ -1612,7 +1519,6 @@
 "MSM",
 "MSTR",
 "MT.AS",
-"MT.PA",
 "MTB",
 "MTCH",
 "MTD",
@@ -1652,7 +1558,6 @@
 "NDA-FI.HE",
 "NDA-SE.ST",
 "NDA.DE",
-"NDA.HE",
 "NDAQ",
 "NDSN",
 "NDX1.DE",
@@ -1672,7 +1577,6 @@
 "NEXI.MI",
 "NFG",
 "NFLX",
-"NG-.L",
 "NG.L",
 "NGG",
 "NGVT",
@@ -1918,7 +1822,7 @@
 "QLT.L",
 "QLYS",
 "QNST",
-"QQ-.L",
+"QQ.L",
 "QRVO",
 "QTWO",
 "R",
@@ -1995,7 +1899,6 @@
 "ROSE.L",
 "ROST",
 "RPM",
-"RR-.L",
 "RR.L",
 "RRC",
 "RRR",
@@ -2069,7 +1972,6 @@
 "SE",
 "SEB-A.ST",
 "SECT-B.ST",
-"SECT.ST",
 "SECU-B.ST",
 "SEDG",
 "SEI",
@@ -2133,7 +2035,6 @@
 "SMT.L",
 "SMTC",
 "SN",
-"SN-.L",
 "SN.L",
 "SNA",
 "SNDK",
@@ -2286,7 +2187,6 @@
 "TOELY",
 "TOL",
 "TOM.OL",
-"TOP.CO",
 "TOST",
 "TPC",
 "TPL",
@@ -2324,7 +2224,6 @@
 "TTWO",
 "TUB.BR",
 "TUI1.DE",
-"TW-.L",
 "TW.L",
 "TWLO",
 "TXN",
@@ -2381,7 +2280,6 @@
 "UTHR",
 "UTI",
 "UTL",
-"UU-.L",
 "UU.L",
 "UVV",
 "V",
