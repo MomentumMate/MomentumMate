@@ -133,6 +133,30 @@ def cal_shift(close, months):
         if f is not None: out.loc[back < f, t] = np.nan
     return out
 
+def clenow_panel(close, n=90):
+    """Clenow (Stocks on the Move): årstaktad lutning i en regression av log-kurs mot tid över n dagar, gånger R².
+    Belönar jämn, stadig uppgång; en aktie som gjort hela sin uppgång i ett hopp får lågt R². Returneras i procent."""
+    y = np.log(close.ffill()).values
+    T, N = y.shape
+    k = np.arange(n, dtype=float); kbar = k.mean(); sxx = ((k - kbar) ** 2).sum()
+    out = np.full((T, N), np.nan)
+    w1 = np.ones(n); wk = (k - kbar)[::-1]          # convolve vänder kärnan
+    for j in range(N):
+        c = y[:, j]
+        if np.isnan(c).all(): continue
+        cc = np.where(np.isnan(c), 0.0, c); ok = (~np.isnan(c)).astype(float)
+        cnt = np.convolve(ok, w1, "valid")
+        sy = np.convolve(cc, w1, "valid"); syy = np.convolve(cc * cc, w1, "valid"); sxy = np.convolve(cc, wk, "valid")
+        ybar = sy / n
+        syy_c = syy - n * ybar ** 2
+        slope = sxy / sxx
+        with np.errstate(divide="ignore", invalid="ignore"):
+            r2 = np.where(syy_c > 0, (sxy ** 2) / (sxx * syy_c), 0.0)
+        val = (np.exp(slope * 252) - 1) * 100 * r2
+        val[cnt < n] = np.nan
+        out[n - 1:, j] = val
+    return pd.DataFrame(out, index=close.index, columns=close.columns)
+
 def score_panel(close, vol, cfg):
     """Poäng per aktie och dag, räknad BARA på data till och med dagen i fråga.
 
@@ -162,10 +186,16 @@ def score_panel(close, vol, cfg):
     elif mw == "12-1 kräver 6-1>0":                     # 12-1, men bara om aktien också stigit senaste halvåret
         m61 = (close.shift(21) / close.shift(126) - 1) * 100
         m121 = m121.where(m61 > 0, 0)
+    rank_m = m121                                   # måttet som ger momentumpoäng och avgör lika poäng
+    if cfg.get("mom_measure") == "clenow":
+        # Test 2026-11-05 (--smooth2): Clenow-lutning × R² ersätter 12-1 i poäng och avgörare. Hållregeln (§ 6) läser fortfarande 12-1.
+        rank_m = clenow_panel(close, cfg.get("clenow_n", 90))
     if cfg["voladj"]:
         ann = r.rolling(126, min_periods=90).std() * math.sqrt(252) * 100
         vam = m121 / ann.replace(0, np.nan)
         mom = ((vam + 0.30) / 2.30).clip(0, 1) * 100
+    elif cfg.get("mom_measure") == "clenow":
+        mom = (rank_m / cfg.get("mom_cap", 60)).clip(0, 1) * 100
     else:
         # Taket (test 2026-11-04): allt över mom_cap % 12-1 får full poäng. Med 60 % (här) eller 80 % (skannern)
         # ligger 30–40 aktier på exakt samma poäng i toppen, och ordningen mellan dem avgörs av listordningen.
@@ -188,7 +218,12 @@ def score_panel(close, vol, cfg):
         volconf = 0
     sc = mom * wm + trend * wt + volconf * wv
     if cfg.get("tie_m121"):                               # lika poäng avgörs av högre 12-1 i stället för listordning
-        sc = sc + m121.clip(lower=0) * 1e-6
+        sc = sc + rank_m.clip(lower=0) * 1e-6
+    if cfg.get("tie_clenow"):                             # 2026-11-05: Clenow-måttet bara som avgörare, 12-1 ger poängen
+        sc = sc + clenow_panel(close, cfg.get("clenow_n", 90)).clip(lower=0).fillna(0) * 1e-4
+    if cfg.get("tie_volm"):                               # 2026-11-05: 12-1 / volatilitet som avgörare
+        ann = r.rolling(126, min_periods=90).std() * math.sqrt(252) * 100
+        sc = sc + (m121 / ann.replace(0, np.nan)).clip(lower=0).fillna(0) * 1e-4
     if cfg.get("heat"):
         # Överhettningsavdrag: straffa aktier som rusat senaste månaden eller har hög RSI.
         r1m = (close / close.shift(21) - 1) * 100
@@ -914,6 +949,7 @@ def main():
     ap.add_argument("--slip", action="store_true", help="marknadspåverkan: bas 5 bp + 2 % × sqrt(post/dagsomsättning), tak 3 % per sida")
     ap.add_argument("--minadv", type=float, default=0, help="likviditetsgolv i KRONOR (20-dagars dagsomsättning), samma för alla marknader")
     ap.add_argument("--mm2", action="store_true", help="2.0-kandidaten: A (T+1 + slippage) mot storbolagsuniversum B, med robusthet och känslighet")
+    ap.add_argument("--smooth2", action="store_true", help="2.0 steg C: Clenow lutning×R² och riskjusterad 12-1 mot referens A (T+1 + slippage)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
     a = ap.parse_args()
 
@@ -1429,6 +1465,78 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "mm2",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias (dagens indexmedlemmar) kvarstår i alla varianter. Slippage är en modell, inte uppmätt."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- 2.0 steg C (2026-11-05, TESTPLAN_2.0.md): jämnt/riskjusterat momentum mot A ----------
+    if a.smooth2:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days=21, stop=0,
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        VAR = {
+            "A.  Referens (1.0, T+1 + slippage): 12-1, lika poäng → högst 12-1":          dict(B),
+            "--- Clenow lutning × R² (90 d) ---":                                         None,
+            "C1. Clenow ersätter 12-1 i poäng och avgörare (hållregel oförändrad)":        dict(B, mom_measure="clenow"),
+            "C2. Clenow 120 d ersätter 12-1":                                             dict(B, mom_measure="clenow", clenow_n=120),
+            "C3. 12-1 ger poängen, Clenow avgör lika poäng":                               dict(B, tie_m121=False, tie_clenow=True),
+            "--- riskjusterat 12-1 ---":                                                  None,
+            "C4. 12-1 ger poängen, 12-1/volatilitet avgör lika poäng":                     dict(B, tie_m121=False, tie_volm=True),
+            "C5. Jämnhet (andel positiva dagar) avgör lika poäng (Z1 från 2026-11-04)":    dict(B, tie_m121=False, tie_smooth=True),
+            "--- robusthet ---":                                                          None,
+            "R1. C1, dubbla kostnader":                                                    dict(B, mom_measure="clenow", **DBL),
+            "R2. C3, dubbla kostnader":                                                    dict(B, tie_m121=False, tie_clenow=True, **DBL),
+            "R3. C4, dubbla kostnader":                                                    dict(B, tie_m121=False, tie_volm=True, **DBL),
+            "R4. A, dubbla kostnader":                                                     dict(B, **DBL),
+            "R5. C1, kvartal förskjutet 1 mån":                                            dict(B, mom_measure="clenow", reb="Q1"),
+            "R6. C3, kvartal förskjutet 1 mån":                                            dict(B, tie_m121=False, tie_clenow=True, reb="Q1"),
+            "R7. C4, kvartal förskjutet 1 mån":                                            dict(B, tie_m121=False, tie_volm=True, reb="Q1"),
+            "R8. A, kvartal förskjutet 1 mån":                                             dict(B, reb="Q1"),
+        }
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        print(f"\n########## 2.0 steg C: jämnt och riskjusterat momentum  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print(f"   Beslutsregel (TESTPLAN_2.0.md § 3, skriven innan körning): C vinner över A om Calmar är högre, Sharpe inte lägre,")
+        print(f"   CAGR faller högst 5 procentenheter, nedgången inte är djupare, och det håller vid dubbla kostnader och förskjutet kvartal.\n")
+        print(f"   {'likaviktat snitt av universumet':<80}{bst['CAGR_%']:>7} %  Sharpe {bst['Sharpe']}")
+        res = {"_snitt": bst}
+        for nm, over in VAR.items():
+            if over is None: print(f"   {nm}"); continue
+            cfg = dict(DEF); cfg.update(over)
+            try:
+                e, tr, hd = run(close, vol, cfg); st = stats(e, tr, yrs, hd, x=LAST_DIAG.get("x")); st["år"] = yearly(e)
+                res[nm] = st
+                print(f"   {nm:<80}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %"
+                      f"  friktion {st.get('friktion_%_per_år')} %/år  köp/år {st['köp_per_år']}  innehav {st['innehavstid_dagar']} d  ADV {st.get('median_ADV_vid_köp_Mkr')} Mkr")
+            except Exception as ex:
+                import traceback; traceback.print_exc()
+                print(f"   {nm:<80} FEL {str(ex)[:60]}"); res[nm] = {"fel": str(ex)[:120]}
+        names = [n for n in VAR if VAR[n] is not None and n in res and "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        A = next((res[n] for n in names if short[n] == "A"), None)
+        if A:
+            print(f"\n   === BESLUTSREGEL mot A (CAGR {A['CAGR_%']} %, Sharpe {A['Sharpe']}, Calmar {A['Calmar']}, nedgång {A['max_nedgång_%']} %) ===")
+            rob = {"C1": ("R1", "R5"), "C3": ("R2", "R6"), "C4": ("R3", "R7")}
+            for n in names:
+                k = short[n]
+                if not k.startswith("C"): continue
+                s_ = res[n]; ok = [("Calmar>", (s_.get("Calmar") or 0) > (A.get("Calmar") or 0)),
+                                   ("Sharpe≥", (s_.get("Sharpe") or 0) >= (A.get("Sharpe") or 0)),
+                                   ("CAGR≥A−5", s_["CAGR_%"] >= A["CAGR_%"] - 5),
+                                   ("nedgång≤", s_["max_nedgång_%"] >= A["max_nedgång_%"])]
+                if k in rob:
+                    rr = [res[x] for x in names if short[x] in rob[k]]
+                    ok.append(("robust", all((r_.get("Calmar") or 0) > (A.get("Calmar") or 0) for r_ in rr) if rr else False))
+                print(f"   {k:<4} {'VINNER' if all(v for _, v in ok) else 'faller':<8} " + "  ".join(f"{nm_}{'✓' if v else '✗'}" for nm_, v in ok))
+        print(f"\n   === ÅR FÖR ÅR ===")
+        main = [n for n in names if short[n] in ("A", "C1", "C2", "C3", "C4", "C5")]
+        yrsall = sorted({y for n in main for y in res[n]['år']})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
+        for y in yrsall:
+            print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>7}" for n in main))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "smooth2",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias kvarstår. Slippage är en modell."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
