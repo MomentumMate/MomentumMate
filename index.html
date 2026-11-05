@@ -367,11 +367,14 @@ async function loadData(){
    visas "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" i stället för handelsförslaget. Saknas filen helt (ny installation) spärras inget. */
 let DC=null;
 async function loadDataCheck(){try{const r=await fetch("datacheck.json?t="+Date.now());if(!r.ok){DC=null;return}const j=await r.json();DC=j&&j.status?j:null}catch(e){DC=null}}
+function dcExpected(){
+  // Senaste tidpunkt då datakontrollen borde ha körts: 03:30 UTC natten efter en handelsdag (tis–lör).
+  const d=new Date();for(let k=0;k<8;k++){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-k,3,30));if(x<=d&&x.getUTCDay()>=2&&x.getUTCDay()<=6)return x}return null}
 function dataGate(){
   if(!DC)return null;
-  const age=(Date.now()-Date.parse(DC.updated||0))/3600000;
   if(DC.status==="red")return`Datakontrollen ${hhmm(DC.updated)} fann allvarliga problem: ${(DC.red||[]).map(esc).join(" · ")}`;
-  if(age>36)return`Senaste datakontroll är ${Math.round(age)} timmar gammal (${hhmm(DC.updated)}) – kontrollen har inte körts.`;
+  const exp=dcExpected(),upd=Date.parse(DC.updated||0);
+  if(exp&&upd<exp.getTime()-12*3600000)return`Datakontrollen har inte körts sedan ${new Date(upd).toLocaleString("sv-SE")} – den väntades natten till ${exp.toLocaleDateString("sv-SE")}.`;
   return null}
 function dataStatusHTML(){
   if(!DC)return"";
