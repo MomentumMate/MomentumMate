@@ -1474,38 +1474,27 @@ def main():
 
     # ---------- 2.0 steg C (2026-11-05, TESTPLAN_2.0.md): jämnt/riskjusterat momentum mot A ----------
     if a.smooth2:
-        # Omgång 2 (efter #74): referens är nu P3 (köp vid månadsslut, 12-1 i kalendermånader). Fönstersvep för att se om
-        # 90/120 var tur, plus Clenows gapfilter. Omgång 1 (#74, mot A): C1 90 d 40,8 %, C2 120 d 43,6 %, A 37,8 %.
+        # Omgång 3 (efter #76): bekräftelse. #76 på P3-referens: C60 32,8 / C90 49,0 / C120 42,8 / C150 35,7 / C180 36,6 / C250 30,4 %
+        # mot P3 34,1 %; 90–180 slog P3 i Calmar och Sharpe, 90/120/150 höll vid dubbla kostnader och Q1. Gapfilter sämre.
+        # Här: tolv delprov (period × marknad) för P3, C90, C120, C150, plus kostnadsläget (5 nordiska, 100 000 kr).
         B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,
                  w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month",
                  port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False, t1=True, slip=True)
         DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
         CL = lambda n, **k: dict(B, mom_measure="clenow", clenow_n=n, **k)
+        K = dict(n=5, mkt="nordic", port_sek=100_000.0)
         VAR = {
             "A.  Referens P3 (1.0 som appen: månadsslut, kalender-12-1, T+1, slippage)":   dict(B),
-            "--- Clenow lutning × R² ersätter 12-1 i poäng och avgörare; hållregeln läser 12-1 ---": None,
-            "C60.  fönster 60 d":                                                           CL(60),
-            "C90.  fönster 90 d":                                                           CL(90),
-            "C120. fönster 120 d":                                                          CL(120),
-            "C150. fönster 150 d":                                                          CL(150),
-            "C180. fönster 180 d":                                                          CL(180),
-            "C250. fönster 250 d":                                                          CL(250),
-            "--- Clenows gapfilter: inget köp om en dagsrörelse > 15 % inom fönstret ---": None,
-            "G90.  90 d + gap 15 %":                                                        CL(90, gap_max=15),
-            "G120. 120 d + gap 15 %":                                                       CL(120, gap_max=15),
-            "G120b. 120 d + gap 25 %":                                                      CL(120, gap_max=25),
-            "--- robusthet ---":                                                           None,
-            "R1. C90, dubbla kostnader":                                                    CL(90, **DBL),
-            "R2. C120, dubbla kostnader":                                                   CL(120, **DBL),
-            "R3. C150, dubbla kostnader":                                                   CL(150, **DBL),
-            "R4. G120, dubbla kostnader":                                                   CL(120, gap_max=15, **DBL),
-            "R5. A, dubbla kostnader":                                                      dict(B, **DBL),
-            "R6. C90, kvartal förskjutet 1 mån":                                            CL(90, reb="Q1"),
-            "R7. C120, kvartal förskjutet 1 mån":                                           CL(120, reb="Q1"),
-            "R8. C150, kvartal förskjutet 1 mån":                                           CL(150, reb="Q1"),
-            "R9. G120, kvartal förskjutet 1 mån":                                           CL(120, gap_max=15, reb="Q1"),
-            "R10. A, kvartal förskjutet 1 mån":                                             dict(B, reb="Q1"),
+            "C90.  Clenow 90 d":                                                            CL(90),
+            "C120. Clenow 120 d":                                                           CL(120),
+            "C150. Clenow 150 d":                                                           CL(150),
+            "--- kostnadsläge: 5 innehav, bara Norden, 100 000 kr ---":                    None,
+            "K0. P3 kostnadsläge":                                                          dict(B, **K),
+            "K90. Clenow 90 d kostnadsläge":                                                CL(90, **K),
+            "K120. Clenow 120 d kostnadsläge":                                              CL(120, **K),
+            "K150. Clenow 150 d kostnadsläge":                                              CL(150, **K),
         }
+        SUBSET = {"P3": dict(B), "C90": CL(90), "C120": CL(120), "C150": CL(150)}
         yrs = (close.index[-1] - close.index[210]).days / 365.25
         be, bst = benchmark(close, yrs)
         print(f"\n########## 2.0 steg C: jämnt och riskjusterat momentum  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
@@ -1529,7 +1518,7 @@ def main():
         A = next((res[n] for n in names if short[n] == "A"), None)
         if A:
             print(f"\n   === BESLUTSREGEL mot A (CAGR {A['CAGR_%']} %, Sharpe {A['Sharpe']}, Calmar {A['Calmar']}, nedgång {A['max_nedgång_%']} %) ===")
-            rob = {"C90": ("R1", "R6"), "C120": ("R2", "R7"), "C150": ("R3", "R8"), "G120": ("R4", "R9")}
+            rob = {}
             for n in names:
                 k = short[n]
                 if not (k.startswith("C") or k.startswith("G")): continue
@@ -1541,8 +1530,43 @@ def main():
                     rr = [res[x] for x in names if short[x] in rob[k]]
                     ok.append(("robust", all((r_.get("Calmar") or 0) > (A.get("Calmar") or 0) for r_ in rr) if rr else False))
                 print(f"   {k:<4} {'VINNER' if all(v for _, v in ok) else 'faller':<8} " + "  ".join(f"{nm_}{'✓' if v else '✗'}" for nm_, v in ok))
+        # Delprov: period × marknad (samma uppdelning som --tie 2026-11-04)
+        print(f"\n   === DELPROV: Sharpe och CAGR per period och marknad ===")
+        def group(cols):
+            us, nordic, eur = [], [], []
+            for t in cols:
+                if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): nordic.append(t)
+                elif "." in t: eur.append(t)
+                else: us.append(t)
+            return {"USA": us, "Norden": nordic, "Europa": eur}
+        grp = group(list(close.columns)); idx = close.index; mid = idx[len(idx) // 2]
+        segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
+        wins = {k: 0 for k in SUBSET}; winc = {k: 0 for k in SUBSET}; split = {}
+        print(f"   {'delprov':<28}{'aktier':>7}" + "".join(f"{k:>14}" for k in SUBSET) + "   vinnare Sharpe / CAGR")
+        for segn, (s0, s1) in segs.items():
+            for un, cols in [("Alla", list(close.columns))] + list(grp.items()):
+                cols = [c for c in cols if c in close.columns]
+                if len(cols) < 40: continue
+                sub = close.loc[s0:s1, cols]; subv = vol.loc[s0:s1, cols]
+                if len(sub) < 500: continue
+                y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
+                if y2 < 1.5: continue
+                row = {}
+                for k, over in SUBSET.items():
+                    cfg = dict(DEF); cfg.update(over)
+                    try: e, tr, hd = run(sub, subv, cfg); st = stats(e, tr, y2, hd); row[k] = (st["Sharpe"], st["CAGR_%"])
+                    except Exception: row[k] = (None, None)
+                ok = {k: v for k, v in row.items() if v[0] is not None}
+                if not ok: continue
+                w = max(ok, key=lambda k: ok[k][0]); wins[w] += 1
+                wc = max(ok, key=lambda k: ok[k][1]); winc[wc] += 1
+                split[f"{segn} / {un}"] = row
+                print(f"   {segn + ' / ' + un:<28}{len(cols):>7}" + "".join(f"{(str(v[0]) + ' ' + str(v[1]) + '%') if v[0] is not None else '–':>14}" for v in row.values()) + f"   {w} / {wc}")
+        print("   Delprov vunna (Sharpe): " + ", ".join(f"{k} {v}" for k, v in wins.items()))
+        print("   Delprov vunna (CAGR):   " + ", ".join(f"{k} {v}" for k, v in winc.items()))
+        res["_delprov"] = split
         print(f"\n   === ÅR FÖR ÅR ===")
-        main = [n for n in names if short[n] in ("A", "C60", "C90", "C120", "C150", "C180", "C250", "G90", "G120")]
+        main = [n for n in names if short[n] in ("A", "C90", "C120", "C150", "K0", "K90", "K120", "K150")]
         yrsall = sorted({y for n in main for y in res[n]['år']})
         print(f"   {'år':<8}" + "".join(f"{short[n]:>7}" for n in main))
         for y in yrsall:
