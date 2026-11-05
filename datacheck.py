@@ -88,7 +88,8 @@ def main():
     for t in tick:
         d = data.get(t)
         if d is None or len(d) == 0:
-            flag(t, "ingen kursdata"); continue
+            why = SC.DL_DIAG.get("chunk_err", {}).get(t)
+            flag(t, "ingen kursdata" + (f" ({why})" if why else " (Yahoo gav tom serie)")); continue
         d = d.dropna(subset=["Close"])
         if d.empty: flag(t, "ingen kursdata"); continue
         idx = pd.DatetimeIndex(d.index).tz_localize(None) if getattr(d.index, "tz", None) is not None else pd.DatetimeIndex(d.index)
