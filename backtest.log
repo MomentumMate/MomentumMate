@@ -1,0 +1,148 @@
+  OMXS: 110 aktier
+  EODHD: planen omfattar inte fundamentaldata (403) – indexlistor, namn och nyckeltal hämtas från andra källor
+  SP500: 503 aktier
+  Nasdaq-100 hämtad från Nasdaq API
+  NASDAQ: 101 aktier
+  DOW: 30 aktier
+  OMXC: 27 aktier
+  OSE: 31 aktier
+  OMXH: 17 aktier
+  DAX: 48 aktier
+  CAC: 43 aktier
+  FTSE: 70 aktier
+  AEX: 23 aktier
+  SMI: 18 aktier
+  IBEX: 20 aktier
+  MIB: 20 aktier
+  SP400: 400 aktier
+  SP600: 603 aktier
+  STOXX600: 590 tickers med börssuffix
+  STOXX600: 590 aktier
+  ADR: 85 aktier
+  SMSN: 5 aktier
+Universum: 2303 aktier – Europa/övrigt 503, Norden 201, USA 1599
+Hämtar 2303 aktier 2015-10-02 → 2026-11-05 …
+  Datakälla: EODHD (nyckel hittad), Yahoo som reserv
+  EODHD 200/2303
+  EODHD 400/2303
+  EODHD 600/2303
+  EODHD 800/2303
+  EODHD 1000/2303
+  EODHD 1200/2303
+  EODHD 1400/2303
+  EODHD 1600/2303
+  EODHD 1800/2303
+  EODHD 2000/2303
+  EODHD 2200/2303
+  EODHD gav 2256 av 2303 – 47 hämtas från Yahoo
+  1–47 av 47 …
+  FELKURSER LAGADE: 10 aktier (dagar ersatta med föregående stängning):
+    BUFAB.ST       2019-06-10 (3 dagar)
+    HTRO.ST        2019-06-10 (3 dagar)
+    INSTAL.ST      2019-06-10 (3 dagar)
+    KINV-B.ST      2019-06-10 (3 dagar)
+    LAGR-B.ST      2019-06-10 (3 dagar)
+    MYCR.ST        2019-06-10 (3 dagar)
+    NCAB.ST        2019-06-10 (3 dagar)
+    NOLA-B.ST      2019-06-10 (3 dagar)
+    PACT.ST        2019-06-10 (3 dagar)
+    TROAX.ST       2019-06-10 (2 dagar)
+  FELKURSFILTER: 10 aktier bortfiltrerade (felet består):
+    ABVX.PA        2025-07-23 +510 %, kommer inte tillbaka inom 5 dagar
+    ATO.PA         2024-11-12 +8528 %, kommer inte tillbaka inom 5 dagar
+    CHRD           2020-11-20 +25749 %, kommer inte tillbaka inom 5 dagar
+    CLSK           2015-05-13 +1233 %, kommer inte tillbaka inom 5 dagar
+    IVT            2021-08-06 -90 %, kommer inte tillbaka inom 5 dagar
+    KNTK           2018-11-13 +9092 %, kommer inte tillbaka inom 5 dagar
+    QLINEA.ST      2025-02-21 -82 %, kommer inte tillbaka inom 5 dagar
+    SEZL           2023-09-14 -81 %, kommer inte tillbaka inom 5 dagar
+    SUPN           2014-12-29 +1980475 %, kommer inte tillbaka inom 5 dagar
+    TALO           2016-06-13 +9011 %, kommer inte tillbaka inom 5 dagar
+  2289 aktier med data, 3115 handelsdagar
+Nedladdat: Europa/övrigt 498, Norden 199, USA 1592
+
+=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===
+   slutkapital       7.135
+   CAGR_%            19.18
+   volatilitet_%     17.5
+   Sharpe            1.1
+   max_nedgång_%     -39.2
+   Calmar            0.49
+   affärer           0
+   köp               0
+   köp_per_år        0.0
+   innehavstid_dagar None
+   längsta_innehav_dagarNone
+   utgångar          {}
+
+########## Kostnadsläge: antal innehav  (2289 aktier, bara Norden handlas) ##########
+   Regeln 5 innehav kom från minimicourtaget 29 kr på utländska poster. I kostnadsläget handlas bara Norden (1 kr på .ST).
+   Beslutsregel (skriven innan körning): antalet ändras till N om N slår 5 i Calmar OCH Sharpe vid alla tre kapitalnivåerna
+   för samma mått, och håller vid dubbla kostnader vid 100 tkr. Flera vinnande N: välj det lägsta som vinner.
+
+   --- P3, 60 tkr ---
+   P3-5-60. P3, 5 innehav, 60 tkr                              24.75 %  Sharpe 0.91  Calmar 0.54  nedgång -46.1 %  friktion 0.93 %/år  köp/år 7.1
+   P3-6-60. P3, 6 innehav, 60 tkr                              25.77 %  Sharpe 1.0  Calmar 0.55  nedgång -46.8 %  friktion 0.94 %/år  köp/år 8.3
+   P3-7-60. P3, 7 innehav, 60 tkr                              22.93 %  Sharpe 0.94  Calmar 0.51  nedgång -45.2 %  friktion 0.92 %/år  köp/år 9.8
+   P3-8-60. P3, 8 innehav, 60 tkr                              28.59 %  Sharpe 1.21  Calmar 0.65  nedgång -44.2 %  friktion 0.91 %/år  köp/år 10.7
+   P3-10-60. P3, 10 innehav, 60 tkr                            28.58 %  Sharpe 1.28  Calmar 0.67  nedgång -42.6 %  friktion 0.88 %/år  köp/år 13.1
+   --- P3, 100 tkr ---
+   P3-5-100. P3, 5 innehav, 100 tkr                            24.82 %  Sharpe 0.91  Calmar 0.54  nedgång -46.1 %  friktion 0.96 %/år  köp/år 7.1
+   P3-6-100. P3, 6 innehav, 100 tkr                            25.83 %  Sharpe 1.01  Calmar 0.55  nedgång -46.8 %  friktion 0.97 %/år  köp/år 8.3
+   P3-7-100. P3, 7 innehav, 100 tkr                            23.03 %  Sharpe 0.94  Calmar 0.51  nedgång -45.2 %  friktion 0.92 %/år  köp/år 9.8
+   P3-8-100. P3, 8 innehav, 100 tkr                            28.22 %  Sharpe 1.19  Calmar 0.64  nedgång -44.3 %  friktion 0.93 %/år  köp/år 10.7
+   P3-10-100. P3, 10 innehav, 100 tkr                          28.55 %  Sharpe 1.28  Calmar 0.67  nedgång -42.6 %  friktion 0.9 %/år  köp/år 13.1
+   --- P3, 150 tkr ---
+   P3-5-150. P3, 5 innehav, 150 tkr                            24.83 %  Sharpe 0.91  Calmar 0.54  nedgång -46.1 %  friktion 1.01 %/år  köp/år 7.1
+   P3-6-150. P3, 6 innehav, 150 tkr                            25.84 %  Sharpe 1.01  Calmar 0.55  nedgång -46.8 %  friktion 1.01 %/år  köp/år 8.3
+   P3-7-150. P3, 7 innehav, 150 tkr                            23.06 %  Sharpe 0.95  Calmar 0.51  nedgång -45.2 %  friktion 0.94 %/år  köp/år 9.8
+   P3-8-150. P3, 8 innehav, 150 tkr                            28.56 %  Sharpe 1.2  Calmar 0.65  nedgång -44.2 %  friktion 0.97 %/år  köp/år 10.7
+   P3-10-150. P3, 10 innehav, 150 tkr                          28.57 %  Sharpe 1.28  Calmar 0.67  nedgång -42.6 %  friktion 0.92 %/år  köp/år 13.1
+   --- P3, 100 tkr, dubbla kostnader ---
+   P3-5-100D. P3, 5 innehav, 100 tkr, dubbla kostnader         24.16 %  Sharpe 0.89  Calmar 0.52  nedgång -46.1 %  friktion 1.53 %/år  köp/år 7.1
+   P3-6-100D. P3, 6 innehav, 100 tkr, dubbla kostnader         24.52 %  Sharpe 0.96  Calmar 0.53  nedgång -46.7 %  friktion 1.56 %/år  köp/år 8.3
+   P3-7-100D. P3, 7 innehav, 100 tkr, dubbla kostnader         22.38 %  Sharpe 0.92  Calmar 0.5  nedgång -45.2 %  friktion 1.5 %/år  köp/år 9.8
+   P3-8-100D. P3, 8 innehav, 100 tkr, dubbla kostnader         27.55 %  Sharpe 1.16  Calmar 0.62  nedgång -44.3 %  friktion 1.51 %/år  köp/år 10.7
+   P3-10-100D. P3, 10 innehav, 100 tkr, dubbla kostnader        28.0 %  Sharpe 1.25  Calmar 0.66  nedgång -42.6 %  friktion 1.46 %/år  köp/år 13.1
+   --- C120, 60 tkr ---
+   C120-5-60. C120, 5 innehav, 60 tkr                          24.89 %  Sharpe 0.92  Calmar 0.52  nedgång -48.3 %  friktion 0.86 %/år  köp/år 6.9
+   C120-6-60. C120, 6 innehav, 60 tkr                          25.39 %  Sharpe 0.99  Calmar 0.51  nedgång -49.3 %  friktion 0.9 %/år  köp/år 8.3
+   C120-7-60. C120, 7 innehav, 60 tkr                          25.65 %  Sharpe 1.05  Calmar 0.54  nedgång -47.2 %  friktion 0.85 %/år  köp/år 9.3
+   C120-8-60. C120, 8 innehav, 60 tkr                          25.12 %  Sharpe 1.07  Calmar 0.55  nedgång -45.7 %  friktion 0.83 %/år  köp/år 10.5
+   C120-10-60. C120, 10 innehav, 60 tkr                        22.75 %  Sharpe 1.01  Calmar 0.5  nedgång -45.7 %  friktion 0.9 %/år  köp/år 13.4
+   --- C120, 100 tkr ---
+   C120-5-100. C120, 5 innehav, 100 tkr                        24.89 %  Sharpe 0.92  Calmar 0.52  nedgång -48.3 %  friktion 0.89 %/år  köp/år 6.9
+   C120-6-100. C120, 6 innehav, 100 tkr                        25.41 %  Sharpe 1.0  Calmar 0.52  nedgång -49.3 %  friktion 0.92 %/år  köp/år 8.3
+   C120-7-100. C120, 7 innehav, 100 tkr                        25.69 %  Sharpe 1.05  Calmar 0.54  nedgång -47.2 %  friktion 0.88 %/år  köp/år 9.3
+   C120-8-100. C120, 8 innehav, 100 tkr                        25.16 %  Sharpe 1.07  Calmar 0.55  nedgång -45.7 %  friktion 0.85 %/år  köp/år 10.5
+   C120-10-100. C120, 10 innehav, 100 tkr                      22.82 %  Sharpe 1.02  Calmar 0.5  nedgång -45.7 %  friktion 0.89 %/år  köp/år 13.4
+   --- C120, 150 tkr ---
+   C120-5-150. C120, 5 innehav, 150 tkr                        24.86 %  Sharpe 0.92  Calmar 0.51  nedgång -48.3 %  friktion 0.93 %/år  köp/år 6.9
+   C120-6-150. C120, 6 innehav, 150 tkr                        25.39 %  Sharpe 0.99  Calmar 0.51  nedgång -49.3 %  friktion 0.96 %/år  köp/år 8.3
+   C120-7-150. C120, 7 innehav, 150 tkr                        25.68 %  Sharpe 1.05  Calmar 0.54  nedgång -47.2 %  friktion 0.91 %/år  köp/år 9.3
+   C120-8-150. C120, 8 innehav, 150 tkr                        25.16 %  Sharpe 1.07  Calmar 0.55  nedgång -45.7 %  friktion 0.88 %/år  köp/år 10.5
+   C120-10-150. C120, 10 innehav, 150 tkr                      23.01 %  Sharpe 1.02  Calmar 0.5  nedgång -45.7 %  friktion 0.91 %/år  köp/år 13.4
+   --- C120, 100 tkr, dubbla kostnader ---
+   C120-5-100D. C120, 5 innehav, 100 tkr, dubbla kostnader     24.23 %  Sharpe 0.9  Calmar 0.5  nedgång -48.2 %  friktion 1.45 %/år  köp/år 6.9
+   C120-6-100D. C120, 6 innehav, 100 tkr, dubbla kostnader     24.72 %  Sharpe 0.97  Calmar 0.5  nedgång -49.3 %  friktion 1.48 %/år  köp/år 8.3
+   C120-7-100D. C120, 7 innehav, 100 tkr, dubbla kostnader     25.13 %  Sharpe 1.02  Calmar 0.53  nedgång -47.2 %  friktion 1.42 %/år  köp/år 9.3
+   C120-8-100D. C120, 8 innehav, 100 tkr, dubbla kostnader     24.24 %  Sharpe 1.03  Calmar 0.53  nedgång -45.7 %  friktion 1.37 %/år  köp/år 10.5
+   C120-10-100D. C120, 10 innehav, 100 tkr, dubbla kostnader   22.21 %  Sharpe 0.99  Calmar 0.49  nedgång -45.7 %  friktion 1.44 %/år  köp/år 13.4
+
+   === BESLUTSREGEL: N mot 5, per mått ===
+   P3     6 innehav: VINNER  60✓/✗ 100 150 dubbla → ✓ ✓ ✓ ✓
+   P3     7 innehav: faller  60✓/✗ 100 150 dubbla → ✗ ✗ ✗ ✗
+   P3     8 innehav: VINNER  60✓/✗ 100 150 dubbla → ✓ ✓ ✓ ✓
+   P3    10 innehav: VINNER  60✓/✗ 100 150 dubbla → ✓ ✓ ✓ ✓
+   C120   6 innehav: faller  60✓/✗ 100 150 dubbla → ✗ ✗ ✗ ✗
+   C120   7 innehav: VINNER  60✓/✗ 100 150 dubbla → ✓ ✓ ✓ ✓
+   C120   8 innehav: VINNER  60✓/✗ 100 150 dubbla → ✓ ✓ ✓ ✓
+   C120  10 innehav: faller  60✓/✗ 100 150 dubbla → ✗ ✗ ✗ ✗
+
+   === DELPROV (100 tkr): Sharpe och CAGR per period ===
+   delprov                     P3-5            P3-7          C120-5          C120-7
+   Hela            0.91 24.82% -46.1%0.94 23.03% -45.2%0.92 24.89% -48.3%1.05 25.69% -47.2%
+   Första halvan   0.62 16.48% -46.1%0.67 16.02% -45.2%0.97 25.24% -48.3%1.1 26.0% -47.2%
+   Andra halvan    1.0 26.99% -36.3%1.15 28.44% -32.8%1.35 35.46% -27.0%1.28 30.28% -24.0%
+
+Skrev backtest.json
