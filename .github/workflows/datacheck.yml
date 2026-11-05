@@ -1,0 +1,46 @@
+name: Datakontroll
+
+# Daglig kontroll av att alla aktier svarar (SPEC.md § 16). Körs före morgonens skanning. Rött jobb = allvarligt dataproblem;
+# GitHub mejlar ägaren, och appen visar "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" tills nästa gröna kontroll.
+on:
+  schedule:
+    - cron: "45 11 * * 1-5"   # 11:45 UTC, före skanningen 12:30
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scan            # samma grupp som skanningen så att de inte skriver till main samtidigt
+  cancel-in-progress: false
+
+jobs:
+  datacheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Kör datakontrollen
+        id: check
+        continue-on-error: true
+        env:
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
+        run: python datacheck.py
+      - name: Publicera datacheck.json och datacheck.md på main
+        run: |
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add datacheck.json datacheck.md
+          git diff --cached --quiet && exit 0
+          git commit -qm "datakontroll $(date -u +%F) [skip ci]"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break || sleep 20; done
+      - name: Rött vid allvarligt dataproblem
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "::error::Datakontrollen fann allvarliga problem – se datacheck.md"
+          exit 1
