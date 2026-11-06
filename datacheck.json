@@ -1,5 +1,5 @@
 {
-"updated": "2026-11-05T18:00:55Z",
+"updated": "2026-11-06T11:25:55Z",
 "status": "warn",
 "red": [],
 "markets": {
@@ -11,9 +11,9 @@
 },
 "USA": {
 "antal": 1599,
-"senaste": "2026-11-04",
+"senaste": "2026-11-05",
 "tysta": 6,
-"flaggade": 14
+"flaggade": 15
 },
 "Europa": {
 "antal": 503,
@@ -24,67 +24,45 @@
 },
 "n": 2303,
 "silent": 7,
-"flagged": 24,
-"gone": [
-"ADDT.ST",
-"ALK.CO",
-"AV-.L",
-"AZRE",
-"BA-.L",
-"BEIJ.ST",
-"BP-.L",
-"CAJ",
-"HOLM.ST",
-"INDU.ST",
-"LAGR.ST",
-"MT.PA",
-"NDA.HE",
-"NG-.L",
-"QQ-.L",
-"RR-.L",
-"SECT.ST",
-"SN-.L",
-"TOP.CO",
-"TW-.L",
-"UU-.L"
-],
+"flagged": 25,
+"gone": [],
 "own_flagged": [],
 "issues": {
 "ACA": [
 "tyst sedan 2026-10-22"
 ],
 "AHT.L": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "BLFS": [
 "tyst sedan 2026-10-07"
 ],
 "CWEN-A": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "ERJ": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "FLTR.L": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "HDFC.IL": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "HLX": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "HYMTF": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "INFY.IL": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "KYOCY": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "LEG": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "LQDA": [
 "dagsrörelse -57 % den 2026-09-30"
@@ -93,10 +71,10 @@
 "tyst sedan 2026-10-30"
 ],
 "OCTV.ST": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "PHNX.L": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "QRVO": [
 "tyst sedan 2026-10-02"
@@ -105,7 +83,7 @@
 "tyst sedan 2026-10-30"
 ],
 "ROG.SW": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "SDR.L": [
 "tyst sedan 2026-10-01"
@@ -115,13 +93,16 @@
 "stillastående 10 dagar"
 ],
 "SYDB.CO": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "TATA.IL": [
-"ingen kursdata"
+"ingen kursdata (tom serie)"
 ],
 "TOELY": [
-"tyst sedan 2026-10-06"
+"tyst sedan 2026-09-24"
+],
+"VCYT": [
+"dagsrörelse -54 % den 2026-11-05"
 ]
 },
 "xcheck": [],
