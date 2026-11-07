@@ -1,11 +1,13 @@
-# Datakontroll 2026-11-06T11:25:55Z – WARN
+# Datakontroll 2026-11-07T10:39:34Z – WARN
 
 
 | Marknad | Aktier | Senaste stängning | Tysta | Flaggade |
 |---|---|---|---|---|
-| Norden | 201 | 2026-11-05 | 0 | 2 |
-| USA | 1599 | 2026-11-05 | 6 | 15 |
-| Europa | 503 | 2026-11-05 | 1 | 8 |
+| Norden | 201 | 2026-11-06 | 0 | 2 |
+| USA | 1599 | 2026-11-06 | 6 | 15 |
+| Europa | 503 | 2026-11-06 | 1 | 8 |
+
+**Borta sedan i går (1):** MSGS
 
 **Flaggade aktier (25):**
 - ACA: tyst sedan 2026-10-22

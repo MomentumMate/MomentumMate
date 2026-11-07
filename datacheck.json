@@ -1,23 +1,23 @@
 {
-"updated": "2026-11-06T11:25:55Z",
+"updated": "2026-11-07T10:39:34Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-05",
+"senaste": "2026-11-06",
 "tysta": 0,
 "flaggade": 2
 },
 "USA": {
 "antal": 1599,
-"senaste": "2026-11-05",
+"senaste": "2026-11-06",
 "tysta": 6,
 "flaggade": 15
 },
 "Europa": {
 "antal": 503,
-"senaste": "2026-11-05",
+"senaste": "2026-11-06",
 "tysta": 1,
 "flaggade": 8
 }
@@ -25,7 +25,9 @@
 "n": 2303,
 "silent": 7,
 "flagged": 25,
-"gone": [],
+"gone": [
+"MSGS"
+],
 "own_flagged": [],
 "issues": {
 "ACA": [
@@ -1495,7 +1497,7 @@
 "MSCI",
 "MSEX",
 "MSFT",
-"MSGS",
+"MSGK",
 "MSI",
 "MSM",
 "MSTR",
