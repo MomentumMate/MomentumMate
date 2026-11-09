@@ -370,7 +370,16 @@ async function loadDataCheck(){try{const r=await fetch("datacheck.json?t="+Date.
 function dcExpected(){
   // Senaste tidpunkt då datakontrollen borde ha körts: 03:30 UTC natten efter en handelsdag (tis–lör).
   const d=new Date();for(let k=0;k<8;k++){const x=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()-k,3,30));if(x<=d&&x.getUTCDay()>=2&&x.getUTCDay()<=6)return x}return null}
+function lastCloseDate(){
+  // Senaste handelsdag (vardag) vars stängning bör finnas i skanningen: i går om klockan är före 23:00 svensk tid, annars i dag (USA stänger 22:00).
+  const d=new Date();if(d.getHours()<23)d.setDate(d.getDate()-1);while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10)}
+function scanGate(){
+  if(DEMO||!D.updated)return null;
+  const need=lastCloseDate(),have=Object.values(S).reduce((m,x)=>x&&x.lt>m?x.lt:m,"");
+  return have&&have<need?`Skanningen (${hhmm(D.updated)}) har kurser t.o.m. ${have}, men senaste stängning är ${need}. Förslaget skulle räknas på gamla kurser.`:null}
 function dataGate(){
+  const sg_=scanGate();if(sg_)return sg_;
   if(!DC)return null;
   if(DC.status==="red")return`Datakontrollen ${hhmm(DC.updated)} fann allvarliga problem: ${(DC.red||[]).map(esc).join(" · ")}`;
   const exp=dcExpected(),upd=Date.parse(DC.updated||0);
@@ -383,7 +392,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-05-x";
+const APPV="2026-11-09-y";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -733,9 +742,10 @@ function vSearch(q){
 function resHtml(q,lim){const r=search(q,lim);return r.length?r.map(srow).join("")+`<div class="mu" style="padding:10px 2px;cursor:pointer" data-act="lookup" data-q="${esc(q)}">Hittar du inte rätt aktie? <span class="lnk">Slå upp “${esc(q)}” online ›</span></div>`:noHitCard(q)}
 function vStock(t){
   const s=S[t];if(!s){view(topbar("Aktie")+'<div class="empty">Aktien hittades inte i datan.</div>');return}
+  if(!(s.qt&&Date.now()-s.qt<20000))fhQuoteOne(t).then(ok=>{if(!ok)return;const a=$("#spx"),b=$("#sch"),c=$("#ssrc");if(a&&location.hash.endsWith(encodeURIComponent(t))){a.textContent=s.px+" "+s.cur;b.textContent=sg(s.chg);b.className="pill "+cls(s.chg);if(c)c.innerHTML=pxSrc(s)}});
   open.add(s.t);const inP=[];P.ps.forEach(p=>{const h=p.h.find(x=>x.t===t);if(h)inP.push(p.name+": "+f(h.q,h.q%1?2:0)+" st @ "+f(h.c))});
   view(`${topbar(fl(s)+" "+esc(s.d))}${edWarn(s)}<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="plansheet" data-t="${esc(s.t)}">Handelsplan</span></div>${Ui.back?`<div class="chips" style="margin:0 0 8px"><span class="chip on" data-act="goback">↩ Tillbaka till ${esc(Ui.back.label)}</span></div>`:""}<div class="mod"><div class="mu">${esc(s.n)} · ${s.m.map(k=>esc(MK(k).n)).join(", ")}</div>
-  <div><span class="big">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}">${sg(s.chg)}</span></div>
+  <div><span class="big" id="spx">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}" id="sch">${sg(s.chg)}</span></div><div id="ssrc">${pxSrc(s)}</div>
   <div class="al">${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}</div>
 
   ${inP.length?`<div class="mu" style="margin-top:8px">I portfölj → ${inP.map(esc).join(" · ")}</div>`:""}</div>
@@ -957,6 +967,19 @@ const enc=encodeURIComponent;
 const fmtV=n=>n==null?"–":n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
 const TZL=(()=>{try{const o=-new Date().getTimezoneOffset()/60;return "lokal tid (UTC"+(o>=0?"+":"")+o+")"}catch(e){return "lokal tid"}})();
 const hhmm=iso=>{try{return new Date(iso).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
+/* Kursens ursprung (2026-11-09): varje kurs visas med källa och tid så att gammal data aldrig ser ut som "nu".
+   qsrc: finnhub (realtid, USA), live (EODHD fördröjd via live-grenen), eodhd (fördröjd kurs), annars skanningen (stängning lt). */
+function pxSrc(s){
+  if(!s)return"";
+  const d=s.qt?new Date(s.qt):null,today=d&&d.toDateString()===new Date().toDateString();
+  const when=d?(today?hhmm(d):d.toLocaleDateString("sv-SE")+" "+hhmm(d)):(s.lt?"stängning "+s.lt:(D.updated?"skanning "+hhmm(D.updated):""));
+  const src=s.qsrc==="finnhub"?"Finnhub realtid":s.qsrc==="live"||s.qsrc==="eodhd"?"EODHD 15–20 min fördröjd":"stängningskurs";
+  return`<span class="mu" style="font-size:11px">${src} · ${when}</span>`}
+async function fhQuoteOne(t){
+  const key=fhKey();if(!key||DEMO||!liveOK(t)||!S[t])return false;
+  try{const r=await fetch("https://finnhub.io/api/v1/quote?symbol="+encodeURIComponent(t.replace("-","."))+"&token="+encodeURIComponent(key));if(!r.ok)return false;
+    const q=await r.json();if(!(q&&q.c>0))return false;const s=S[t];s.px=+q.c;if(q.pc>0)s.chg=+((q.c/q.pc-1)*100).toFixed(2);s.qt=Date.now();s.qsrc="finnhub";return true}
+  catch(e){return false}}
 const CRIT=["Pris över gårdagens high","Gårdagens stängning över SMA200","Pris över pre-market high","Pris över dagens öppning","Pre-market volym ≥ 50K"];
 const STL={BUY:"KÖP-SIGNAL",SELL:"SÄLJ-SIGNAL",HOLD:"I POSITION",WAIT:"VÄNTA"},STC={BUY:"BUY",SELL:"SELL",HOLD:"INPOS",WAIT:"WAIT"};
 const DP="mm_daypick";
@@ -1005,7 +1028,7 @@ function vDTx(t){
   if(!x){view(`${topbar(fl(s)+" "+esc(s.d))}<div class="mod"><div class="mh"><div class="ico">⚡</div><h2>${esc(s.d)}</h2></div><p style="margin:0 0 12px;font-size:14px">Ingen intradagsdata för ${esc(s.n)} ännu. Diagram och nivåer finns för toppkandidaterna – de uppdateras vid nästa skanning eller live-körning.</p><button class="btn wide" data-go="#/stock/${enc(t)}">Öppna analysen</button></div>`);return}
   const L=x.lv,hmf=new Intl.DateTimeFormat("sv-SE",{timeZone:x.tz,hour:"2-digit",minute:"2-digit",hour12:false});
   view(`${topbar(fl(s)+" "+esc(s.d))}
-  <div style="margin:0 2px"><span class="mu">${esc(s.n)} · ${MK(s.m[0]).flag} ${esc(MK(s.m[0]).n)}</span><div><span class="big" id="hpx">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}" id="hch">${sg(s.chg)}</span></div></div>
+  <div style="margin:0 2px"><span class="mu">${esc(s.n)} · ${MK(s.m[0]).flag} ${esc(MK(s.m[0]).n)}</span><div><span class="big" id="hpx">${s.px} ${s.cur}</span><span class="pill ${cls(s.chg)}" id="hch">${sg(s.chg)}</span></div><div>${pxSrc(s)}</div></div>
   <div class="chips" style="margin:8px 0"><span class="chip${pk?" on":""}" data-act="dpick" data-t="${esc(t)}">${pk?"★ Din aktie idag":"☆ Välj som min aktie idag"}</span><span class="chip" data-act="add" data-t="${esc(t)}">+ Portfölj</span><span class="chip" data-act="chart" data-t="${esc(t)}">📈 Graf</span></div>
   ${aboutHTML(s)}
   <div class="stat ${x.st.k}" id="stbox"><b>${STL[x.st.k]}</b>${esc(x.st.t)}</div>
@@ -1771,7 +1794,7 @@ async function refreshQuotes(){
   const list=[...new Set(pri.concat(all.filter(t=>!pri.includes(t)).sort((a,b)=>((S[a]||{}).qt||0)-((S[b]||{}).qt||0))))].filter(t=>S[t]&&liveOK(t)).slice(0,45);
   if(!list.length)return false;FHQ.busy=true;let ok=0,err="";
   try{
-    await Promise.all(list.map(async t=>{try{const r=await fetch("https://finnhub.io/api/v1/quote?symbol="+encodeURIComponent(t.replace("-","."))+"&token="+encodeURIComponent(key));if(!r.ok){err="HTTP "+r.status;return}const q=await r.json();if(q&&q.c>0){S[t].px=+q.c;if(q.pc>0)S[t].chg=+((q.c/q.pc-1)*100).toFixed(2);S[t].qt=Date.now();ok++}}catch(e){err="nätverk/CORS"}}));
+    await Promise.all(list.map(async t=>{try{const r=await fetch("https://finnhub.io/api/v1/quote?symbol="+encodeURIComponent(t.replace("-","."))+"&token="+encodeURIComponent(key));if(!r.ok){err="HTTP "+r.status;return}const q=await r.json();if(q&&q.c>0){S[t].px=+q.c;if(q.pc>0)S[t].chg=+((q.c/q.pc-1)*100).toFixed(2);S[t].qt=Date.now();S[t].qsrc="finnhub";ok++}}catch(e){err="nätverk/CORS"}}));
     try{const r=await fetch("https://finnhub.io/api/v1/forex/rates?base=USD&token="+encodeURIComponent(key));if(r.ok){const j=await r.json();if(j&&j.quote&&j.quote.SEK>5){D.fx.USD=+j.quote.SEK;FHQ.fx=+j.quote.SEK}}}catch(e){}
   }finally{FHQ.busy=false}
   FHQ.t=Date.now();FHQ.ok=ok>0;FHQ.n=ok;FHQ.tot=list.length;FHQ.err=ok?"":err;return ok>0
@@ -2909,7 +2932,12 @@ async function checkVersion(){
   }catch(e){}
 }
 setTimeout(checkVersion,4000);setInterval(checkVersion,600000);
-async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();Object.keys(j.stocks||{}).forEach(t=>{if(S[t]){Object.assign(S[t],j.stocks[t]);scrubLegacy(S[t])}});
+async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();const lts=j.updated?Date.parse(j.updated):0;
+  Object.keys(j.stocks||{}).forEach(t=>{const s=S[t];if(!s)return;const o=j.stocks[t];
+    // 2026-11-09: daghandelsfälten tas, men kurs/dagsförändring bara om live-filen är nyare än den kurs som redan finns (Finnhub var 20 s).
+    const keep=s.qt&&lts&&lts<=s.qt;const px=s.px,chg=s.chg,qt=s.qt,qsrc=s.qsrc;
+    Object.assign(s,o);scrubLegacy(s);
+    if(keep){s.px=px;s.chg=chg;s.qt=qt;s.qsrc=qsrc}else if(o.px>0){s.qt=lts||s.qt;s.qsrc="live"}});
   // Fördröjda kurser från EODHD för hela universumet – ersätter Finnhub på portföljsidan
   if(j.quotes){let n=0;Object.keys(j.quotes).forEach(t=>{const q=j.quotes[t],s=S[t];if(!s||!(q.px>0))return;
     if(q.ts&&s.qt&&q.ts*1000<=s.qt)return;              // behåll en nyare Finnhub-kurs
