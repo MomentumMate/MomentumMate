@@ -392,7 +392,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-09-z";
+const APPV="2026-11-09-aa";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -584,11 +584,11 @@ async function fillCharts(root){
     const intra=st.rng==="1d"||st.rng==="1w";
     el.querySelectorAll("[data-act=cvl]").forEach(c=>{c.classList.toggle("on",!!st.lay[c.dataset.k]);c.classList.toggle("off",!st.lay[c.dataset.k]);c.classList.toggle("dis",intra&&c.dataset.k==="sma");if(intra&&c.dataset.k==="sma")c.title="Dagsbaserat medelvärde – välj 1M eller längre"});
     const box=el.querySelector(".cvin"),head=el.querySelector(".cvhead");
-    try{const h=await loadHist(t);const out=cvSvg(s,h,st.rng,st.lay);
+    try{let h=await loadHist(t);if(intra)h=await mergeIntra(t,h);const out=cvSvg(s,h,st.rng,st.lay);
       if(!out){box.innerHTML='<div class="mu" style="padding:10px 0">Graf saknas – kurshistoriken byggs av skanningen.</div>';continue}
       box.innerHTML=out.svg;box.classList.add("cv");
       const r=out.r,n=out.n,a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
-      head.innerHTML=`<span class="big" style="font-size:22px">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu">${r.t?histFmt(r.t[n-1],st.rng,t):""}</span>`}
+      head.innerHTML=`<span class="big" style="font-size:22px">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu">${r.t?histFmt(r.t[n-1],st.rng,t):""}</span>${intra?`<div class="mu" style="font-size:11px">${intraNote(r,st.rng,t)}</div>`:""}`}
     catch(e){box.innerHTML='<div class="mu">Grafen kunde inte ritas.</div>'}}
 }
 
@@ -1846,6 +1846,60 @@ async function loadHist(t){
   if(b){try{const r=await fetch(b+encodeURIComponent(histName(t))+".json?t="+Math.floor(Date.now()/36e5));if(r.ok)return HC[t]=await r.json()}catch(e){}}
   return HC[t]=null
 }
+/* ---- Intradag (korrigering 3, 2026-11-09) ----
+   1D/1V i kurshistoriken kommer från skanningen och visar alltså den senaste session skanningen såg – inte nödvändigtvis dagens.
+   intraNote() säger därför alltid vilken handelsdag och vilket klockslag grafen slutar på. För USA-aktier hämtas dagens
+   5-minutersstaplar från Finnhub (/stock/candle) om nyckeln tillåter; hos Finnhub är det en betalfunktion, så vid 401/403
+   slutar appen fråga och säger det i rubriken. */
+const FHI={no:false,c:{}};
+function isoDay(ts,t){try{const p=new Intl.DateTimeFormat("sv-SE",{timeZone:tzOf(t),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(ts*1000)).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}-${p.month}-${p.day}`}catch(e){return""}}
+function dayLabel(ts,t){try{return new Date(ts*1000).toLocaleDateString("sv-SE",{timeZone:tzOf(t),weekday:"short",day:"numeric",month:"short"})}catch(e){return""}}
+function hmLabel(ts,t){try{return new Date(ts*1000).toLocaleTimeString("sv-SE",{timeZone:tzOf(t),hour:"2-digit",minute:"2-digit"})}catch(e){return""}}
+async function fhIntra(t){
+  const key=fhKey();if(!key||DEMO||FHI.no||!liveOK(t))return null;
+  const c=FHI.c[t];if(c&&Date.now()-c.at<5*60e3)return c.r;
+  const keep=r=>{FHI.c[t]={at:Date.now(),r};return r};
+  try{
+    const now=Math.floor(Date.now()/1000),from=now-20*3600;
+    const r=await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(t.replace("-","."))}&resolution=5&from=${from}&to=${now}&token=${encodeURIComponent(key)}`);
+    if(r.status===401||r.status===403){FHI.no=true;return keep(null)}
+    if(!r.ok)return null;
+    const j=await r.json();if(!j||j.s!=="ok"||!j.c||j.c.length<3)return keep(null);
+    // bara den senaste handelsdagen och bara ordinarie session i New York (09:30–16:00), som skannern
+    const fm=new Intl.DateTimeFormat("sv-SE",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+    const rows=j.t.map((ts,i)=>{const p=fm.formatToParts(new Date(ts*1000)).reduce((a,x)=>(a[x.type]=x.value,a),{});return{ts,d:`${p.year}-${p.month}-${p.day}`,m:(+p.hour%24)*60+ +p.minute,i}});
+    const last=rows[rows.length-1].d,sel=rows.filter(x=>x.d===last&&x.m>=570&&x.m<960);
+    if(sel.length<3)return keep(null);
+    const pick=k=>sel.map(x=>+j[k][x.i]);
+    return keep({t:sel.map(x=>x.ts),p:pick("c"),o:pick("o"),hi:pick("h"),lo:pick("l"),v:pick("v"),src:"finnhub"})
+  }catch(e){return null}
+}
+/* Lägger dagens Finnhub-session ovanpå skanningens 1D/1V när den är nyare. Muterar h (cachad), bara en gång per dag och aktie. */
+async function mergeIntra(t,h){
+  if(!h||!(h["1d"]&&h["1d"].t&&h["1d"].t.length))return h;
+  const fh=await fhIntra(t);if(!fh)return h;
+  const dFh=isoDay(fh.t[fh.t.length-1],t),dH=isoDay(h["1d"].t[h["1d"].t.length-1],t);
+  if(dFh<dH||(h.fhDay===dFh&&h["1d"].t.length===fh.t.length))return h;
+  h.fhDay=dFh;h["1d"]=fh;
+  const w=h["1w"];if(w&&w.t&&w.t.length&&dFh>isoDay(w.t[w.t.length-1],t)){
+    // 30-minutersstaplar av dagens session läggs till veckografen; äldsta dagen faller bort så att det förblir fem dagar
+    const agg={t:[],p:[],o:[],hi:[],lo:[],v:[]};let k=-1,b0=0;
+    fh.t.forEach((ts,i)=>{const b=Math.floor(ts/1800);if(b!==k){k=b;b0=i;agg.t.push(ts);agg.o.push(fh.o[i]);agg.hi.push(fh.hi[i]);agg.lo.push(fh.lo[i]);agg.p.push(fh.p[i]);agg.v.push(fh.v[i])}
+      else{const j=agg.t.length-1;agg.hi[j]=Math.max(agg.hi[j],fh.hi[i]);agg.lo[j]=Math.min(agg.lo[j],fh.lo[i]);agg.p[j]=fh.p[i];agg.v[j]+=fh.v[i]}});
+    const days=[...new Set(w.t.map(x=>isoDay(x,t)))];const drop=days.length>=5?days[0]:null;
+    const keepI=w.t.map((x,i)=>i).filter(i=>isoDay(w.t[i],t)!==drop);
+    const nw={};for(const kk of ["t","p","o","hi","lo","v"])nw[kk]=(w[kk]?keepI.map(i=>w[kk][i]):[]).concat(agg[kk]);
+    nw.src="finnhub";h["1w"]=nw}
+  return h
+}
+/* Rubrik för 1D/1V: vilken handelsdag, hur långt in i sessionen, varifrån – och en varning när det inte är senaste handelsdagen. */
+function intraNote(r,rng,t){
+  if(!(rng==="1d"||rng==="1w")||!r||!r.t||!r.t.length)return"";
+  const last=r.t[r.t.length-1],d=isoDay(last,t),lab=dayLabel(last,t)+" "+hmLabel(last,t);
+  const stale=d<lastCloseDate();
+  const src=r.src==="finnhub"?"Finnhub":"senaste skanning";
+  return(rng==="1d"?`Handelsdag <b>${lab}</b>`:`Fem handelsdagar t.o.m. <b>${lab}</b>`)+` (${src})`+(stale?` – <b class="dn">inte senaste handelsdagen</b>${FHI.no?"; Finnhub-nyckeln ger inte intradagsstaplar":liveOK(t)&&!fhKey()?"; spara en Finnhub-nyckel för dagens kurser":""}`:"");
+}
 function histSlice(h,s,rng){
   const cut=(o,n)=>o?{t:o.t.slice(-n),p:o.p.slice(-n)}:null;
   let r=null;if(h){switch(rng){case"1d":r=h["1d"];break;case"1w":r=h["1w"];break;case"1m":r=cut(h["2y"],22);break;case"3m":r=cut(h["2y"],63);break;case"6m":r=cut(h["2y"],126);break;case"1y":r=cut(h["2y"],252);break;case"2y":r=h["2y"];break;case"5y":r=h["5y"]}}
@@ -1952,7 +2006,7 @@ function cvSvg(s,h,rng,lay,R){
   return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],rng,s.t):""}</span><span>${r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
 }
 async function drawCV(){
-  const t=CV.t,s=S[t],h=await loadHist(t);if(CV.t!==t||!$("#cvbody"))return;
+  const t=CV.t,s=S[t];let h=await loadHist(t);if(CV.rng==="1d"||CV.rng==="1w")h=await mergeIntra(t,h);if(CV.t!==t||!$("#cvbody"))return;
   const out=cvSvg(s,h,CV.rng,CV.lay);
   if(!out){$("#cvbody").innerHTML='<div class="empty">Ingen kurshistorik för det här intervallet än.</div>';return}
   const{r,n,X,Y,O,HI,LO,candle,tp,daily}=out;
@@ -1961,7 +2015,7 @@ async function drawCV(){
   const a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
   $("#cvhead").innerHTML=`<span class="big" id="cvpr">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu" id="cvdt">${r.t?histFmt(r.t[n-1],CV.rng):""}</span>${srHTML(s)}`;
   const st=s.strc&&s.strc.k,stl={upp:"Högre toppar och bottnar – upptrend",ned:"Lägre toppar och bottnar – nedtrend",sidled:"Sidled",kil:"Smalnande intervall",vidgande:"Vidgande svängar"}[st];
-  $("#cvinfo").innerHTML=`<div class="mu" style="font-size:11.5px">${stl?`Struktur: <b class="${st==="upp"?"up":st==="ned"?"dn":""}">${stl}</b>. `:""}${tp?`Handelsplan: köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)}, stopp ${f(tp.stop,2)} (${esc(tp.stopWhy)}), mål 1 ${f(tp.t1,2)}, R:R ${f(tp.rr,1)}:1.`:""}${!daily&&CV.lay.candle?" Ljusstakar och volym visas för dagsintervall när skanningen byggt full historik.":""}</div>`;
+  $("#cvinfo").innerHTML=`<div class="mu" style="font-size:11.5px">${stl?`Struktur: <b class="${st==="upp"?"up":st==="ned"?"dn":""}">${stl}</b>. `:""}${tp?`Handelsplan: köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)}, stopp ${f(tp.stop,2)} (${esc(tp.stopWhy)}), mål 1 ${f(tp.t1,2)}, R:R ${f(tp.rr,1)}:1.`:""}${!daily&&CV.lay.candle?" Ljusstakar och volym visas för dagsintervall när skanningen byggt full historik.":""}${(CV.rng==="1d"||CV.rng==="1w")?`<div style="margin-top:4px">${intraNote(r,CV.rng,t)}</div>`:""}</div>`;
   const svg=$("#cvsvg");
   const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-6)/(W-12)*(n-1)))),px=X(i),py=Y(r.p[i]);
     const cl=$("#cvcl"),dt=$("#cvdot");cl.setAttribute("x1",px);cl.setAttribute("x2",px);cl.style.display="";dt.setAttribute("cx",px);dt.setAttribute("cy",py);dt.style.display="";
@@ -1974,7 +2028,7 @@ async function chartSheet(t,rng){
   await drawHist()
 }
 async function drawHist(){
-  const t=HCUR.t,rng=HCUR.rng,s=S[t],h=await loadHist(t);if(!SH.classList.contains("on")||HCUR.t!==t)return;
+  const t=HCUR.t,rng=HCUR.rng,s=S[t];let h=await loadHist(t);if(rng==="1d"||rng==="1w")h=await mergeIntra(t,h);if(!SH.classList.contains("on")||HCUR.t!==t)return;
   $$("#shb [data-act=hrng]").forEach(c=>c.classList.toggle("on",c.dataset.r===rng));
   const r=histSlice(h,s,rng),body=$("#hbody");if(!body)return;
   if(!r){body.innerHTML=`<div class="empty">Ingen kurshistorik för det här intervallet än.${DEMO?"":" Historiken skapas av skanningen – kör “Daily momentum scan” och försök igen."}</div>`;$("#hhead").innerHTML="";$("#hnote").textContent="";return}
@@ -1983,7 +2037,7 @@ async function drawHist(){
   body.innerHTML=histChart(r,rng,ch>=0,s.sr);
   $("#hx0").textContent=r.t?histFmt(r.t[0],rng):"45 dagar sedan";$("#hx1").textContent=r.t?histFmt(r.t[r.t.length-1],rng):"nu";
   const lvN=$("#hlv");if(lvN)lvN.innerHTML=srHTML(s);
-  $("#hnote").innerHTML=`Hög ${hi.toFixed(2)} · Låg ${lo.toFixed(2)}${r.fb?" · begränsad historik (45 dagar) tills skanningen byggt full historik":""}${(rng==="1d"||rng==="1w")?" · intradag: stängningskurser vid senaste skanning":""}. Tryck eller dra över grafen för att se enskilda värden.`;
+  $("#hnote").innerHTML=`Hög ${hi.toFixed(2)} · Låg ${lo.toFixed(2)}${r.fb?" · begränsad historik (45 dagar) tills skanningen byggt full historik":""}. Tryck eller dra över grafen för att se enskilda värden.${(rng==="1d"||rng==="1w")?`<div style="margin-top:4px">${intraNote(r,rng,t)}</div>`:""}`;
   const svg=$("#hsvg"),W=360,n=r.p.length,mn=Math.min(...r.p),mx=Math.max(...r.p),sp=(mx-mn)||1,Hh=190,pt=10,pb=22;
   const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-4)/(W-8)*(n-1)))),px=4+i/(n-1)*(W-8),py=pt+(mx-r.p[i])/sp*(Hh-pt-pb);
     $("#hcl").setAttribute("x1",px);$("#hcl").setAttribute("x2",px);$("#hcl").style.display="";$("#hdot").setAttribute("cx",px);$("#hdot").setAttribute("cy",py);$("#hdot").style.display="";
