@@ -392,7 +392,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-09-y";
+const APPV="2026-11-09-z";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -914,6 +914,9 @@ function act(a,d){
     case"pfreorderdone":Ui.pfReorder=false;route();break;
     case"psort":Ui.psort=d.v;try{localStorage.setItem("mm_psort",d.v)}catch(e){}route(true);break;
     case"planapply":planApplySheet(d.pid,+d.i);break;
+    case"qrwreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
+      // 2026-11-05: bara kvartalet öppnas igen – månadsprövningen (p.mchk) lämnas som den är, så hållvillkoren prövas inte om
+      [p].concat(tw?[tw]:[]).forEach(x=>{delete x.qrw});save();refreshAll(p.id,p.cashHint,p.cashIncl);break}
     case"mchkreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
       // 2026-11-04: sätt ett gammalt datum i stället för att radera – utan datum räknades fönstret som stängt från den 4:e
       [p].concat(tw?[tw]:[]).forEach(x=>{x.mchk="2000-01-01";const q=quarterDue(Object.assign({},x,{qrw:null}));if(q)delete x.qrw});
@@ -2206,7 +2209,8 @@ function reopenLine(p){
   const MW=monthCheckWindow(p);if(MW.open||!p.mchk)return"";
   const day=(D.updated||"").slice(0,10)||todayISO();const dd=(Date.parse(day)-Date.parse(MW.dueISO))/864e5;
   if(!(dd>=0&&dd<=10))return"";
-  return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">Månadsprövningen räknades ${esc(p.mchk)}. <span class="lnk" data-act="mchkreopen" data-pid="${p.id}">Räkna om den med dagens data</span> (ger SÄLJ-raderna igen tillsammans med eventuell likaviktning).</div>`}
+  const qOpen=!!quarterDue(Object.assign({},p,{qrw:null}));
+  return`<div class="mu" style="font-size:11.5px;margin:0 0 6px">Månadsprövningen räknades ${esc(p.mchk)}. <span class="lnk" data-act="mchkreopen" data-pid="${p.id}">Räkna om hela prövningen på dagens data</span> (ny prövning av hållvillkoren – gör det bara om den förra var fel).${qOpen?` <span class="lnk" data-act="qrwreopen" data-pid="${p.id}">Räkna om bara likaviktning och kassa</span> (hållvillkoren prövas inte om; använd efter att du registrerat försäljningarna).`:""}</div>`}
 /* Inställningsraden (belopp, regler, skanning) ligger längst ner i panelen sedan 2026-11-02 – signalerna ska komma först. */
 function settingsLine(p){
   return`<div class="kv" style="margin:6px 0 0"><div><small>Belopp att fördela</small><b>${p.cashHint>0?kr(p.cashHint)+" kr":"fri omfördelning"}</b><span class="lnk" data-act="propcash" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Regler</small><b style="font-size:13px">Kärna</b><span class="lnk" data-act="rulesedit" data-pid="${p.id}" style="font-size:11.5px">ändra ›</span></div><div><small>Senaste skanning</small><b style="font-size:13px">${D.updated?hhmm(D.updated)+" "+TZL:"–"}</b></div></div>`}
@@ -2297,7 +2301,7 @@ function refreshSheet(pid){
   const p=getP(pid);if(!p)return;const ag=D.updated?Math.round((Date.now()-Date.parse(D.updated))/3600000):null;
   sheet(`<h3>🔄 Uppdatera förslag & signaler</h3><p class="mu" style="margin-top:-4px">Hämtar senaste skanningen, nyheter och live-kurser och räknar om signalerna för “${esc(p.name)}”${p.twin&&getP(p.twin)?" och “"+esc(getP(p.twin).name)+"”":""}. Förslaget <b>ersätter det nuvarande</b>.</p>
   <label class="fld"><span>Belopp att fördela (kr, valfritt)</span><input id="rk" type="number" inputmode="decimal" step="any" value="${p.cashHint>0?p.cashHint:""}" placeholder="Tomt = fri omfördelning"></label>
-  <div class="mu" style="font-size:11.5px;margin:6px 0 8px"><b>Skriver du ett belopp</b> fördelas köpen på just det beloppet och inte mer. <b>Lämnar du tomt</b> får appen fritt föreslå att sälja svagare innehav och köpa starkare, så summorna kan bli större.</div>
+  <div class="mu" style="font-size:11.5px;margin:6px 0 8px"><b>Belopp</b> = kassan på kontot som ska placeras. Bocka i rutan nedan så läggs även intäkterna från förslagets försäljningar till köpbudgeten – det är normalfallet. <b>Tomt</b> = inga nya pengar; köpen finansieras bara av försäljningarna.</div>
   <label class="fld" style="flex-direction:row;gap:8px;align-items:center"><input id="rinc" type="checkbox" style="width:auto"><span>Räkna även med intäkterna från föreslagna försäljningar (när du angett belopp)</span></label>
   <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" "+TZL+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.</div>
   <button class="btn wide" id="rgo2">Uppdatera nu</button>`,()=>{$("#rgo2").onclick=()=>{const k=parseFloat($("#rk").value)||0,inc=$("#rinc").checked;closeSheet();refreshAll(pid,k,inc)}})
