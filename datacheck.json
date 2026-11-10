@@ -1,33 +1,31 @@
 {
-"updated": "2026-11-07T10:39:34Z",
+"updated": "2026-11-10T11:37:44Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-06",
+"senaste": "2026-11-09",
 "tysta": 0,
 "flaggade": 2
 },
 "USA": {
 "antal": 1599,
-"senaste": "2026-11-06",
+"senaste": "2026-11-09",
 "tysta": 6,
-"flaggade": 15
+"flaggade": 16
 },
 "Europa": {
 "antal": 503,
-"senaste": "2026-11-06",
+"senaste": "2026-11-09",
 "tysta": 1,
 "flaggade": 8
 }
 },
 "n": 2303,
 "silent": 7,
-"flagged": 25,
-"gone": [
-"MSGS"
-],
+"flagged": 26,
+"gone": [],
 "own_flagged": [],
 "issues": {
 "ACA": [
@@ -56,6 +54,9 @@
 ],
 "HYMTF": [
 "ingen kursdata (tom serie)"
+],
+"INDV": [
+"EODHD 26.74 mot Yahoo 36.28"
 ],
 "INFY.IL": [
 "ingen kursdata (tom serie)"
@@ -107,7 +108,13 @@
 "dagsrörelse -54 % den 2026-11-05"
 ]
 },
-"xcheck": [],
+"xcheck": [
+{
+"t": "INDV",
+"eodhd": 26.74,
+"yahoo": 36.28
+}
+],
 "sources": {
 "OMXS": 110,
 "SP500": 503,

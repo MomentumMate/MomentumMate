@@ -1,15 +1,13 @@
-# Datakontroll 2026-11-07T10:39:34Z – WARN
+# Datakontroll 2026-11-10T11:37:44Z – WARN
 
 
 | Marknad | Aktier | Senaste stängning | Tysta | Flaggade |
 |---|---|---|---|---|
-| Norden | 201 | 2026-11-06 | 0 | 2 |
-| USA | 1599 | 2026-11-06 | 6 | 15 |
-| Europa | 503 | 2026-11-06 | 1 | 8 |
+| Norden | 201 | 2026-11-09 | 0 | 2 |
+| USA | 1599 | 2026-11-09 | 6 | 16 |
+| Europa | 503 | 2026-11-09 | 1 | 8 |
 
-**Borta sedan i går (1):** MSGS
-
-**Flaggade aktier (25):**
+**Flaggade aktier (26):**
 - ACA: tyst sedan 2026-10-22
 - AHT.L: ingen kursdata (tom serie)
 - BLFS: tyst sedan 2026-10-07
@@ -19,6 +17,7 @@
 - HDFC.IL: ingen kursdata (tom serie)
 - HLX: ingen kursdata (tom serie)
 - HYMTF: ingen kursdata (tom serie)
+- INDV: EODHD 26.74 mot Yahoo 36.28
 - INFY.IL: ingen kursdata (tom serie)
 - KYOCY: ingen kursdata (tom serie)
 - LEG: ingen kursdata (tom serie)
