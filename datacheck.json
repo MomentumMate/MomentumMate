@@ -1,71 +1,57 @@
 {
-"updated": "2026-11-11T08:41:31Z",
-"status": "warn",
-"red": [],
+"updated": "2026-11-11T09:27:11Z",
+"status": "red",
+"red": [
+"listkälla gav färre aktier än i går: SMSN 2/5"
+],
 "markets": {
 "Norden": {
 "antal": 201,
 "senaste": "2026-11-10",
 "tysta": 0,
-"flaggade": 2
+"flaggade": 0
 },
 "USA": {
-"antal": 1599,
+"antal": 1595,
 "senaste": "2026-11-10",
 "tysta": 7,
-"flaggade": 17
+"flaggade": 11
 },
 "Europa": {
-"antal": 503,
+"antal": 497,
 "senaste": "2026-11-10",
 "tysta": 1,
-"flaggade": 8
+"flaggade": 1
 }
 },
-"n": 2303,
+"n": 2293,
 "silent": 8,
-"flagged": 27,
-"gone": [],
+"flagged": 12,
+"gone": [
+"AHT.L",
+"CWEN-A",
+"ERJ",
+"FLTR.L",
+"HDFC.IL",
+"HLX",
+"HYMTF",
+"INFY.IL",
+"KYOCY",
+"LEG",
+"OCTV.ST",
+"PHNX.L",
+"TATA.IL"
+],
 "own_flagged": [],
 "issues": {
 "ACA": [
 "tyst sedan 2026-10-22"
 ],
-"AHT.L": [
-"ingen kursdata (tom serie)"
-],
 "BLFS": [
 "tyst sedan 2026-10-07"
 ],
-"CWEN-A": [
-"ingen kursdata (tom serie)"
-],
-"ERJ": [
-"ingen kursdata (tom serie)"
-],
-"FLTR.L": [
-"ingen kursdata (tom serie)"
-],
-"HDFC.IL": [
-"ingen kursdata (tom serie)"
-],
-"HLX": [
-"ingen kursdata (tom serie)"
-],
-"HYMTF": [
-"ingen kursdata (tom serie)"
-],
 "INDV": [
 "tyst sedan 2026-11-05"
-],
-"INFY.IL": [
-"ingen kursdata (tom serie)"
-],
-"KYOCY": [
-"ingen kursdata (tom serie)"
-],
-"LEG": [
-"ingen kursdata (tom serie)"
 ],
 "LQDA": [
 "dagsrörelse -57 % den 2026-09-30"
@@ -73,20 +59,11 @@
 "LXP": [
 "tyst sedan 2026-10-30"
 ],
-"OCTV.ST": [
-"ingen kursdata (tom serie)"
-],
-"PHNX.L": [
-"ingen kursdata (tom serie)"
-],
 "QRVO": [
 "tyst sedan 2026-10-02"
 ],
 "RAMP": [
 "tyst sedan 2026-10-30"
-],
-"ROG.SW": [
-"ingen kursdata (tom serie)"
 ],
 "ROKU": [
 "dagsrörelse +1751 % den 2026-11-05"
@@ -98,12 +75,6 @@
 "nollvolym 5 dagar",
 "stillastående 10 dagar"
 ],
-"SYDB.CO": [
-"ingen kursdata (tom serie)"
-],
-"TATA.IL": [
-"ingen kursdata (tom serie)"
-],
 "TOELY": [
 "tyst sedan 2026-09-24"
 ],
@@ -114,22 +85,22 @@
 "xcheck": [],
 "scan": {
 "Norden": {
-"har": 196,
-"antal": 200,
+"har": 197,
+"antal": 201,
 "kalla": "2026-11-10",
-"skanning": "2026-11-11T08:33Z"
+"skanning": "2026-11-11T09:21Z"
 },
 "USA": {
-"har": 1585,
-"antal": 1601,
+"har": 1587,
+"antal": 1597,
 "kalla": "2026-11-10",
-"skanning": "2026-11-11T08:33Z"
+"skanning": "2026-11-11T09:21Z"
 },
 "Europa": {
-"har": 495,
-"antal": 500,
+"har": 496,
+"antal": 497,
 "kalla": "2026-11-10",
-"skanning": "2026-11-11T08:33Z"
+"skanning": "2026-11-11T09:21Z"
 }
 },
 "sources": {
@@ -142,16 +113,16 @@
 "OMXH": 17,
 "DAX": 48,
 "CAC": 43,
-"FTSE": 70,
+"FTSE": 68,
 "AEX": 23,
 "SMI": 18,
 "IBEX": 20,
 "MIB": 20,
 "SP400": 400,
-"SP600": 603,
+"SP600": 600,
 "STOXX600": 590,
-"ADR": 85,
-"SMSN": 5
+"ADR": 84,
+"SMSN": 2
 },
 "universe": [
 "1COV.DE",
@@ -245,7 +216,6 @@
 "AGYS",
 "AHCO",
 "AHR",
-"AHT.L",
 "AI.PA",
 "AIG",
 "AIN",
@@ -711,7 +681,6 @@
 "CVX",
 "CW",
 "CWEN",
-"CWEN-A",
 "CWK",
 "CWK.L",
 "CWST",
@@ -841,6 +810,7 @@
 "ELS",
 "ELUX-B.ST",
 "ELV",
+"EMBJ",
 "EMBRAC-B.ST",
 "EME",
 "EMG.L",
@@ -880,7 +850,6 @@
 "ERF.PA",
 "ERIC-B.ST",
 "ERIE",
-"ERJ",
 "ES",
 "ESAB",
 "ESE",
@@ -965,7 +934,6 @@
 "FLR",
 "FLS",
 "FLS.CO",
-"FLTR.L",
 "FMC",
 "FME.DE",
 "FN",
@@ -1098,7 +1066,6 @@
 "HCSG",
 "HD",
 "HDB",
-"HDFC.IL",
 "HE",
 "HEI.DE",
 "HEIA.AS",
@@ -1124,7 +1091,6 @@
 "HLN.L",
 "HLNE",
 "HLT",
-"HLX",
 "HM-B.ST",
 "HMC",
 "HMN",
@@ -1175,7 +1141,6 @@
 "HWKN",
 "HWM",
 "HXL",
-"HYMTF",
 "HZO",
 "IAG.L",
 "IAG.MC",
@@ -1216,7 +1181,6 @@
 "INDV",
 "INF.L",
 "INFY",
-"INFY.IL",
 "ING",
 "ING.WA",
 "INGA.AS",
@@ -1340,7 +1304,7 @@
 "KTOS",
 "KTY.WA",
 "KWR",
-"KYOCY",
+"KYOAY",
 "L",
 "LAD",
 "LAGR-B.ST",
@@ -1355,7 +1319,6 @@
 "LDOS",
 "LEA",
 "LECO",
-"LEG",
 "LEG.DE",
 "LEN",
 "LEU",
@@ -1653,7 +1616,7 @@
 "NYT",
 "O",
 "OC",
-"OCTV.ST",
+"OCTV-SDB.ST",
 "ODFL",
 "OEM-B.ST",
 "OFG",
@@ -1744,7 +1707,6 @@
 "PHIA.AS",
 "PHIN",
 "PHM",
-"PHNX.L",
 "PHP.L",
 "PI",
 "PII",
@@ -2138,7 +2100,6 @@
 "SYY",
 "T",
 "TALO",
-"TATA.IL",
 "TBBK",
 "TBCG.L",
 "TCAP.L",
