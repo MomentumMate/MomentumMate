@@ -194,24 +194,27 @@ def manager_13f(m, cache):
     tot = sum(r["v"] for r in cur.values()) or 1.0
     if tot < 20e6 and len(cur) >= 5: tot *= 1000; out["unit"] = "tusental"      # Baupost, Duquesne m.fl. rapporterar fortfarande i tusental
     out["n_pos"] = len(cur); out["value_musd"] = round(tot / 1e6)       # value anges i hela USD sedan 2023
-    ev = []
+    unit = 1000 if out.get("unit") == "tusental" else 1
+    ev, hold = [], []
     for c, r in cur.items():
         t = cache.get(c) or ""
-        w = r["v"] / tot * 100
+        w = r["v"] * unit / tot * 100
         p = prev.get(c) if prev else None
         if prev is None: kind = "innehav"
         elif p is None: kind = "ny"
         elif p["s"] > 0 and r["s"] > p["s"] * 1.2: kind = "ökat"
         elif p["s"] > 0 and r["s"] < p["s"] * 0.8: kind = "minskat"
         else: kind = "oförändrat"
-        if kind in ("ny", "ökat", "minskat") or (kind in ("innehav", "oförändrat") and w >= 2.0):
-            ev.append({"t": t, "n": r["n"], "kind": kind, "w": round(w, 2), "sh": r["s"], "psh": (p["s"] if p else None)})
+        row = {"t": t, "n": r["n"], "kind": kind, "w": round(w, 2), "v": round(r["v"] * unit / 1e6, 1), "sh": r["s"], "psh": (p["s"] if p else None)}
+        hold.append(row)
+        if kind in ("ny", "ökat", "minskat"): ev.append(row)
     if prev:
         for c, p in prev.items():
-            if c not in cur: ev.append({"t": cache.get(c) or "", "n": p["n"], "kind": "ut", "w": 0, "sh": 0, "psh": p["s"]})
-    order = {"ny": 0, "ökat": 1, "ut": 2, "minskat": 3, "innehav": 4, "oförändrat": 5}
+            if c not in cur: ev.append({"t": cache.get(c) or "", "n": p["n"], "kind": "ut", "w": 0, "v": 0, "sh": 0, "psh": p["s"]})
+    order = {"ny": 0, "ökat": 1, "ut": 2, "minskat": 3}
     ev.sort(key=lambda e: (order.get(e["kind"], 9), -e["w"]))
-    out["events"] = ev[:80]
+    hold.sort(key=lambda e: -e["w"])
+    out["events"] = ev[:120]; out["holdings"] = hold[:60]; out["top3"] = hold[:3]
     return out
 
 # ---------------------------------------------------------------- 13D / 13G
@@ -396,8 +399,29 @@ def main():
     for e in trades: add(e["t"], {"src": "ARK", "who": e["fund"], "kind": e["kind"], "date": e["date"], "d": e["d"], "w": e["w"]})
     for e in insyn: add(e["t"], {"src": "INSYN", "who": e["who"], "kind": e["kind"], "date": e["date"], "amt": e["amt"], "ccy": e["ccy"]})
 
+    # ARK:s fonder som egna "investerare" med innehav och dagens rörelser
+    funds = []
+    for fund, v in (ark_hold or {}).items():
+        hl = sorted([{"t": t, "n": x["n"], "w": round(x["w"], 2), "sh": x["sh"]} for t, x in (v.get("h") or {}).items()], key=lambda e: -e["w"])
+        funds.append({"id": fund, "n": "ARK " + fund, "kind": "ark", "asof": v.get("asof"), "n_pos": len(hl), "holdings": hl[:60], "top3": hl[:3],
+                      "events": [e for e in trades if e["fund"] == fund][:60]})
+    for m in managers: m["id"] = f"m{m.get('cik') or m['n']}"; m["kind"] = "13f"
+    # konsensus: aktier där flera investerare gjort samma sak (13F senaste rapport, ARK senaste dag, 13D/13G)
+    cons = {}
+    def c_add(t, who, side, date):
+        if not t or t not in S: return
+        c = cons.setdefault(t, {"t": t, "buy": [], "sell": [], "last": ""})
+        (c["buy"] if side == "buy" else c["sell"]).append(who); c["last"] = max(c["last"], date or "")
+    for m in managers:
+        for e in m.get("events", []):
+            if e["kind"] in ("ny", "ökat"): c_add(e["t"], m["n"], "buy", m.get("filed"))
+            elif e["kind"] in ("minskat", "ut"): c_add(e["t"], m["n"], "sell", m.get("filed"))
+    for e in trades: c_add(e["t"], "ARK " + e["fund"], "buy" if e["kind"] == "köp" else "sell", e["date"])
+    for e in f13: c_add(e["t"], e.get("who") or e["form"], "buy", e["date"])
+    consensus = sorted(cons.values(), key=lambda c: (-(len(c["buy"]) + len(c["sell"])), c["last"]), reverse=False)
+    consensus = sorted(consensus, key=lambda c: -(len(set(c["buy"])) + len(set(c["sell"]))))[:60]
     out = {"updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "sources": src,
-           "managers": managers, "filings13": f13[:200], "ark": trades[:300], "ark_hold": ark_hold, "insyn": insyn[:300],
+           "managers": managers, "funds": funds, "consensus": consensus, "filings13": f13[:200], "ark": trades[:300], "ark_hold": ark_hold, "insyn": insyn[:300],
            "byTicker": by, "own_hits": sorted(t for t in own if t in by)}
     json.dump(out, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     log(f"Skrev {OUT}: {len(by)} aktier i universumet med radarhändelser, egna träffar: {out['own_hits']}")
