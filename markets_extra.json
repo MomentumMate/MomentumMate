@@ -12,6 +12,12 @@
         "SPCX",
         "PLEJD.ST"
       ]
+    },
+    {
+      "k": "OMXS",
+      "tickers": [
+        "MILDEF.ST"
+      ]
     }
   ]
 }
