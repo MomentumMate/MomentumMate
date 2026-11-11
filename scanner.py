@@ -465,7 +465,25 @@ RENAME = {"AKERBP.OL": "AKRBP.OL", "ASMI.AS": "ASM.AS", "BNPP.PA": "BNP.PA", "AM
           "FALK.CO": "FLS.CO", "EFGI.PA": "EFI.PA", "CCH.SW": "CCH.L", "CTS.DE": "CTEC.L",
           # 2026-11-05 (datakontrollen): namn som gav ingen kursdata
           "NDA.HE": "NDA-FI.HE", "MT.PA": "MT.AS", "CAJ": "CAJPY", "HOLM.ST": "HOLM-B.ST", "INDU.ST": "INDU-C.ST",
-          "ALK.CO": "ALK-B.CO", "BEIJ.ST": "BEIJ-B.ST", "ADDT.ST": "ADDT-B.ST", "LAGR.ST": "LAGR-B.ST", "SECT.ST": "SECT-B.ST"}
+          "ALK.CO": "ALK-B.CO", "BEIJ.ST": "BEIJ-B.ST", "ADDT.ST": "ADDT-B.ST", "LAGR.ST": "LAGR-B.ST", "SECT.ST": "SECT-B.ST",
+          # 2026-11-11 (diagnos.yml): namnbyten som gav "ingen kursdata"
+          "ERJ": "EMBJ",                 # Embraer ADR bytte NYSE-ticker
+          "PHNX.L": "SDLF.L",            # Phoenix Group heter Standard Life plc
+          "OCTV.ST": "OCTV-SDB.ST",      # Octave Intelligence handlas som svenska depåbevis
+          "KYOCY": "KYOAY"}              # Kyocera ADR bytte ticker
+# Bolag som inte längre finns att handla (2026-11-11, diagnos.yml). Tas bort ur alla listor innan skanning och datakontroll.
+GONE = {"HLX": "uppköpt av Hornbeck Offshore 2026-09-01 (ny ticker HOS)",
+        "LEG": "uppköpt av Somnigroup 2026-08",
+        "AHT.L": "Ashtead blev Sunbelt Rentals med huvudnotering NYSE (SUNB); LSE-raden tom",
+        "FLTR.L": "Flutter avnoterad från LSE; FLUT (NYSE) ingår i S&P 500",
+        "CWEN-A": "klass A saknas hos EODHD; CWEN (klass C) ingår",
+        "HYMTF": "Hyundai OTC – ingen data hos EODHD",
+        "HDFC.IL": "LSE-GDR utan data (HDB ingår som ADR)",
+        "INFY.IL": "LSE-GDR utan data (INFY ingår som ADR)",
+        "TATA.IL": "LSE-GDR utan data"}
+# Bolag vars kod hos EODHD skiljer sig från Yahoos (2026-11-11). Yahoo-tickern behålls i appen.
+EODHD_ALIAS = {"ROG.SW": "ROP.SW",        # Roche Genussschein
+               "SYDB.CO": "ALSYDB.CO"}    # Sydbank
 def collapse_share_classes(tickers):
     """2026-11-05 (datakontrollen): "ADDT.ST" från en Wikipedia-lista och "ADDT-B.ST" från en handkurerad är samma bolag.
     Returnerar {råticker: klassticker} för alla fall där en klassvariant (-A/-B/-C) finns bland tickers."""
@@ -512,7 +530,7 @@ def normalize_ticker(t):
 def get_tickers(m):
     src = m["source"]
     raw = src() if callable(src) else src
-    return list(dict.fromkeys(normalize_ticker(t) for t in raw))
+    return [t for t in dict.fromkeys(normalize_ticker(t) for t in raw) if t not in GONE]
 
 # ----------------------------------------------------------------------------------
 # HÄMTNING
@@ -553,6 +571,7 @@ EODHD_EXCH = {".ST": "ST", ".CO": "CO", ".OL": "OL", ".HE": "HE", ".DE": "XETRA"
 
 def eodhd_symbol(t):
     """Översätter en Yahoo-ticker till EODHD:s format."""
+    if t in EODHD_ALIAS: return EODHD_ALIAS[t]
     for suf, ex in EODHD_EXCH.items():
         if t.endswith(suf): return t[:-len(suf)] + "." + ex
     return t.replace("-", "-") + ".US"          # BRK-B.US fungerar hos EODHD
