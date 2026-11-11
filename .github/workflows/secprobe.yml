@@ -1,0 +1,27 @@
+name: SEC-prov (tillfällig)
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: pip -q install requests
+      - run: |
+          python3 - <<'PY'
+          import requests, time
+          url = "https://data.sec.gov/submissions/CIK0001067983.json"
+          for ua in ["MomentumMate radar/1.0 momentummate@users.noreply.github.com",
+                     "MomentumMate momentummate@users.noreply.github.com",
+                     "Helene Ekbladh Investing helene@example.com",
+                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+                     "MomentumMate contact@momentummate.github.io"]:
+              for hdr in [{"User-Agent": ua}, {"User-Agent": ua, "Accept-Encoding": "gzip, deflate", "Host": "data.sec.gov"}]:
+                  r = requests.get(url, headers=hdr, timeout=30)
+                  print(r.status_code, "|", ua[:50], "|", list(hdr.keys()), "|", r.text[:80].replace("\n", " ") if r.status_code != 200 else r.json().get("name"))
+                  time.sleep(1)
+          r = requests.get("https://www.sec.gov/files/company_tickers.json", headers={"User-Agent": "MomentumMate momentummate@users.noreply.github.com"}, timeout=30)
+          print("company_tickers", r.status_code)
+          r = requests.get("https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent", headers={"User-Agent": "MomentumMate momentummate@users.noreply.github.com"}, timeout=30)
+          print("browse-edgar", r.status_code)
+          PY
