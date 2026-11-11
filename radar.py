@@ -19,7 +19,12 @@ import requests
 
 OUT = "radar.json"
 CUSIP_CACHE = "cusip_map.json"
-UA = {"User-Agent": "MomentumMate radar/1.0 (https://github.com/MomentumMate/MomentumMate)", "Accept-Encoding": "gzip, deflate"}
+# SEC kräver en User-Agent med kontaktadress ("Namn e-post"); utan den svarar Edgar 403. Ägaren kan ange en egen adress som
+# Actions-hemligheten RADAR_CONTACT – annars används repots noreply-adress.
+CONTACT = os.environ.get("RADAR_CONTACT") or "momentummate@users.noreply.github.com"
+UA = {"User-Agent": f"MomentumMate radar/1.0 {CONTACT}", "Accept-Encoding": "gzip, deflate", "Host": "data.sec.gov"}
+def sec_headers(url):
+    h = dict(UA); h["Host"] = "www.sec.gov" if "www.sec.gov" in url else "data.sec.gov"; return h
 TODAY = dt.date.today()
 
 # Standardlista. Namnet används för att verifiera att CIK:n hos SEC verkligen är rätt bolag (SEC:s namn måste innehålla nyckelordet).
@@ -66,7 +71,7 @@ def sec_get(url, tries=3):
         if wait > 0: time.sleep(wait)
         _last["t"] = time.time()
         try:
-            r = requests.get(url, headers=UA, timeout=30)
+            r = requests.get(url, headers=sec_headers(url), timeout=30)
             if r.status_code == 429 or r.status_code >= 500: time.sleep(2 * (i + 1)); continue
             if r.status_code == 404: return None
             r.raise_for_status(); return r
@@ -272,6 +277,7 @@ def fi_insyn(S, by_name, isin_map, days=14):
         except Exception: continue
     if not text or ";" not in text[:2000]: raise RuntimeError(f"oväntat format ({r.headers.get('Content-Type')}, {len(raw)} byte)")
     rows = list(csv.DictReader(io.StringIO(text), delimiter=";"))
+    if rows: log("  FI insyn kolumner: " + " | ".join(list(rows[0].keys())[:20])); log("  FI insyn exempel: " + json.dumps(rows[0], ensure_ascii=False)[:400])
     out, unmapped = [], 0
     for row in rows:
         k = {(kk or "").strip().lower(): (v or "").strip() for kk, v in row.items()}
