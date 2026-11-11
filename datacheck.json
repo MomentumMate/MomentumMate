@@ -1,30 +1,30 @@
 {
-"updated": "2026-11-10T11:37:44Z",
+"updated": "2026-11-11T08:41:31Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-09",
+"senaste": "2026-11-10",
 "tysta": 0,
 "flaggade": 2
 },
 "USA": {
 "antal": 1599,
-"senaste": "2026-11-09",
-"tysta": 6,
-"flaggade": 16
+"senaste": "2026-11-10",
+"tysta": 7,
+"flaggade": 17
 },
 "Europa": {
 "antal": 503,
-"senaste": "2026-11-09",
+"senaste": "2026-11-10",
 "tysta": 1,
 "flaggade": 8
 }
 },
 "n": 2303,
-"silent": 7,
-"flagged": 26,
+"silent": 8,
+"flagged": 27,
 "gone": [],
 "own_flagged": [],
 "issues": {
@@ -56,7 +56,7 @@
 "ingen kursdata (tom serie)"
 ],
 "INDV": [
-"EODHD 26.74 mot Yahoo 36.28"
+"tyst sedan 2026-11-05"
 ],
 "INFY.IL": [
 "ingen kursdata (tom serie)"
@@ -88,6 +88,9 @@
 "ROG.SW": [
 "ingen kursdata (tom serie)"
 ],
+"ROKU": [
+"dagsrörelse +1751 % den 2026-11-05"
+],
 "SDR.L": [
 "tyst sedan 2026-10-01"
 ],
@@ -108,13 +111,27 @@
 "dagsrörelse -54 % den 2026-11-05"
 ]
 },
-"xcheck": [
-{
-"t": "INDV",
-"eodhd": 26.74,
-"yahoo": 36.28
+"xcheck": [],
+"scan": {
+"Norden": {
+"har": 196,
+"antal": 200,
+"kalla": "2026-11-10",
+"skanning": "2026-11-11T08:33Z"
+},
+"USA": {
+"har": 1585,
+"antal": 1601,
+"kalla": "2026-11-10",
+"skanning": "2026-11-11T08:33Z"
+},
+"Europa": {
+"har": 495,
+"antal": 500,
+"kalla": "2026-11-10",
+"skanning": "2026-11-11T08:33Z"
 }
-],
+},
 "sources": {
 "OMXS": 110,
 "SP500": 503,
