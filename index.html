@@ -393,10 +393,10 @@ function dataStatusHTML(){
   if(!DC)return"";
   const g=dataGate(),m=DC.markets||{};
   const row=Object.entries(m).map(([k,v])=>`${k}: senast ${v.senaste||"–"}${v.tysta?", "+v.tysta+" tysta":""}${v.flaggade?", "+v.flaggade+" flaggade":""}`).join(" · ");
-  return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
+  return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-ad";
+const APPV="2026-11-11-ae";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -881,6 +881,7 @@ function act(a,d){
     case"mmute":mateOff=!mateOff;try{localStorage.setItem(MM_OFF,mateOff?"1":"0")}catch(e){}startMate();toast(mateOff?"Mate tystad":"Mate pratar igen");closeSheet();break;
     case"settings":settingsSheet();break;
     case"lookup":lookupFlow(d.q);break;
+    case"runwf":runWf(d.wf);break;
     case"addm":addMarketSheet(+d.idx);break;
     case"addw":addWatch(+d.idx);break;
     case"lkview":lkView(+d.idx);break;
@@ -1168,6 +1169,11 @@ async function ghReq(path,opt={}){const c=gh(),repo=ghRepo();if(!c.token||!repo)
   return r.status===204?null:r.json()}
 const b64e=s=>btoa(unescape(encodeURIComponent(s))),b64d=s=>decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
 const dispatchWf=(wf,inputs)=>ghReq("/actions/workflows/"+wf+"/dispatches",{method:"POST",body:JSON.stringify({ref:"main",inputs:inputs||{}})});
+/* Starta ett jobb från appen (2026-11-11, korrigering 4): GitHub kör schemalagda jobb timmar sent, så skanning och live-kurser
+   kan startas för hand med samma GitHub-token som uppslaget använder. Bara en knapp – jobbets grind avgör om det behövs. */
+const WFL={"scan.yml":"skanningen","daytrade.yml":"live-kurserna","datacheck.yml":"datakontrollen"};
+const runLink=(wf,txt)=>ghReady()&&!DEMO?` <span class="lnk" data-act="runwf" data-wf="${wf}">${txt}</span>`:"";
+async function runWf(wf){try{await dispatchWf(wf);toast("Startade "+(WFL[wf]||wf)+" – klart om några minuter, dra ner för att ladda om")}catch(e){toast("Kunde inte starta: "+e.message.slice(0,60))}}
 async function ghGet(path){const j=await ghReq("/contents/"+path+"?ref=main&t="+Date.now());return{sha:j.sha,text:b64d(j.content)}}
 const ghPut=(path,text,sha,msg)=>ghReq("/contents/"+path,{method:"PUT",body:JSON.stringify({message:msg,content:b64e(text),sha:sha||undefined,branch:"main"})});
 const CCYM={SEK:["🇸🇪","kr"],USD:["🇺🇸","$"],EUR:["🇪🇺","€"],DKK:["🇩🇰","kr"],NOK:["🇳🇴","kr"],GBP:["🇬🇧","£"],CHF:["🇨🇭","CHF"],CAD:["🇨🇦","$"]};
@@ -1812,7 +1818,7 @@ function quoteStatus(){
   else if(FHQ.ok)t=`Live-kurser (Finnhub) ${hh(FHQ.t)} för ${FHQ.n} av ${FHQ.tot} USA-aktier${FHQ.fx?` · USD/SEK ${FHQ.fx.toFixed(4)}`:""}. Övriga aktier: ${EQ.n?esc(EQ.src):"skanningens kurser"}.`;
   else if(EQ.n)t=`Kurser från ${esc(EQ.src)} ${EQ.at?hhmm(EQ.at):""} för ${EQ.n} aktier – uppdateras var 5:e minut under börstid.`;
   else t=`Kurser från skanningen ${D.updated?hhmm(D.updated):""}. Fördröjda kurser från EODHD hämtas var 5:e minut under börstid.`;
-  return`<div class="mu" style="margin:6px 2px;font-size:11.5px">${t}</div>`
+  return`<div class="mu" style="margin:6px 2px;font-size:11.5px">${t}${FHQ.ok?"":runLink("daytrade.yml","Hämta kurser nu ›")}</div>`
 }
 function quoteTick(){if(!/^#\/portfolio/.test(location.hash))return;
   if(Date.now()-EQ.t>300000){loadLive().then(ok=>{if(ok&&/^#\/portfolio/.test(location.hash))route(true)})}
@@ -2104,7 +2110,7 @@ function planStaleHTML(p){return""}   // den röda knappen i rubriken är enda p
 const a_el=pid=>{const h=document.querySelector(`.pmh[data-pid="${pid}"]`);return h&&h.closest(".mod")};
 function propHTML(p,c,sigs,rot,ideas){
   try{sigRecord(p,c)}catch(e){}
-  const gate=dataGate();if(gate)return`<div class="stat BAD" style="margin:0 0 8px"><b>⛔ FÖRSLAG EJ VALIDERAT – DATAPROBLEM</b> ${esc(gate)}<br><span class="mu">Handla inte på dagens förslag. Förslaget visas igen när datakontrollen är grön (Actions → Datakontroll).</span></div>`;
+  const gate=dataGate();if(gate)return`<div class="stat BAD" style="margin:0 0 8px"><b>⛔ FÖRSLAG EJ VALIDERAT – DATAPROBLEM</b> ${esc(gate)}<br><span class="mu">Handla inte på dagens förslag. Förslaget visas igen när datakontrollen är grön (Actions → Datakontroll).</span>${scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")}</div>`;
   const pl=p.plan&&p.plan.items&&p.plan.items.length?p.plan:null,items=pl?pl.items:[];
   if(!p.h.length&&!pl)return"";   // tom portfölj utan förslag: inget att visa. Med förslag (Föreslå portfölj) visas köpraderna.
   const rowBy={};c.rows.forEach(r=>{rowBy[r.h.t]=r});const planHas={};items.forEach((it,i)=>{(planHas[it.t]=planHas[it.t]||[]).push(i)});
@@ -2361,7 +2367,7 @@ function refreshSheet(pid){
   <label class="fld"><span>Belopp att fördela (kr, valfritt)</span><input id="rk" type="number" inputmode="decimal" step="any" value="${p.cashHint>0?p.cashHint:""}" placeholder="Tomt = fri omfördelning"></label>
   <div class="mu" style="font-size:11.5px;margin:6px 0 8px"><b>Belopp</b> = kassan på kontot som ska placeras. Bocka i rutan nedan så läggs även intäkterna från förslagets försäljningar till köpbudgeten – det är normalfallet. <b>Tomt</b> = inga nya pengar; köpen finansieras bara av försäljningarna.</div>
   <label class="fld" style="flex-direction:row;gap:8px;align-items:center"><input id="rinc" type="checkbox" style="width:auto"><span>Räkna även med intäkterna från föreslagna försäljningar (när du angett belopp)</span></label>
-  <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" "+TZL+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.</div>
+  <div class="mu" style="font-size:11.5px;margin:6px 0 10px">Senaste skanning: ${D.updated?hhmm(D.updated)+" "+TZL+(ag!=null?" ("+ag+" tim sedan)":""):"demo"}. Live-kurser för USA-aktier hämtas om din Finnhub-nyckel är sparad.${runLink("scan.yml","Starta skanningen nu ›")}</div>
   <button class="btn wide" id="rgo2">Uppdatera nu</button>`,()=>{$("#rgo2").onclick=()=>{const k=parseFloat($("#rk").value)||0,inc=$("#rinc").checked;closeSheet();refreshAll(pid,k,inc)}})
 }
 /* ============ v13: PORTFÖLJFÖRSLAG (kapital + horisont + sektorspridning) ============ */
