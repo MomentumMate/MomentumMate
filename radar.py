@@ -154,10 +154,16 @@ def resolve_cik(name, key):
     try:
         r = sec_get(f"https://efts.sec.gov/LATEST/search-index?q={requests.utils.quote(chr(34) + name + chr(34))}&forms=13F-HR")
         if r:
+            # flera enheter kan heta nästan lika (Fundsmith Equity Fund L.P. 2018 mot Fundsmith LLP i dag) – ta den som lämnat senast
+            best = None
             for h in r.json().get("hits", {}).get("hits", []):
-                for dn in (h.get("_source", {}).get("display_names") or []):
+                src = h.get("_source", {})
+                for dn in (src.get("display_names") or []):
                     m = re.search(r"\(CIK (\d+)\)", dn)
-                    if m and (not key or key.upper() in dn.upper()): return int(m.group(1))
+                    if m and (not key or key.upper() in dn.upper()):
+                        fd = src.get("file_date") or ""
+                        if best is None or fd > best[0]: best = (fd, int(m.group(1)), dn)
+            if best: log(f"  CIK för {name}: {best[2]} (senast {best[0]})"); return best[1]
     except Exception as e: log(f"  efts {name}: {str(e)[:60]}")
     q = requests.utils.quote(name)
     r = sec_get(f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={q}&type=13F-HR&output=atom")
