@@ -35,7 +35,8 @@ DEFAULT_MANAGERS = [
     {"n": "Renaissance Technologies", "cik": 1037389, "key": "RENAISSANCE"},
     {"n": "Tiger Global", "cik": 1167483, "key": "TIGER"},
     {"n": "Coatue Management", "cik": 1135730, "key": "COATUE"},
-    {"n": "Lone Pine Capital", "cik": 1061768, "key": "LONE PINE"},
+    {"n": "Lone Pine Capital", "key": "LONE PINE"},
+    {"n": "Baupost Group", "cik": 1061768, "key": "BAUPOST"},
     {"n": "Viking Global", "cik": 1103804, "key": "VIKING"},
     {"n": "Pershing Square", "cik": 1336528, "key": "PERSHING"},
     {"n": "Third Point", "cik": 1040273, "key": "THIRD POINT"},
@@ -43,7 +44,7 @@ DEFAULT_MANAGERS = [
     {"n": "Duquesne Family Office", "cik": 1536411, "key": "DUQUESNE"},
     {"n": "Appaloosa", "cik": 1656456, "key": "APPALOOSA"},
     {"n": "Altimeter Capital", "cik": 1541617, "key": "ALTIMETER"},
-    {"n": "Whale Rock Capital", "cik": 1387160, "key": "WHALE ROCK"},
+    {"n": "Whale Rock Capital", "key": "WHALE ROCK"},
     {"n": "D1 Capital Partners", "cik": 1747057, "key": "D1 CAPITAL"},
     {"n": "Bridgewater Associates", "cik": 1350694, "key": "BRIDGEWATER"},
     {"n": "Soros Fund Management", "cik": 1029160, "key": "SOROS"},
@@ -143,13 +144,29 @@ def parse_infotable(xml):
         r["v"] += val; r["s"] += sh
     return rows
 
+def resolve_cik(name, key):
+    """Edgars företagssök (atom) – första träffen som lämnat 13F-HR och vars namn innehåller nyckelordet."""
+    q = requests.utils.quote(name)
+    r = sec_get(f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={q}&type=13F-HR&output=atom")
+    if not r: return None
+    for m in re.finditer(r"<entry>(.*?)</entry>", r.text, re.S):
+        b = m.group(1); nm = (re.search(r"<title>(.*?)</title>", b) or [None, ""])[1]; ck = re.search(r"CIK=(\d+)", b) or re.search(r"<id>[^<]*?(\d{10})", b)
+        if ck and (not key or key.upper() in nm.upper()): return int(ck.group(1))
+    return None
+
 def manager_13f(m, cache):
-    cik = int(m["cik"]); url = f"https://data.sec.gov/submissions/CIK{cik:010d}.json"
-    r = sec_get(url)
-    if not r: return {"n": m["n"], "cik": cik, "err": "finns inte hos SEC"}
-    j = r.json(); secname = j.get("name", "")
-    if m.get("key") and m["key"].upper() not in secname.upper():
-        return {"n": m["n"], "cik": cik, "err": f"CIK ger '{secname}' – stämmer inte med namnet, hoppar över"}
+    cik = m.get("cik"); secname = ""
+    if cik:
+        r = sec_get(f"https://data.sec.gov/submissions/CIK{int(cik):010d}.json")
+        if r:
+            secname = r.json().get("name", "")
+            if m.get("key") and m["key"].upper() not in secname.upper(): log(f"  13F {m['n']}: CIK {cik} är '{secname}' – söker rätt CIK"); cik = None; r = None
+    if not cik:
+        cik = resolve_cik(m["n"], m.get("key"))
+        if not cik: return {"n": m["n"], "cik": None, "err": "hittar ingen 13F-lämnare med det namnet hos SEC"}
+        r = sec_get(f"https://data.sec.gov/submissions/CIK{int(cik):010d}.json")
+        if not r: return {"n": m["n"], "cik": cik, "err": "finns inte hos SEC"}
+    cik = int(cik); j = r.json(); secname = j.get("name", "") or secname
     rec = j.get("filings", {}).get("recent", {})
     filings = [(rec["accessionNumber"][i], rec["filingDate"][i], rec.get("reportDate", [""] * 999)[i], rec["primaryDocument"][i])
                for i in range(len(rec.get("form", []))) if rec["form"][i] == "13F-HR"]
@@ -163,14 +180,16 @@ def manager_13f(m, cache):
         items = [it["name"] for it in idx.json().get("directory", {}).get("item", [])]
         xmls = [n for n in items if n.lower().endswith(".xml") and n != prim]
         pick = next((n for n in xmls if "infotable" in n.lower() or "info" in n.lower()), None) or (xmls[0] if xmls else None)
-        if not pick: tables.append(None); continue
+        if not pick: log(f"  13F {secname}: ingen xml-tabell i {nod}: {items[:12]}"); tables.append(None); continue
         x = sec_get(f"https://www.sec.gov/Archives/edgar/data/{cik}/{nod}/{pick}")
-        tables.append(parse_infotable(x.text) if x else None)
+        tb = parse_infotable(x.text) if x else None
+        if x and not tb: log(f"  13F {secname}: tabellen {pick} gav 0 rader, början: {x.text[:200]!r}")
+        tables.append(tb)
     cur, prev = tables[0], (tables[1] if len(tables) > 1 else None)
     if not cur: out["err"] = "kunde inte läsa innehavstabellen"; return out
     cusip_to_ticker(list(cur.keys()) + (list(prev.keys()) if prev else []), cache)
     tot = sum(r["v"] for r in cur.values()) or 1.0
-    out["n_pos"] = len(cur); out["value_musd"] = round(tot / 1000)      # value anges i tusental USD sedan 2023
+    out["n_pos"] = len(cur); out["value_musd"] = round(tot / 1e6)       # value anges i hela USD sedan 2023
     ev = []
     for c, r in cur.items():
         t = cache.get(c) or ""
@@ -192,13 +211,13 @@ def manager_13f(m, cache):
     return out
 
 # ---------------------------------------------------------------- 13D / 13G
-def filings_13dg(S, days=30):
+def filings_13dg(S, days=60):
     r = sec_get("https://www.sec.gov/files/company_tickers.json")
     if not r: return [], "company_tickers.json saknas"
     t2cik = {v["ticker"].upper().replace(".", "-"): int(v["cik_str"]) for v in r.json().values()}
     us = [t for t in S if "." not in t and not t.endswith("-USD")]
     since = (TODAY - dt.timedelta(days=days)).isoformat()
-    out, miss = [], 0
+    out, miss, seen, oldest = [], 0, 0, "9999"
     for t in us:
         cik = t2cik.get(t.upper())
         if not cik: miss += 1; continue
@@ -209,6 +228,7 @@ def filings_13dg(S, days=30):
             for i in range(len(rec.get("form", []))):
                 form, fd = rec["form"][i], rec["filingDate"][i]
                 if fd < since: break
+                seen += 1; oldest = min(oldest, fd)
                 if form in ("SC 13D", "SC 13G", "SC 13D/A", "SC 13G/A"):
                     out.append({"t": t, "form": form, "date": fd, "acc": rec["accessionNumber"][i], "cik": cik})
         except Exception as e:
@@ -224,7 +244,7 @@ def filings_13dg(S, days=30):
                 if m: ev["who"] = re.sub(r"\s+", " ", m.group(1)).strip()
         except Exception: pass
     for ev in out: ev.pop("acc", None); ev.pop("cik", None)
-    log(f"  13D/13G: {len(out)} flaggningar senaste {days} dagarna, {miss} tickers utan CIK")
+    log(f"  13D/13G: {len(out)} flaggningar senaste {days} dagarna, {miss} tickers utan CIK, {seen} filings lästa (äldsta {oldest})")
     return out, None
 
 # ---------------------------------------------------------------- ARK
