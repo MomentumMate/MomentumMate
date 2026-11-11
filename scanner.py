@@ -1201,7 +1201,8 @@ def index_series():
             except Exception: pass
         if ser is None and k in prev: ser = prev[k]; print(f"  index {k}: förra skanningens serie")
         if ser: out[k] = ser
-    print(f"  jämförelseindex: {', '.join(f'{k} t.o.m. {v['d'][-1]}' for k, v in out.items()) or 'inga'}")
+    desc = ", ".join(k + " t.o.m. " + v["d"][-1] for k, v in out.items()) or "inga"
+    print("  jämförelseindex: " + desc)
     return out
 
 def fx_rates(ccys):
