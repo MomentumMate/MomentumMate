@@ -669,14 +669,14 @@ def eodhd_currencies(tickers):
     """{ticker: valuta} enligt EODHD:s symbollista för de börser som förekommer. Tom dict utan nyckel eller vid fel."""
     if not EODHD_KEY: return {}
     cache = _CACHE.get("_ccy") or {}
-    if cache.get("m") and cache.get("ts") and (dt.date.today() - dt.date.fromisoformat(cache["ts"])).days < 7:
+    if cache.get("m") and cache.get("ts") and _CACHE.get("_isin") and (dt.date.today() - dt.date.fromisoformat(cache["ts"])).days < 7:
         return cache["m"]
     exch = {}
     for t in tickers:
         for suf, ex in EODHD_EXCH.items():
             if t.endswith(suf): exch.setdefault(ex, suf); break
         else: exch.setdefault("US", "")
-    out = {}
+    out, isin = {}, {}
     for ex, suf in exch.items():
         try:
             j = eodhd_get(f"exchange-symbol-list/{ex}") or []
@@ -684,10 +684,12 @@ def eodhd_currencies(tickers):
                 code, c = r.get("Code"), norm_ccy(r.get("Currency"))
                 if not code or not c: continue
                 out[code + suf] = c
+                if r.get("Isin"): isin.setdefault(r["Isin"], code + suf)     # ISIN → ticker (radarn: FI:s insynsregister)
         except Exception as e:
             print(f"  valutalista {ex} misslyckades: {str(e)[:60]}")
     if out:
         _CACHE["_ccy"] = {"ts": _today(), "m": out}
+        if isin: _CACHE["_isin"] = {"ts": _today(), "m": isin}
         try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
         except Exception: pass
     return out

@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.gate.outputs.run == 'true'
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
       - if: steps.gate.outputs.run == 'true'
         run: pip install -r requirements.txt

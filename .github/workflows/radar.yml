@@ -1,0 +1,54 @@
+name: Institutionell radar
+
+# Daglig insamling (SPEC § 12, information som inte styr): 13F och 13D/13G från SEC Edgar, ARK:s dagliga innehav, FI:s insynsregister.
+# Skriver radar.json och cusip_map.json på main. Flera reservtider – grinden släpper igenom en körning per dygn; manuell start går alltid.
+on:
+  schedule:
+    - cron: "17 5 * * 2-6"
+    - cron: "3 6 * * 2-6"
+    - cron: "41 7 * * 2-6"
+    - cron: "29 9 * * 2-6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar
+  cancel-in-progress: false
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grind – en körning per dygn
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
+          import json, datetime as dt
+          try: done = json.load(open("radar.json"))["updated"][:10] == dt.datetime.utcnow().strftime("%Y-%m-%d")
+          except Exception: done = False
+          print("run=" + ("false" if done else "true"))
+          PY
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.13"
+          cache: pip
+      - if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
+      - name: Samla in
+        if: steps.gate.outputs.run == 'true'
+        run: python radar.py
+      - name: Publicera radar.json och cusip_map.json
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add radar.json cusip_map.json
+          git diff --cached --quiet && exit 0
+          git commit -qm "radar $(date -u +%F) [skip ci]"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break || sleep 20; done
