@@ -219,6 +219,9 @@ def filings_13dg(S, days=60):
     r = sec_get("https://www.sec.gov/files/company_tickers.json")
     if not r: return [], "company_tickers.json saknas"
     t2cik = {v["ticker"].upper().replace(".", "-"): int(v["cik_str"]) for v in r.json().values()}
+    cik2t = {}
+    for t, c in t2cik.items():
+        if t in S: cik2t.setdefault(c, t)
     us = [t for t in S if "." not in t and not t.endswith("-USD")]
     since = (TODAY - dt.timedelta(days=days)).isoformat()
     out, miss, seen, oldest, forms = [], 0, 0, "9999", {}
@@ -246,9 +249,21 @@ def filings_13dg(S, days=60):
             acc = ev["acc"]; nod = acc.replace("-", "")
             r = sec_get(f"https://www.sec.gov/Archives/edgar/data/{ev['cik']}/{nod}/{acc}-index.htm")
             if r:
-                m = re.search(r'companyName">\s*([^<]+?)\s*\(Filer\)', r.text, re.S) or re.search(r'companyName">\s*([^<]+?)\s*\(Filed by\)', r.text, re.S)
-                if m: ev["who"] = re.sub(r"\s+", " ", m.group(1)).strip()
+                # Indexsidan anger roller: "X (Subject)" och "Y (Filed by)". Ligger filingen under bolaget för att bolaget själv är
+                # anmälare (köpt ≥ 5 % i ett annat bolag) flyttas händelsen till det andra bolaget – om det finns i universumet.
+                import html as _html
+                roles = re.findall(r'companyName">\s*([^<]+?)\s*\((Subject|Filed by|Filer)\)(.*?)(?=companyName"|$)', r.text, re.S)
+                subj = next((x for x in roles if x[1] == "Subject"), None); filer = next((x for x in roles if x[1] in ("Filed by", "Filer")), None)
+                if filer: ev["who"] = _html.unescape(re.sub(r"\s+", " ", filer[0]).strip())
+                if subj:
+                    mc = re.search(r"CIK=(\d+)", subj[2])
+                    scik = int(mc.group(1)) if mc else None
+                    if scik and scik != ev["cik"]:
+                        t2 = cik2t.get(scik)
+                        if t2: ev["t"] = t2
+                        else: ev["drop"] = True
         except Exception: pass
+    out = [ev for ev in out if not ev.get("drop")]
     n_all = len(out)
     out = [ev for ev in out if not (ev.get("who") and PASSIVE.search(ev["who"]))]
     for ev in out: ev.pop("acc", None); ev.pop("cik", None)
