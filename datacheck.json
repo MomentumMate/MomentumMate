@@ -1,9 +1,7 @@
 {
-"updated": "2026-11-11T09:27:11Z",
-"status": "red",
-"red": [
-"listkälla gav färre aktier än i går: SMSN 2/5"
-],
+"updated": "2026-11-11T09:34:41Z",
+"status": "warn",
+"red": [],
 "markets": {
 "Norden": {
 "antal": 201,
@@ -27,21 +25,7 @@
 "n": 2293,
 "silent": 8,
 "flagged": 12,
-"gone": [
-"AHT.L",
-"CWEN-A",
-"ERJ",
-"FLTR.L",
-"HDFC.IL",
-"HLX",
-"HYMTF",
-"INFY.IL",
-"KYOCY",
-"LEG",
-"OCTV.ST",
-"PHNX.L",
-"TATA.IL"
-],
+"gone": [],
 "own_flagged": [],
 "issues": {
 "ACA": [
