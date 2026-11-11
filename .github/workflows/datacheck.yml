@@ -30,7 +30,7 @@ jobs:
         id: gate
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
           import json, datetime as dt
           try:
               d = json.load(open("datacheck.json")); done = d["updated"][:10] == dt.datetime.utcnow().strftime("%Y-%m-%d")

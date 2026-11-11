@@ -37,14 +37,14 @@ jobs:
       - uses: actions/checkout@v4
       - id: g
         run: |
-          python3 - <<'PY' | tee -a "$GITHUB_OUTPUT"
+          python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
           import json, datetime as dt, os
           now = dt.datetime.utcnow()
           manual = os.environ.get("EVENT") == "workflow_dispatch"
           try:
               d = json.load(open("data.json")); upd = dt.datetime.strptime(d["updated"], "%Y-%m-%dT%H:%MZ"); S = d.get("stocks") or {}
           except Exception as e:
-              print("run=true"); print("data.json saknas eller oläsbar – kör:", e); raise SystemExit
+              print("data.json saknas eller oläsbar – kör:", e); print("run=true"); raise SystemExit
           # senaste pass (12:30 / 14:15 / 21:30 UTC) som ligger före nu
           slots = [(12, 30), (14, 15), (21, 30)]
           cands = [now.replace(hour=h, minute=m, second=0, microsecond=0) for h, m in slots] + \
