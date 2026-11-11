@@ -631,6 +631,54 @@ def dl_eodhd(tickers, period="5y"):
 
 DL_DIAG = {"chunk_fail": [], "chunk_err": {}}
 
+# ----------------------------------------------------------------------------------
+# HANDELSVALUTA PER AKTIE (2026-11-11)
+# Tidigare sattes valutan av listan aktien kom från; aktier som bara fanns i STOXX 600 ("mixed") fick EUR när Yahoo inte
+# svarade – 64 Londonaktier, 43 schweiziska, 18 polska, 6 svenska m.fl. stod i fel valuta. Nu hämtas valutan från EODHD:s
+# symbollista per börs (en fråga per börs, cachad en vecka i lists_cache.json), i andra hand från bolagsinfon, i tredje hand
+# från ticker-suffixet. Listmarknadens valuta används bara om allt annat saknas.
+# ----------------------------------------------------------------------------------
+SUFFIX_CCY = {".ST": "SEK", ".CO": "DKK", ".OL": "NOK", ".HE": "EUR", ".DE": "EUR", ".PA": "EUR", ".L": "GBX", ".IL": "USD",
+              ".AS": "EUR", ".SW": "CHF", ".MC": "EUR", ".MI": "EUR", ".BR": "EUR", ".LS": "EUR", ".IR": "EUR", ".WA": "PLN",
+              ".VI": "EUR", ".AT": "EUR", ".TO": "CAD", ".AX": "AUD", ".T": "JPY", ".HK": "HKD", ".KS": "KRW", ".NS": "INR", ".TW": "TWD"}
+def suffix_ccy(t):
+    for suf, c in SUFFIX_CCY.items():
+        if t.endswith(suf): return c
+    return "USD"
+
+def eodhd_currencies(tickers):
+    """{ticker: valuta} enligt EODHD:s symbollista för de börser som förekommer. Tom dict utan nyckel eller vid fel."""
+    if not EODHD_KEY: return {}
+    cache = _CACHE.get("_ccy") or {}
+    if cache.get("m") and cache.get("ts") and (dt.date.today() - dt.date.fromisoformat(cache["ts"])).days < 7:
+        return cache["m"]
+    exch = {}
+    for t in tickers:
+        for suf, ex in EODHD_EXCH.items():
+            if t.endswith(suf): exch.setdefault(ex, suf); break
+        else: exch.setdefault("US", "")
+    out = {}
+    for ex, suf in exch.items():
+        try:
+            j = eodhd_get(f"exchange-symbol-list/{ex}") or []
+            for r in j:
+                code, c = r.get("Code"), norm_ccy(r.get("Currency"))
+                if not code or not c: continue
+                out[code + suf] = c
+        except Exception as e:
+            print(f"  valutalista {ex} misslyckades: {str(e)[:60]}")
+    if out:
+        _CACHE["_ccy"] = {"ts": _today(), "m": out}
+        try: json.dump(_CACHE, open(CACHE_FILE, "w", encoding="utf-8"))
+        except Exception: pass
+    return out
+
+def ccy_for(t, info, fallback, ccymap):
+    c = ccymap.get(t) if ccymap else None
+    if not c and info: c = norm_ccy(info.get("currency"))
+    if not c: c = suffix_ccy(t)
+    return c or fallback
+
 def dl(tickers, **kw):
     """Hämtar kursdata. Med EODHD_KEY satt hämtas dagsdata därifrån, och det som
     saknas kompletteras från Yahoo. Intradag (5m) går alltid via Yahoo."""
@@ -774,7 +822,7 @@ def coverage_report(want, got, recs=None):
     return {"want": len(want_s), "got": len(got_s), "miss_by_group": dict(cm),
             "missing": miss[:400]}
 
-CUR_SYM = {"USD": "$", "EUR": "€", "SEK": "kr", "DKK": "kr", "NOK": "kr", "GBP": "£", "GBX": "p", "CHF": "CHF", "CAD": "$"}
+CUR_SYM = {"USD": "$", "EUR": "€", "SEK": "kr", "DKK": "kr", "NOK": "kr", "GBP": "£", "GBX": "p", "CHF": "CHF", "CAD": "$", "PLN": "zł"}
 def norm_ccy(c): return {"GBp": "GBX", "GBX": "GBX"}.get(c, c)
 def is_crypto(t): return t.endswith("-USD")
 def is_us(t): return "." not in t and not is_crypto(t)
@@ -1784,14 +1832,35 @@ def lookup(q):
     if mm: qs.append(mm.group(1))                       # "NBIS-USD" -> sök även aktien NBIS
     for qq in qs:
         try:
-            for r in (yf.Search(qq, max_results=8, news_count=0).quotes or []):
+            for r in (yf.Search(qq, max_results=20, news_count=0).quotes or []):
                 if r.get("quoteType") in ("EQUITY", "ETF") and r.get("symbol"): syms.append(r)
         except Exception as e:
             print("Yahoo-sökning misslyckades:", e)
+    # 2026-11-11: "Plejd" gav bara tyska andrahandsnoteringar (3CA.F …) – Yahoo-sökningen tar inte med PLEJD.ST.
+    # Därför prövas alltid namnet som ticker på hemmabörserna, och hemmanoteringar sorteras före andrahandsnoteringar.
+    SECOND = (".F", ".SG", ".MU", ".DU", ".BE", ".HM", ".HA", ".DE") if not q.upper().endswith(".DE") else ()
+    base = re.sub(r"[^A-Za-z0-9\-]", "", q).upper()
+    if base and "." not in q and not mm:
+        have = {x["symbol"] for x in syms}
+        for suf in (".ST", ".CO", ".OL", ".HE", ""):
+            cand = base + suf
+            if cand in have: continue
+            try:
+                inf = get_info(cand, tries=1)
+                if inf and (inf.get("longName") or inf.get("shortName")):
+                    syms.append({"symbol": cand, "longname": inf.get("longName"), "shortname": inf.get("shortName"),
+                                 "quoteType": inf.get("quoteType") or "EQUITY", "exchDisp": inf.get("fullExchangeName") or inf.get("exchange")})
+            except Exception: pass
     if not syms:
         for qq in qs:
             if re.fullmatch(r"[A-Za-z0-9.\-]{1,15}", qq): syms.append({"symbol": qq.upper()})
     syms = list({x["symbol"]: x for x in syms}.values())
+    def rank(x):
+        sym = x["symbol"]
+        if any(sym.endswith(sf) for sf in SECOND): return 2
+        if sym.startswith(base) and base: return 0
+        return 1
+    syms.sort(key=rank)
     items = []
     for r in syms[:6]:
         sym = r["symbol"]; info = get_info(sym)
@@ -1807,6 +1876,24 @@ def lookup(q):
     with open("lookup.json", "w", encoding="utf-8") as f:
         json.dump(clean({"q": q, "ts": int(time.time()), "items": items}), f, ensure_ascii=False)
     print(f"Slog upp '{q}': {len(items)} träffar")
+
+def probe(tickers):
+    """Diagnos (2026-11-11): vad EODHD och Yahoo säger om varje ticker – senaste datum, och EODHD:s sökförslag när serien är tom."""
+    for t in [x.strip() for x in tickers.split(",") if x.strip()]:
+        print(f"\n=== {t}  (EODHD-symbol {eodhd_symbol(t)})")
+        try:
+            j = eodhd_get(f"eod/{eodhd_symbol(t)}", **{"from": (dt.date.today() - dt.timedelta(days=60)).isoformat(), "period": "d"})
+            print(f"  EODHD eod 60 d: {len(j) if j else 0} rader" + (f", senaste {j[-1]['date']} close {j[-1]['close']}" if j else ""))
+        except Exception as e: print("  EODHD eod fel:", str(e)[:80])
+        try:
+            name = (NAMES.get(t) or NAMES.get(t.replace(".IL", ".L")) or t.split(".")[0])
+            j = eodhd_get(f"search/{name}", limit=8) or []
+            print(f"  EODHD sök '{name}': " + "; ".join(f"{r.get('Code')}.{r.get('Exchange')} {r.get('Name')} ({r.get('Currency')}, {r.get('Type')})" for r in j[:8]))
+        except Exception as e: print("  EODHD sök fel:", str(e)[:80])
+        try:
+            h = yf.Ticker(t).history(period="1mo")
+            print(f"  Yahoo 1 mån: {len(h)} rader" + (f", senaste {h.index[-1].date()} close {float(h['Close'].iloc[-1]):.2f}" if len(h) else ""))
+        except Exception as e: print("  Yahoo fel:", str(e)[:80])
 
 def read_extra_markets():
     try:
@@ -2005,14 +2092,15 @@ def main():
             if inf: info[t] = inf
         print(f"  bolagsinfo saknas fortfarande för {sum(1 for t in miss if not info.get(t))} aktier", flush=True)
     recs, dropped = {}, []
+    ccymap = eodhd_currencies(deep)
+    print(f"  handelsvaluta från EODHD för {sum(1 for t in deep if t in ccymap)} av {len(deep)} aktier")
     for t in deep:
         if t not in daily:
             dropped.append([t, "ingen kursdata hos Yahoo", uni[t]]); continue
         try:
             m0 = mk_by[uni[t][0]]
-            if m0.get("mixed"):
-                cc = norm_ccy((info.get(t) or info_cache_get(t) or {}).get("currency")) or m0["ccy"]
-                m0 = dict(m0, ccy=cc, cur=CUR_SYM.get(cc, cc))
+            cc = ccy_for(t, info.get(t) or info_cache_get(t), m0["ccy"], ccymap)
+            if cc != m0["ccy"]: m0 = dict(m0, ccy=cc, cur=CUR_SYM.get(cc, cc))
             inf0 = info.get(t) or info_cache_get(t) or {}
             r = build(t, daily[t], intr_of(intra, t), inf0, news.get(t, []), m0)
             if r:
@@ -2155,4 +2243,5 @@ if __name__ == "__main__":
     if "--news" in sys.argv: news_live()
     elif "--daytrade" in sys.argv: live()
     elif "--lookup" in sys.argv: lookup(sys.argv[sys.argv.index("--lookup") + 1])
+    elif "--probe" in sys.argv: probe(sys.argv[sys.argv.index("--probe") + 1])
     else: main()

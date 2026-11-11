@@ -1,0 +1,25 @@
+name: Diagnos av tickers
+
+# Manuell diagnos: vad EODHD och Yahoo säger om angivna tickers (senaste datum, EODHD:s sökförslag). Ändrar ingenting.
+on:
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Tickers, kommaseparerade (Yahoo-form), t.ex. AHT.L,ROG.SW"
+        required: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python scanner.py --probe "$TICKERS"
+        env:
+          TICKERS: ${{ github.event.inputs.tickers }}
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
