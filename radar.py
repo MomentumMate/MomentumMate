@@ -233,7 +233,8 @@ def filings_13dg(S, days=60):
                 form, fd = rec["form"][i], rec["filingDate"][i]
                 if fd < since: break
                 seen += 1; oldest = min(oldest, fd); forms[form] = forms.get(form, 0) + 1
-                if form in ("SC 13D", "SC 13G", "SC 13D/A", "SC 13G/A"):
+                # Edgar heter numera "SCHEDULE 13D"/"SCHEDULE 13G" (tidigare "SC 13D"). Ändringar (/A) hoppas över – mest indexfonders rutinuppdateringar.
+                if re.match(r"(SC|SCHEDULE) 13[DG]$", form):
                     out.append({"t": t, "form": form, "date": fd, "acc": rec["accessionNumber"][i], "cik": cik})
         except Exception as e:
             log(f"  13D/13G {t}: {str(e)[:50]}")
