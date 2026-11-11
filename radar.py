@@ -238,9 +238,10 @@ def filings_13dg(S, days=60):
                     out.append({"t": t, "form": form, "date": fd, "acc": rec["accessionNumber"][i], "cik": cik})
         except Exception as e:
             log(f"  13D/13G {t}: {str(e)[:50]}")
-    # anmälarens namn ur filingens indexsida (bara för de senaste 60 händelserna)
+    # anmälarens namn ur filingens indexsida; passiva jättar (index- och depåförvaltare, market makers) filtreras bort – de anmäler rutinmässigt
+    PASSIVE = re.compile(r"VANGUARD|BLACKROCK|STATE STREET|FMR LLC|FIDELITY|CAPITAL RESEARCH|GEODE|NORTHERN TRUST|INVESCO|DIMENSIONAL|T\.? ?ROWE|WELLINGTON|JPMORGAN|JP MORGAN|BANK OF AMERICA|MORGAN STANLEY|GOLDMAN SACHS|SCHWAB|NUVEEN|AMERICAN CENTURY|BNY|MELLON|UBS|CITADEL|MILLENNIUM|SUSQUEHANNA|JANE STREET|TWO SIGMA|D\. ?E\. ?SHAW|AQR|ALLIANCEBERNSTEIN|FRANKLIN|LEGAL & GENERAL|PRUDENTIAL|MASSACHUSETTS FINANCIAL|MFS |BARCLAYS|DEUTSCHE|CREDIT SUISSE|RENAISSANCE", re.I)
     out.sort(key=lambda x: x["date"], reverse=True)
-    for ev in out[:60]:
+    for ev in out[:900]:
         try:
             acc = ev["acc"]; nod = acc.replace("-", "")
             r = sec_get(f"https://www.sec.gov/Archives/edgar/data/{ev['cik']}/{nod}/{acc}-index.htm")
@@ -248,8 +249,10 @@ def filings_13dg(S, days=60):
                 m = re.search(r'companyName">\s*([^<]+?)\s*\(Filer\)', r.text, re.S) or re.search(r'companyName">\s*([^<]+?)\s*\(Filed by\)', r.text, re.S)
                 if m: ev["who"] = re.sub(r"\s+", " ", m.group(1)).strip()
         except Exception: pass
+    n_all = len(out)
+    out = [ev for ev in out if not (ev.get("who") and PASSIVE.search(ev["who"]))]
     for ev in out: ev.pop("acc", None); ev.pop("cik", None)
-    log(f"  13D/13G: {len(out)} flaggningar senaste {days} dagarna, {miss} tickers utan CIK, {seen} filings lästa (äldsta {oldest}); vanligaste formtyper: {sorted(forms.items(), key=lambda x: -x[1])[:12]}")
+    log(f"  13D/13G: {n_all} flaggningar, {len(out)} kvar när passiva förvaltare filtrerats bort, senaste {days} dagarna, {miss} tickers utan CIK, {seen} filings lästa (äldsta {oldest}); vanligaste formtyper: {sorted(forms.items(), key=lambda x: -x[1])[:12]}")
     return out, None
 
 # ---------------------------------------------------------------- ARK
