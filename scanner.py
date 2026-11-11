@@ -1178,6 +1178,32 @@ def fetch_feeds():
     rest = [x for x in res if (x["u"] or x["h"]) not in svk][:120 - len(sv)]
     return sorted(sv + rest, key=lambda x: -x["ts"])
 
+def index_series():
+    """Jämförelseindex för transaktionsloggen (SPEC § 17, 2026-11-11): OMXSPI, MSCI World (via ETF:en URTH, USD) och USD/SEK,
+    fem års dagliga stängningar. EODHD först, Yahoo som reserv, förra skanningens serie i sista hand. Information – styr inget."""
+    try: prev = (json.load(open("data.json", encoding="utf-8")).get("idx") or {})
+    except Exception: prev = {}
+    spec = {"OMXSPI": ("OMXSPI.INDX", "^OMXSPI"), "WORLD": ("URTH.US", "URTH"), "USDSEK": ("USDSEK.FOREX", "USDSEK=X")}
+    start = (dt.date.today() - dt.timedelta(days=5 * 365 + 7)).isoformat()
+    out = {}
+    for k, (es, ys) in spec.items():
+        ser = None
+        if EODHD_KEY:
+            try:
+                j = eodhd_get(f"eod/{es}", **{"from": start, "period": "d"}) or []
+                rows = [(r["date"], float(r.get("adjusted_close") or r["close"])) for r in j if r.get("close")]
+                if len(rows) > 100: ser = {"d": [r[0] for r in rows], "p": [round(r[1], 2) for r in rows]}
+            except Exception as e: print(f"  index {k}: EODHD {str(e)[:50]}")
+        if ser is None:
+            try:
+                h = yf.Ticker(ys).history(period="5y")["Close"].dropna()
+                if len(h) > 100: ser = {"d": [i.strftime("%Y-%m-%d") for i in h.index], "p": [round(float(v), 2) for v in h.values]}
+            except Exception: pass
+        if ser is None and k in prev: ser = prev[k]; print(f"  index {k}: förra skanningens serie")
+        if ser: out[k] = ser
+    print(f"  jämförelseindex: {', '.join(f'{k} t.o.m. {v['d'][-1]}' for k, v in out.items()) or 'inga'}")
+    return out
+
 def fx_rates(ccys):
     """Växelkurser till SEK. Yahoo först; EODHD:s valutakurser som reserv; i sista hand förra skanningens kurs (2026-11-11:
     PLN saknades helt när Yahoo inte svarade, och appen räknade då 1 zł = 1 kr)."""
@@ -2192,6 +2218,7 @@ def main():
                       "eodhd": dict(EODHD_STAT) if EODHD_KEY else None,
                       "coverage": {"got": COV["got"], "want": COV["want"]} if "COV" in dir() else None},
            "fx": fx_rates({m["ccy"] for m in markets_used} | {r["ccy"] for r in recs.values()}),
+           "idx": index_series(),
            "markets": [{"k": "ALL", "n": "Alla marknader", "flag": "🌍", "cur": "", "ccy": ""}] +
                       [{"k": g, "n": GROUP_NAMES.get(g, (g, "🌐"))[0], "flag": GROUP_NAMES.get(g, (g, "🌐"))[1], "cur": "", "ccy": "", "group": True}
                        for g in sorted({m["reg"] for m in markets_used if m.get("reg")})] +

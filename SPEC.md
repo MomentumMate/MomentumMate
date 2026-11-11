@@ -201,6 +201,11 @@ Transaktionslogg per rad: datum, aktie, marknad, beslut, modellversion, poäng o
 genomfört belopp och pris, courtage. Loggen ger: modellportfölj mot verklig portfölj, avkastning efter kostnader, avvikelser
 (ej genomförda rader, registrerade med orsak), jämförelse mot OMXSPI och ett globalt index i SEK. Loggen är det enda out-of-sample-underlaget.
 
+*Byggt 2026-11-11 (app ak):* raden skapas när förslaget räknas (status öppen) och följs tills den är genomförd (antal, kurs, datum, belopp, courtage enligt
+avgiftsinställningen), delvis genomförd, avstådd (orsak väljs) eller ersatt av ett nyare förslag. Affärer utanför förslaget loggas som avvikelse.
+Avkastning: tidsviktad ur appens dagliga ögonblicksbilder, rensad för registrerade köp/sälj (approximation av insättningar/uttag); jämförs med OMXSPI och
+MSCI World i SEK (ETF:en URTH × USD/SEK), serier i `data.json` (`idx`). Modellportföljen utan avsteg är demoportföljen. Fältet "institutionellt stöd" fylls av radarn (§ 12).
+
 ## 18. Paritet backtest ↔ app (lästa ur koden 2026-11-05)
 
 | Punkt | Backtest | Skanner/app |

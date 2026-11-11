@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-aj";
+const APPV="2026-11-11-ak";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -429,8 +429,8 @@ function _addHolding(p,t,q,c,d,ex){const h=p.h.find(x=>x.t===t);if(h){const nq=h
 function _sellHolding(p,t,q,px,d){const h=p.h.find(x=>x.t===t);if(!h)return;q=Math.min(q,h.q);const s=S[t];p.re=(p.re||0)+(px-h.c)*q*fx(s?s.ccy:(h.ccy||"SEK"));h.q-=q;if(h.q<=1e-9)p.h=p.h.filter(x=>x!==h);p.tx.unshift({k:"sell",t,q,px,d});p.tx=p.tx.slice(0,100)}let MIR=true,MIRNOTE="";
 const takeMir=()=>{const n=MIRNOTE;MIRNOTE="";return n};
 function mirrorOp(p,fn){if(!MIR||!p.twin)return;const tw=getP(p.twin);if(!tw)return;fn(tw);MIRNOTE=` (och i “${tw.name}”)`}
-function addHolding(p,t,q,c,d,ex){_addHolding(p,t,q,c,d,ex);mirrorOp(p,tw=>_addHolding(tw,t,q,c,d,ex))}
-function sellHolding(p,t,q,px,d){_sellHolding(p,t,q,px,d);mirrorOp(p,tw=>{if(tw.h.find(x=>x.t===t))_sellHolding(tw,t,q,px,d)})}
+function addHolding(p,t,q,c,d,ex){_addHolding(p,t,q,c,d,ex);try{logTrade(p,t,"buy",q,c,d)}catch(e){}mirrorOp(p,tw=>_addHolding(tw,t,q,c,d,ex))}
+function sellHolding(p,t,q,px,d){_sellHolding(p,t,q,px,d);try{logTrade(p,t,"sell",q,px,d)}catch(e){}mirrorOp(p,tw=>{if(tw.h.find(x=>x.t===t))_sellHolding(tw,t,q,px,d)})}
 
 /* Signalen bygger ENBART på rankning och regelmotorn. Den tidigare heuristiken (RSI-tak,
    SMA50/MACD, fallande vinst, BEVAKA) var aldrig validerad och orsakade motsägelser mot
@@ -840,9 +840,10 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="lgs">📒 Transaktionslogg</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
+    $("#lgs").onclick=()=>{closeSheet();setTimeout(()=>logSheet(pid),260)};
     $("#sgs").onclick=()=>{closeSheet();setTimeout(sigSheet,260)};
     $("#fes").onclick=()=>{closeSheet();setTimeout(feeSheet,260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
@@ -923,6 +924,9 @@ function act(a,d){
     case"pfreorderdone":Ui.pfReorder=false;route();break;
     case"psort":Ui.psort=d.v;try{localStorage.setItem("mm_psort",d.v)}catch(e){}route(true);break;
     case"planapply":planApplySheet(d.pid,+d.i);break;
+    case"logskip":logSkipSheet(d.pid,d.id);break;
+    case"logexec":{const p=getP(d.pid),e=p&&logEntries(p).find(x=>x.id===d.id);if(!e)break;const ix=p.plan&&p.plan.items?p.plan.items.findIndex(x=>x.t===e.t&&x.a===e.a):-1;if(ix>=0)planApplySheet(p.id,ix);else execSheet(p,{t:e.t,a:e.a==="MINSKA"?"SÄLJ":e.a==="ÖKA"?"KÖP":e.a,q:e.qP,px:e.pxP,n:e.n,ccy:e.ccy,why:e.why});break}
+    case"logshow":logSheet(d.pid);break;
     case"qrwreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
       // 2026-11-05: bara kvartalet öppnas igen – månadsprövningen (p.mchk) lämnas som den är, så hållvillkoren prövas inte om
       [p].concat(tw?[tw]:[]).forEach(x=>{delete x.qrw});save();refreshAll(p.id,p.cashHint,p.cashIncl);break}
@@ -2132,7 +2136,7 @@ function propHTML(p,c,sigs,rot,ideas){
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
     const pri=g==="buy"?(it.pri!=null?+it.pri:0):0;
     pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${lab(it)}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)&&SIGL[r.sig.k]!==lab(it)&&!(it.a==="KÖP"&&r.sig.k==="BUY")?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}${(()=>{const w=r?r.w:(it.q&&c&&c.tot?planAmt(it)/c.tot*100:0);return w>0?` · ${f(w,1)} %${r?"":" ny"}`:""})()}</div>${it.why?`<div class="mu" style="white-space:pre-line">${esc(it.why)}</div>`:""}${g==="buy"&&pri&&rulesOf0(p).mode==="sat"?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r,it)}${extra}</div>
-     <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>`}</div></div>`,pri)});
+     <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>${(()=>{const e=logOpenFor(p,it);return e?`<button class="btn sm ghost" data-act="logskip" data-pid="${p.id}" data-id="${e.id}" title="Avstå med orsak">✕</button>`:""})()}`}</div></div>`,pri)});
   RA.forEach(a=>{const r=a.r,h=r.h,repl=RP.get(a)||[];
     G.sell.push(`<div class="sr rls"><div class="m"><div>${flag(h.t)}${tlink(h.t,r.s?r.s.d:h.t)}<span class="pla S">${RLAB[a.k]} ${a.q} st</span></div><div class="mu">${esc(r.s?r.s.n:(h.n||h.t))} · ≈ ${kr(a.amt)} kr · vikt ${f(r.w,1)} %</div><div class="mu" style="white-space:normal">${esc(a.why)}</div>
       ${repl.length?repl.map((x,ix)=>`<div class="mu" style="white-space:normal;font-size:11.5px">↪ Ersätt med <b class="rk">#${ix+1}</b> ${tlink(x.s.t,x.s.d)} ${x.q} st (≈ ${kr(x.amt)} kr · poäng ${x.s.sc} · RSI ${x.s.rsi}) <span class="chip" data-act="rulebuy" data-pid="${p.id}" data-t="${esc(x.s.t)}" data-q="${x.q}">Köp</span></div>`).join(""):`<div class="mu" style="font-size:11.5px">↪ Ingen ersättare uppfyller reglerna just nu (poäng ≥ 60, trend upp, RSI ≤ ${p.rules.maxRsi}).</div>`}</div>
@@ -2365,7 +2369,7 @@ async function refreshAll(pid,cash,incl){
   demoTick();
   const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
   if(p.demo){save();snapshot();route(true);toast("Demoportföljen räknar om sig själv vid varje stängningsskanning");return}
-  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl});const _mw=monthCheckWindow(x);if(_mw.open)x.mchk=(D.updated||"").slice(0,10)||todayISO();if(quarterDue(x))x.qrw=(D.updated||"").slice(0,10)||todayISO()});
+  [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl});try{logFromPlan(x,x.plan)}catch(e){}const _mw=monthCheckWindow(x);if(_mw.open)x.mchk=(D.updated||"").slice(0,10)||todayISO();if(quarterDue(x))x.qrw=(D.updated||"").slice(0,10)||todayISO()});
   p.cashIncl=!!incl;save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
 }
 function refreshSheet(pid){
@@ -2954,6 +2958,70 @@ function demoCmpHTML(p){const d=p.demo,st=d.start,rows=[];
   P.ps.forEach(x=>{if(x.id===p.id||x.demo)return;const s=(P.snap&&P.snap[x.id])||[],b=s.find(y=>y[0]>=st);if(!b||!(b[1]>0))return;const l=s[s.length-1];rows.push([x.name,(l[1]/b[1]-1)*100,l[0]])});
   if(rows.length<2)return`<div class="mu" style="font-size:11px;margin-top:8px">Jämförelsen mot dina verkliga portföljer byggs upp dag för dag från ${esc(st)}.</div>`;
   return`<h4 style="margin:12px 2px 6px">Jämförelse sedan ${esc(st)}</h4>${rows.map(r=>`<div class="k mu" style="padding:3px 2px;display:flex;justify-content:space-between"><span>${esc(r[0])} <span style="opacity:.6">${esc(r[2])}</span></span><b class="${cls(r[1])}">${sg(r[1])}</b></div>`).join("")}<div class="mu" style="font-size:11px;margin-top:4px">Verkliga portföljer: värdeförändring enligt appens dagliga ögonblicksbilder – insättningar och uttag påverkar. Demo: efter courtage och slippage, inkl. kassa.</div>`}
+/* ---------- TRANSAKTIONSLOGG MED AVVIKELSEHANTERING (SPEC § 17, 2026-11-11, arbetslista 7) ----------
+   En rad per förslagsrad (KÖP/SÄLJ/ÖKA/MINSKA) när ett förslag räknas: datum, aktie, marknad, beslut, modellversion, poäng och
+   rankning vid beslutet, orsak, föreslaget antal och belopp. Raden uppdateras när affären registreras (genomfört antal, kurs,
+   datum, belopp, courtage enligt avgiftsinställningen) eller när ägaren avstår med orsak. Ersätts förslaget innan raden är
+   gjord markeras den "ersatt". Affärer utanför förslaget loggas som avvikelse. Loggen är information – den styr ingen rad.
+   "Institutionellt stöd" (inst) fylls i av radarn (arbetslista 8); tills dess "–". */
+const LOGST={open:"öppen",done:"genomförd",partial:"delvis",skipped:"avstod",superseded:"ersatt",manual:"utanför förslaget"};
+function logEntries(p){return p.log=p.log||[]}
+function logFromPlan(p,plan){
+  if(!plan||!plan.items||p.demo)return;
+  const L=logEntries(p),sd=scanISO();
+  L.forEach(e=>{if(e.st==="open"&&e.pd!==plan.date)e.st="superseded"});
+  plan.items.forEach(it=>{if(!["KÖP","SÄLJ","ÖKA","MINSKA"].includes(it.a)||!(it.q>0))return;
+    if(L.some(e=>e.st==="open"&&e.pd===plan.date&&e.t===it.t&&e.a===it.a))return;
+    const s=S[it.t]||{},px=+it.px||planPx(it),F=fx(s.ccy||it.ccy||"SEK");
+    L.push({id:uid(),pd:plan.date,sd,t:it.t,n:s.n||it.n||it.t,ccy:s.ccy||it.ccy||"",a:it.a,mv:MODEL.v,sc:typeof SC(s)==="number"?+SC(s).toFixed(1):null,rk:rankOf(it.t),
+      why:(it.why||it.note||"").slice(0,200),qP:it.q,pxP:px,amtP:Math.round(it.q*px*F),st:"open",inst:null})});
+  if(L.length>1500)L.splice(0,L.length-1500)}
+/* Anropas från addHolding/sellHolding (inte från import eller demo): matchar en öppen förslagsrad, annars avvikelse "utanför förslaget". */
+function logTrade(p,t,side,q,px,d){
+  if(p.demo)return;const L=logEntries(p),s=S[t]||{},F=fx(s.ccy||"SEK"),amt=q*px*F,fee=tradeCost(amt,t,side).tot;
+  const acts=side==="buy"?["KÖP","ÖKA"]:["SÄLJ","MINSKA"];
+  const e=L.filter(x=>x.st==="open"&&x.t===t&&acts.includes(x.a)).sort((a,b)=>a.pd<b.pd?1:-1)[0];
+  if(e){e.qD=(e.qD||0)+q;e.pxD=e.qD?((e.pxD||0)*(e.qD-q)+px*q)/e.qD:px;e.dD=d;e.amtD=Math.round((e.amtD||0)+amt);e.fee=Math.round((e.fee||0)+fee);
+    e.st=e.qD>=e.qP*0.9?"done":"partial"}
+  else L.push({id:uid(),pd:d,sd:scanISO(),t,n:s.n||t,ccy:s.ccy||"",a:side==="buy"?"KÖP":"SÄLJ",mv:MODEL.v,sc:typeof SC(s)==="number"?+SC(s).toFixed(1):null,rk:rankOf(t),
+    why:"",qP:0,pxP:0,amtP:0,qD:q,pxD:px,dD:d,amtD:Math.round(amt),fee:Math.round(fee),st:"manual",inst:null})}
+function logSkipSheet(pid,id){const p=getP(pid),e=p&&logEntries(p).find(x=>x.id===id);if(!e)return;
+  sheet(`<h3>Avstå – ${esc(e.a)} ${esc((S[e.t]||{d:e.t}).d)}</h3><p class="mu" style="margin-top:-4px">Raden stryks ur förslaget och loggas som avvikelse. Orsaken sparas så att du kan följa upp vad avstegen kostade.</p>
+  <label class="fld"><span>Orsak</span><select id="lsr"><option>Kassan räckte inte</option><option>Avvaktar – bedömning</option><option>Kunde inte handlas (likviditet/handelsstopp)</option><option>Skatteskäl</option><option>Glömt/försent</option><option>Annat</option></select></label>
+  <label class="fld"><span>Kommentar (valfri)</span><input id="lsn" placeholder=""></label><button class="btn wide" id="lsgo">Registrera avsteg</button>`,()=>{$("#lsgo").onclick=()=>{
+    e.st="skipped";e.dD=todayISO();e.note=($("#lsr").value+(($("#lsn").value||"").trim()?" – "+$("#lsn").value.trim():"")).slice(0,200);
+    if(p.plan&&p.plan.items){const ix=p.plan.items.findIndex(x=>x.t===e.t&&x.a===e.a);if(ix>=0)p.plan.items.splice(ix,1)}
+    save();closeSheet();toast("Avsteg loggat");route(true)}})}
+function logOpenFor(p,it){return logEntries(p).find(e=>e.st==="open"&&e.t===it.t&&e.a===it.a)}
+/* Tidsviktad avkastning ur dagliga ögonblicksbilder, rensad för registrerade köp/sälj (insättningar och uttag ≈ nettoköp per dag). Approximation. */
+function twr(p,from,to){
+  const snap=((P.snap&&P.snap[p.id])||[]).filter(x=>x[0]>=from&&(!to||x[0]<=to));if(snap.length<2)return null;
+  const flows={};(p.tx||[]).forEach(x=>{if(x.d<from||(to&&x.d>to))return;const s=S[x.t]||{},a=x.q*x.px*fx(s.ccy||"SEK");flows[x.d]=(flows[x.d]||0)+(x.k==="buy"?a:-a)});
+  let r=1;for(let i=1;i<snap.length;i++){const d0=snap[i-1][0],d1=snap[i][0];let fl=0;for(const d in flows)if(d>d0&&d<=d1)fl+=flows[d];const base=snap[i-1][1]+fl;if(base>0)r*=snap[i][1]/base}
+  return(r-1)*100}
+function idxRet(k,from,to,sek){const I=D.idx&&D.idx[k];if(!I)return null;const at=d=>{let v=null;for(let i=0;i<I.d.length;i++){if(I.d[i]<=d)v=I.p[i];else break}return v};
+  let a=at(from),b=at(to||I.d[I.d.length-1]);if(!(a>0&&b>0))return null;
+  if(sek){const U=D.idx.USDSEK;if(U){const ua=(()=>{let v=null;for(let i=0;i<U.d.length;i++){if(U.d[i]<=from)v=U.p[i];else break}return v})(),ub=U.p[U.p.length-1];if(ua>0&&ub>0){a*=ua;b*=ub}}}
+  return(b/a-1)*100}
+function logSheet(pid){
+  const p=getP(pid);if(!p)return;const L=logEntries(p).slice().sort((a,b)=>(b.dD||b.pd)<(a.dD||a.pd)?-1:1);
+  const n=k=>L.filter(e=>e.st===k).length,fees=L.reduce((a,e)=>a+(e.fee||0),0),from=L.length?L.reduce((m,e)=>e.pd<m?e.pd:m,L[0].pd):null,to=scanISO();
+  const r=from?twr(p,from):null,ox=from?idxRet("OMXSPI",from,to):null,wd=from?idxRet("WORLD",from,to,true):null;
+  const pct=v=>v==null?"–":`<b class="${cls(v)}">${sg(v)}</b>`;
+  const row=e=>`<div class="k" style="padding:6px 2px;border-bottom:1px solid var(--ln);font-size:12px"><div style="display:flex;justify-content:space-between;gap:8px"><span>${esc(e.pd)} · <b>${esc(e.a)}</b> ${flagOf(e.t)} <b class="tlk" data-act="gostock" data-t="${esc(e.t)}">${esc((S[e.t]||{d:e.t}).d)}</b></span><span class="chip ${e.st==="done"?"on":""}" style="font-size:10.5px">${LOGST[e.st]||e.st}</span></div>
+    <div class="mu" style="font-size:11px">Förslag: ${e.qP?`${f(e.qP,0)} st à ${f(e.pxP)} ${esc(e.ccy)} ≈ ${kr(e.amtP)} kr`:"–"} · modell ${esc(e.mv)} · poäng ${e.sc!=null?f(e.sc,1):"–"} · plats ${e.rk||"–"} · inst. stöd ${e.inst==null?"–":e.inst?"ja":"nej"}</div>
+    ${e.qD?`<div class="mu" style="font-size:11px">Genomfört ${esc(e.dD||"")}: ${f(e.qD,0)} st à ${f(e.pxD)} ${esc(e.ccy)} = ${kr(e.amtD)} kr · courtage ${kr(e.fee||0)} kr${e.amtP?` · mot förslag ${sg((e.amtD/e.amtP-1)*100)}`:""}</div>`:""}
+    ${e.note?`<div class="mu" style="font-size:11px">Avsteg: ${esc(e.note)}</div>`:""}${e.why?`<div class="mu" style="font-size:11px;opacity:.8">${esc(e.why)}</div>`:""}
+    ${e.st==="open"?`<div class="acts" style="margin-top:4px"><button class="btn sm" data-act="logexec" data-pid="${p.id}" data-id="${e.id}">Registrera</button><button class="btn sm ghost" data-act="logskip" data-pid="${p.id}" data-id="${e.id}">Avstår…</button></div>`:""}</div>`;
+  sheet(`<h3>📒 Transaktionslogg – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px;font-size:12px">Varje förslagsrad loggas när den räknas och följs tills den är genomförd, avstådd eller ersatt. Information – styr inget (SPEC § 17).</p>
+  <div class="kv" style="margin:8px 0"><div><small>Rader</small><b>${L.length}</b></div><div><small>Genomförda</small><b>${n("done")+n("partial")}</b></div><div><small>Avvikelser</small><b class="${n("skipped")+n("superseded")+n("manual")?"dn":""}">${n("skipped")+n("superseded")+n("manual")}</b></div><div><small>Öppna</small><b>${n("open")}</b></div><div><small>Courtage</small><b>${kr(fees)} kr</b></div><div><small>Realiserat</small><b class="${cls(p.re||0)}">${(p.re||0)>=0?"+":"−"}${kr(Math.abs(p.re||0))} kr</b></div></div>
+  ${from?`<h4 style="margin:10px 2px 6px">Sedan ${esc(from)} (t.o.m. ${esc(to)})</h4><div class="kv"><div><small>Portföljen, tidsviktat*</small>${pct(r)}</div><div><small>OMXSPI</small>${pct(ox)}</div><div><small>MSCI World i SEK</small>${pct(wd)}</div></div><div class="mu" style="font-size:11px;margin-top:4px">*Ur appens dagliga ögonblicksbilder, rensat för registrerade köp och sälj (≈ insättningar/uttag). Kräver att appen öppnats regelbundet. Modellportfölj utan avsteg = demoportföljen.</div>`:""}
+  <div class="acts" style="margin:10px 0"><button class="btn sm ghost" id="lgcp">📋 Kopiera som text</button></div>
+  ${L.length?L.map(row).join(""):'<div class="empty">Inga rader ännu – loggen fylls när nästa förslag räknas.</div>'}`,()=>{$("#lgcp").onclick=()=>{
+    const T=[`Transaktionslogg ${p.name} · app ${APPV} · ${new Date().toLocaleString("sv-SE")}`,`Rader ${L.length}, genomförda ${n("done")+n("partial")}, avvikelser ${n("skipped")+n("superseded")+n("manual")}, courtage ${kr(fees)} kr`];
+    if(from)T.push(`Sedan ${from}: portfölj ${r==null?"–":sg(r)}, OMXSPI ${ox==null?"–":sg(ox)}, MSCI World SEK ${wd==null?"–":sg(wd)}`);
+    L.forEach(e=>T.push(`${e.pd} ${e.a} ${e.t} ${LOGST[e.st]||e.st} | förslag ${e.qP} st à ${e.pxP} ${e.ccy} (${e.amtP} kr) poäng ${e.sc??"–"} plats ${e.rk||"–"} | ${e.qD?`genomfört ${e.dD} ${e.qD} st à ${e.pxD} = ${e.amtD} kr courtage ${e.fee||0} kr`:""}${e.note?" | avsteg: "+e.note:""}${e.why?" | "+e.why:""}`));
+    navigator.clipboard&&navigator.clipboard.writeText(T.join("\n")).then(()=>toast("Kopierat"),()=>toast("Kunde inte kopiera"))}})}
 function execSheet(p,it,o){if(isDemoP(p)){toast("Demoportföljen utför sina order själv på nästa stängning");return}
 
   o=o||{};const px=planPx(it),tw=p.twin&&getP(p.twin);
