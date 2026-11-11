@@ -1,10 +1,16 @@
 name: Datakontroll
 
-# Daglig kontroll av att alla aktier svarar (SPEC.md § 16). Körs före morgonens skanning. Rött jobb = allvarligt dataproblem;
-# GitHub mejlar ägaren, och appen visar "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" tills nästa gröna kontroll.
+# Daglig kontroll av att alla aktier svarar (SPEC.md § 16). Körs natten efter varje handelsdag, före morgonens skanning.
+# Rött jobb = allvarligt dataproblem; GitHub mejlar ägaren, och appen visar "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" tills nästa gröna kontroll.
+# GitHub kör schemalagda jobb timmar sent, därför flera reservtider; grinden släpper bara igenom en körning per dygn.
 on:
   schedule:
-    - cron: "30 3 * * 2-6"    # 03:30 UTC (04:30 svensk tid) natten efter varje handelsdag: alla marknader stängda, EODHD har gårdagens slutkurser, nio timmar före skanningen 12:30
+    - cron: "30 3 * * 2-6"    # 03:30 UTC (04:30 svensk tid): alla marknader stängda, EODHD har gårdagens slutkurser
+    - cron: "7 4 * * 2-6"
+    - cron: "49 4 * * 2-6"
+    - cron: "31 5 * * 2-6"
+    - cron: "13 6 * * 2-6"
+    - cron: "3 7 * * 2-6"
   workflow_dispatch:
 
 permissions:
@@ -20,18 +26,34 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      - name: Grind – bara en körning per dygn (manuell start går alltid)
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, datetime as dt
+          try:
+              d = json.load(open("datacheck.json")); done = d["updated"][:10] == dt.datetime.utcnow().strftime("%Y-%m-%d")
+          except Exception: done = False
+          print("run=" + ("false" if done else "true"))
+          PY
+          cat "$GITHUB_OUTPUT"
       - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -r requirements.txt
+      - if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
       - name: Kör datakontrollen
+        if: steps.gate.outputs.run == 'true'
         id: check
         continue-on-error: true
         env:
           EODHD_KEY: ${{ secrets.EODHD_KEY }}
         run: python datacheck.py
       - name: Publicera datacheck.json och datacheck.md på main
+        if: steps.gate.outputs.run == 'true'
         run: |
           git config user.name "momentum-bot"
           git config user.email "actions@users.noreply.github.com"
@@ -40,7 +62,7 @@ jobs:
           git commit -qm "datakontroll $(date -u +%F) [skip ci]"
           for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break || sleep 20; done
       - name: Rött vid allvarligt dataproblem
-        if: steps.check.outcome == 'failure'
+        if: steps.gate.outputs.run == 'true' && steps.check.outcome == 'failure'
         run: |
           echo "::error::Datakontrollen fann allvarliga problem – se datacheck.md"
           exit 1

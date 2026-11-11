@@ -1,21 +1,81 @@
 name: Daily momentum scan
 
+# Tre pass per handelsdag (12:30, 14:15 och 21:30 UTC). GitHub kör schemalagda jobb flera timmar sent eller inte alls,
+# därför finns flera reservtider per pass. Grinden (jobbet "gate") släpper bara igenom en körning om passet inte redan
+# är gjort, eller nattetid om skanningen saknar senaste stängningen för någon marknad (EODHD publicerar Norden/Europa sent).
 on:
   schedule:
-    - cron: "30 12 * * 1-5"   # 12:30 UTC – USA pre-market, Stockholm öppet
-    - cron: "15 14 * * 1-5"   # 14:15 UTC – strax efter USA-öppning (kriteriet "pris över öppning")
-    - cron: "30 21 * * 1-5"   # 21:30 UTC – efter stängning (slutkurser till portföljen)
+    - cron: "37 12 * * 1-5"   # pass 12:30 UTC – USA pre-market, Stockholm öppet
+    - cron: "53 12 * * 1-5"
+    - cron: "19 14 * * 1-5"   # pass 14:15 UTC – strax efter USA-öppning (kriteriet "pris över öppning")
+    - cron: "41 14 * * 1-5"
+    - cron: "33 21 * * 1-5"   # pass 21:30 UTC – efter stängning (slutkurser till portföljen)
+    - cron: "57 21 * * 1-5"
+    - cron: "23 22 * * 1-5"
+    - cron: "41 23 * * 1-5"
+    - cron: "17 1 * * 2-6"    # natt: ikapp-körningar om någon marknad saknar gårdagens stängning
+    - cron: "43 2 * * 2-6"
+    - cron: "11 4 * * 2-6"
+    - cron: "37 5 * * 2-6"
   workflow_dispatch:           # kör manuellt via "Run workflow" (appen startar den också när du lägger till en aktie/börs)
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: scan
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.g.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: g
+        run: |
+          python3 - <<'PY' | tee -a "$GITHUB_OUTPUT"
+          import json, datetime as dt, os
+          now = dt.datetime.utcnow()
+          manual = os.environ.get("EVENT") == "workflow_dispatch"
+          try:
+              d = json.load(open("data.json")); upd = dt.datetime.strptime(d["updated"], "%Y-%m-%dT%H:%MZ"); S = d.get("stocks") or {}
+          except Exception as e:
+              print("run=true"); print("data.json saknas eller oläsbar – kör:", e); raise SystemExit
+          # senaste pass (12:30 / 14:15 / 21:30 UTC) som ligger före nu
+          slots = [(12, 30), (14, 15), (21, 30)]
+          cands = [now.replace(hour=h, minute=m, second=0, microsecond=0) for h, m in slots] + \
+                  [(now - dt.timedelta(days=1)).replace(hour=21, minute=30, second=0, microsecond=0)]
+          slot = max(c for c in cands if c <= now)
+          while slot.weekday() >= 5: slot -= dt.timedelta(days=1)          # helg: senaste pass är fredagens 21:30
+          # ikapp: har någon marknad (med minst 20 aktier) äldre senaste stängning än förra handelsdagen?
+          def mk(t):
+              if any(t.endswith(x) for x in (".ST", ".CO", ".OL", ".HE")): return "Norden"
+              return "Europa" if "." in t else "USA"
+          exp = now.date() if now.hour >= 22 else now.date() - dt.timedelta(days=1)
+          while exp.weekday() >= 5: exp -= dt.timedelta(days=1)
+          last = {}
+          for t, x in S.items():
+              lt = x.get("lt") if isinstance(x, dict) else None
+              if lt: last.setdefault(mk(t), []).append(lt)
+          # "efter" = färre än 80 % av marknadens aktier har den väntade stängningen (ett fåtal eftersläntrare räcker inte)
+          behind = {k: f"{sum(1 for x in v if x >= exp.isoformat())}/{len(v)}" for k, v in last.items()
+                    if len(v) >= 20 and sum(1 for x in v if x >= exp.isoformat()) < 0.8 * len(v)}
+          night = now.hour >= 22 or now.hour < 12          # mellan kvällspasset och nästa middagspass
+          catchup = bool(behind) and night and (now - upd) > dt.timedelta(minutes=90)
+          run = manual or upd < slot or catchup
+          print(f"nu {now:%Y-%m-%d %H:%M} UTC · pass {slot:%Y-%m-%d %H:%M} · data.json {upd:%Y-%m-%d %H:%M} · väntad stängning {exp} · efter: {behind or 'ingen'} · ikapp: {catchup}")
+          print("run=" + ("true" if run else "false"))
+          PY
+        env:
+          EVENT: ${{ github.event_name }}
+
   scan:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
@@ -53,3 +113,12 @@ jobs:
           git diff --quiet --cached || git commit -m "Uppdatering $(date -u +%F\ %H:%M)"
           git pull --rebase
           git push
+
+      - name: Kör om datakontrollen om den larmade för saknad skanning
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f datacheck.json ] && python3 -c "import json,sys; d=json.load(open('datacheck.json')); sys.exit(0 if d.get('status')=='red' and any('skanning' in r for r in d.get('red',[])) else 1)"; then
+            echo "Datakontrollen var röd för saknad skanning – startar den igen"
+            gh workflow run datacheck.yml || true
+          fi

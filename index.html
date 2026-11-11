@@ -376,8 +376,12 @@ function lastCloseDate(){
   return d.toISOString().slice(0,10)}
 function scanGate(){
   if(DEMO||!D.updated)return null;
-  const need=lastCloseDate(),have=Object.values(S).reduce((m,x)=>x&&x.lt>m?x.lt:m,"");
-  return have&&have<need?`Skanningen (${hhmm(D.updated)}) har kurser t.o.m. ${have}, men senaste stängning är ${need}. Förslaget skulle räknas på gamla kurser.`:null}
+  // Per marknad (2026-11-11): EODHD publicerar Norden/Europa sent, så en skanning kan "lyckas" med gårdagens nordiska kurser.
+  // En marknad räknas som efter när färre än 80 % av dess aktier har den väntade stängningen (ett fåtal eftersläntrare räcker inte).
+  const need=lastCloseDate(),mk=t=>/\.(ST|CO|OL|HE)$/.test(t)?"Norden":t.includes(".")?"Europa":"USA",M={};
+  for(const t in S){const x=S[t];if(!x||!x.lt)continue;const m=M[mk(t)]=M[mk(t)]||{n:0,ok:0,max:""};m.n++;if(x.lt>=need)m.ok++;if(x.lt>m.max)m.max=x.lt}
+  const behind=Object.entries(M).filter(([k,m])=>m.n>=20&&m.ok<0.8*m.n);
+  return behind.length?`Skanningen (${hhmm(D.updated)}) saknar senaste stängningen ${need} för ${behind.map(([k,m])=>`${k} (${m.ok} av ${m.n} aktier)`).join(", ")}. Förslaget skulle räknas på gamla kurser.`:null}
 function dataGate(){
   const sg_=scanGate();if(sg_)return sg_;
   if(!DC)return null;
@@ -392,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-ab";
+const APPV="2026-11-11-ac";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};

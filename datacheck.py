@@ -9,11 +9,13 @@ universumet med samma funktioner som skannern och kontrollerar varje aktie:
   kurs        dagsrörelse över +100 % / under −50 %, nollvolym 5 dagar i rad, stillastående 10 dagar, dubblettdatum
   källa       EODHD mot Yahoo avviker > 20 % (stickprov)
   borta       fanns i universumet i går men inte i dag (listkällan tappade den)
+  skanning    data.json saknar källans senaste stängning för en marknad (skanningen kördes innan EODHD publicerat, eller inte alls)
   listkälla   en marknad gav färre än 90 % av gårdagens antal aktier
 
 Resultat: datacheck.json (läses av appen – spärren "FÖRSLAG EJ VALIDERAT") och datacheck.md (läsbar sammanfattning).
 Avslutar med kod 1 (rött jobb → GitHub mejlar ägaren) när något av detta gäller:
-  mer än 2 % av universumet är tyst · en hel marknad saknar färska kurser · ett eget innehav (holdings.txt, WATCH) är flaggat.
+  mer än 2 % av universumet är tyst · en hel marknad saknar färska kurser · ett eget innehav (holdings.txt, WATCH) är flaggat ·
+  skanningen saknar senaste stängningen för en marknad (skanningsjobbet kör då om sig nattetid och startar om datakontrollen).
 """
 import json, os, sys, re, random, datetime as dt
 import numpy as np, pandas as pd
@@ -135,6 +137,22 @@ def main():
         except Exception as ex:
             print(f"  Yahoo-stickprov misslyckades: {str(ex)[:60]}")
 
+    # --- skanningen mot källan: har data.json senaste stängningen för varje marknad? (2026-11-11, korrigering 4) ---
+    # Natten 10–11 nov hade EODHD Stockholm/Helsingfors/Milano för 10 nov först efter skanningen 01:27: 135 av 200 nordiska
+    # aktier stod kvar på 9 nov fast skanningen "lyckades". Därför jämförs skanningens senaste stängning per marknad med källans.
+    scan_state = {}
+    try:
+        dj = json.load(open("data.json", encoding="utf-8"))
+        DS = dj.get("stocks") or {}
+        for mk, ml in mkt_last.items():
+            lts = [x.get("lt") for t, x in DS.items() if isinstance(x, dict) and x.get("lt") and market_of(t) == mk]
+            if len(lts) < 20: continue
+            ok = sum(1 for x in lts if x >= ml.strftime("%Y-%m-%d"))
+            scan_state[mk] = {"har": ok, "antal": len(lts), "kalla": ml.strftime("%Y-%m-%d"), "skanning": dj.get("updated")}
+    except Exception as ex:
+        print(f"  data.json kunde inte läsas: {str(ex)[:60]}")
+    scan_behind = {mk: v for mk, v in scan_state.items() if v["har"] < 0.8 * v["antal"]}
+
     # --- bedömning ---
     n = len(tick); n_silent = len(silent)
     own_flagged = sorted(t for t in own if t in issues or t in gone)
@@ -142,6 +160,7 @@ def main():
     if n and n_silent / n > 0.02: red.append(f"{n_silent} av {n} aktier ({n_silent/n*100:.1f} %) är tysta")
     if mkt_stale: red.append("hel marknad utan färska kurser: " + ", ".join(f"{k} (senast {v})" for k, v in mkt_stale.items()))
     if own_flagged: red.append("egna innehav flaggade: " + ", ".join(own_flagged))
+    if scan_behind: red.append("skanningen saknar senaste stängningen: " + ", ".join(f"{mk} {v['har']}/{v['antal']} har {v['kalla']}" for mk, v in scan_behind.items()))
     if src_warn: red.append("listkälla gav färre aktier än i går: " + ", ".join(f"{w['k']} {w['idag']}/{w['igar']}" for w in src_warn))
     status = "red" if red else ("warn" if issues or gone else "ok")
 
@@ -153,7 +172,7 @@ def main():
     out = {"updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "status": status, "red": red,
            "markets": per_mkt, "n": n, "silent": n_silent, "flagged": len(issues), "gone": gone,
            "own_flagged": own_flagged, "issues": {t: v for t, v in sorted(issues.items())}, "xcheck": xcheck,
-           "sources": per_src, "universe": tick}
+           "scan": scan_state, "sources": per_src, "universe": tick}
     json.dump(out, open(OUT_JSON, "w", encoding="utf-8"), ensure_ascii=False, indent=0)
 
     L = [f"# Datakontroll {out['updated']} – {status.upper()}", ""]
