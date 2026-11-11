@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-af";
+const APPV="2026-11-11-ag";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -470,7 +470,7 @@ function calc(p){
   return{rows,tot,cost,pnl:tot-cost,day,dayPct:(tot-day)?day/(tot-day)*100:0,ret:cost?(tot/cost-1)*100:0}
 }
 function snapshot(){let ch=false;P.snap=P.snap||{};P.ps.forEach(p=>{if(!p.h.length)return;const v=Math.round(calc(p).tot),a=P.snap[p.id]=P.snap[p.id]||[],t=todayISO();if(a.length&&a[a.length-1][0]===t){if(a[a.length-1][1]!==v){a[a.length-1][1]=v;ch=true}}else{a.push([t,v]);if(a.length>400)a.shift();ch=true}});if(ch)save()}
-function allTotals(){let tot=0,day=0,n=0,sg2={SELL:0,TRIM:0,BUY:0,WATCH:0};P.ps.forEach(p=>{const c=calc(p);tot+=c.tot;day+=c.day;n+=p.h.length;c.rows.forEach(r=>{if(sg2[r.sig.k]!=null)sg2[r.sig.k]++})});return{tot,day,n,sg:sg2,dp:(tot-day)?day/(tot-day)*100:0}}
+function allTotals(){let tot=0,day=0,n=0,sg2={SELL:0,TRIM:0,BUY:0,WATCH:0};P.ps.forEach(p=>{if(p.demo)return;const c=calc(p);tot+=c.tot;day+=c.day;n+=p.h.length;c.rows.forEach(r=>{if(sg2[r.sig.k]!=null)sg2[r.sig.k]++})});return{tot,day,n,sg:sg2,dp:(tot-day)?day/(tot-day)*100:0}}
 
 /* ---------- NYHETER ---------- */
 const SV_SRC=/Dagens industri|EFN|Placera|Privata Affärer|Börskollen|Realtid|SVT|DN Ekonomi|Nordnet|Investing\.com Sverige|MarketScreener Sverige|börsen/i;
@@ -685,10 +685,11 @@ function vPort(id){
   const hzw={};c.rows.forEach(r=>{const k=r.s?r.s.h:"none";hzw[k]=(hzw[k]||0)+r.w});
   const snap=(P.snap&&P.snap[p.id])||[];
   view(`${topbar("Portfölj",true,topBtn(`data-act="pmenu" data-pid="${p.id}"`,"⋯","Meny")+topBtn(`data-act="propinfo"`,'<span class="ii">ⓘ</span>',"Om förslagen"))}
-  ${dropdown("ddpf",esc(p.name),[{html:"▦ Översikt",attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),on:x.id===p.id,attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`}]),{icon:"pf"})}
+  ${dropdown("ddpf",esc(p.name),[{html:"▦ Översikt",attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),on:x.id===p.id,attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`},{html:"🧪 Ny demoportfölj",attrs:`data-act="demonew"`}]),{icon:"pf"})}
   ${quoteStatus()}
   ${staleBanner()}${healthPanel(c,p)}
   ${pfHero(p,c,"detail")}
+  ${p.demo?demoHTML(p):""}
   ${dataStatusHTML()}${propHTML(p,c,sigs,rot,ideas)}
   <div class="mh" style="margin:14px 0 8px;padding:0 16px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2>${(p.archive||[]).length?`<span class="pmh" data-act="archtoggle" data-pid="${p.id}" style="display:flex;align-items:center;gap:6px;cursor:pointer"><span style="font-size:13px;letter-spacing:1.8px;color:var(--gd);font-weight:700">ARKIV</span><span class="pchev" id="archchev">${Ui.archOpen?"▴":"▾"}</span></span>`:""}</div>
   ${Ui.archOpen?archiveHTML(p):""}
@@ -788,7 +789,8 @@ function pickSheet(pid){
   sheet(`<h3>Lägg till aktie</h3><div class="srch"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="pq" placeholder="Sök aktie eller ticker…" autocomplete="off" autocapitalize="off"></div><div id="pres" style="margin-top:6px"></div><div class="mu" style="padding:12px 2px">Hittar du inte aktien? <span class="lnk" data-act="manual" data-pid="${pid}">Lägg in manuellt ›</span></div>`,()=>{
     const i=$("#pq");i.oninput=()=>{const r=search(i.value,12);$("#pres").innerHTML=i.value.trim()?(r.length?r.map(s=>`<div class="sr" data-act="add" data-t="${esc(s.t)}" data-pid="${pid}"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b></div><div class="mu">${esc(s.n)}</div></div><div class="p"><b>${s.px} ${s.cur}</b></div></div>`).join(""):noHitCard(i.value)):""};setTimeout(()=>i.focus(),100)})
 }
-function addSheet(sym,pid){
+function addSheet(sym,pid){if(isDemoP(getP(pid))){toast("Demoportföljen handlar själv – inga manuella affärer");return}
+
   const s=S[sym],ps=P.ps,sel=pid||P.cur;
   sheet(`<h3>Lägg till ${esc(s?s.d:sym)}</h3><div class="mu" style="margin:-4px 0 10px">${s?esc(s.n)+" · "+s.px+" "+s.cur:"Ingen live-data för tickern"}</div>
   <label class="fld"><span>Portfölj</span><select id="fp">${ps.map(p=>`<option value="${p.id}"${p.id===sel?" selected":""}>${esc(p.name)}</option>`).join("")}<option value="_new"${ps.length?"":" selected"}>➕ Ny portfölj…</option></select></label>
@@ -800,7 +802,8 @@ function addSheet(sym,pid){
       let p;if(v==="_new"){p={id:uid(),name:$("#fpn").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p)}else p=getP(v);
       addHolding(p,sym,q,c,d);P.cur=p.id;save();snapshot();closeSheet();toast("Tillagd i "+p.name+takeMir());route(true)}})
 }
-function sellSheet(pid,t){
+function sellSheet(pid,t){if(isDemoP(getP(pid))){toast("Demoportföljen handlar själv – inga manuella affärer");return}
+
   const p=getP(pid),h=p.h.find(x=>x.t===t),s=S[t];if(!h)return;
   sheet(`<h3>Sälj ${esc(s?s.d:t)}</h3><div class="mu" style="margin:-4px 0 10px">Du äger ${f(h.q,h.q%1?2:0)} st · GAV ${f(h.c)}</div>
   <div class="row2"><label class="fld"><span>Antal att sälja</span><input id="sq2" type="number" inputmode="decimal" step="any" max="${h.q}" value="${h.q}"></label><label class="fld"><span>Säljkurs</span><input id="sp2" type="number" inputmode="decimal" step="any" value="${s?s.px:h.c}"></label></div>
@@ -866,6 +869,7 @@ function act(a,d){
     case"edit":editSheet(d.pid,d.t);break;
     case"move":moveSheet(d.pid,d.t,d.b);break;
     case"newport":newPortSheet();break;
+    case"demonew":demoNewSheet();break;
     case"pmenu":pmenuSheet(d.pid);break;
     case"psel":P.cur=d.id;save();location.hash="#/portfolio/"+d.id;break;
     case"tab":Ui.mtab=d.v;route(true);break;
@@ -1253,7 +1257,8 @@ function matchRow(name,tick,isin){const out=[];if(tick){const t=String(tick).tri
   const toks=norm(name).split(/[^a-z0-9]+/).filter(w=>w.length>=3&&!/^(ab|publ|inc|corp|ltd|class|ser|series)$/.test(w));
   if(toks.length){SL.forEach(s=>{const k=s._k,sc=toks.filter(w=>k.includes(w)).length/toks.length;if(sc>=.5&&!out.includes(s))out.push([sc+(norm(s.n).startsWith(toks[0])?.2:0),s])});}
   const a=out.filter(x=>Array.isArray(x)).sort((x,y)=>y[0]-x[0]).map(x=>x[1]);return out.filter(x=>!Array.isArray(x)).concat(a).slice(0,4)}
-function importSheet(pid){
+function importSheet(pid){if(isDemoP(getP(pid))){toast("Demoportföljen handlar själv – inga manuella affärer");return}
+
   sheet(`<h3>Importera från bank</h3><p class="mu" style="font-size:13px;margin-top:-4px">Ladda ner en fil med dina innehav eller transaktioner från din banks internetbank (CSV eller Excel som CSV) och välj den här. Filen läses bara i din webbläsare.</p>
   <input type="file" id="impf" accept=".csv,.txt,.tsv,text/csv,text/plain"><label class="fld" style="margin-top:8px"><span>…eller klistra in innehållet</span><textarea id="impt" placeholder="Namn;Antal;GAV;…"></textarea></label>
   <label class="fld"><span>Filen innehåller</span><select id="impm"><option value="hold">Innehav (aktuell lista)</option><option value="tx">Transaktioner (köp/sälj)</option></select></label>
@@ -2357,7 +2362,9 @@ async function refreshAll(pid,cash,incl){
   toast("Hämtar färska data…");
   if(!DEMO){try{const r=await loadData();if(r&&r.d){D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData()}}catch(e){}}
   await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{})]);regimeCheck();
+  demoTick();
   const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
+  if(p.demo){save();snapshot();route(true);toast("Demoportföljen räknar om sig själv vid varje stängningsskanning");return}
   [p].concat(tw?[tw]:[]).forEach(x=>{if(!x.rules)x.rules=Object.assign({},RULE_DEF);x.cashHint=cash;x.plan=autoPlan(x,{cash,incl});const _mw=monthCheckWindow(x);if(_mw.open)x.mchk=(D.updated||"").slice(0,10)||todayISO();if(quarterDue(x))x.qrw=(D.updated||"").slice(0,10)||todayISO()});
   p.cashIncl=!!incl;save();snapshot();route(true);toast("Förslag och signaler uppdaterade"+(tw?" i båda portföljerna":""))
 }
@@ -2885,7 +2892,70 @@ function archiveHTML(p){
   const A=p.archive||[];if(!A.length)return"";
   return`<div class="mod" style="margin:0 0 10px"><div class="mu" style="font-size:11.5px;margin-bottom:6px">Genomförda förslag (${A.length})</div>${A.map(a=>`<div class="sr"><div class="m"><div><b>${esc(a.done)}</b> · <span class="fg">${flagOf(a.t)}</span>${S[a.t]?`<b class="tlk" data-act="gostock" data-t="${esc(a.t)}">${esc(S[a.t].d)}</b>`:`<b>${esc(a.t)}</b>`}<span class="pla ${a.a==="SÄLJ"?"S":"B"}">${a.a} ${f(a.q,a.q%1?2:0)} st</span></div><div class="mu">${esc(a.n)} · kurs ${f(a.px)} ${esc(a.ccy||"")} · ≈ ${kr(a.amt)} kr</div><div class="mu" style="white-space:normal">Förslag givet ${esc(a.given||"–")}${a.title?" – "+esc(a.title):""} · utfört ${esc(a.done)}</div>${a.why?`<div class="mu" style="white-space:normal;font-size:11.5px">${esc(a.why)}</div>`:""}</div></div>`).join("")}<div class="acts"><span class="lnk" data-act="archclear" data-pid="${p.id}">Rensa arkivet</span></div></div>`
 }
-function execSheet(p,it,o){
+/* ---------- DEMOPORTFÖLJ (2026-11-11, arbetslista 6) ----------
+   Fiktivt kapital som modellen förvaltar helt själv (SPEC § 4–7) – ägaren kan inte handla i den. Samma förslagsmotor som de
+   verkliga portföljerna (buildPortfolio vid start, autoPlan vid månadsprövning och kvartalslikaviktning). Order läggs på en
+   stängningsskanning och utförs på nästa stängning som skanningen ser för just den aktien (T+1, som backtestet), till
+   stängningskurs med courtage enligt avgiftsinställningen och slippage som i backtestet (5 bp + 2 % × √(belopp/dagsomsättning),
+   högst 3 %). Information – styr inget. Jämförs mot de verkliga portföljernas dagliga ögonblicksbilder. */
+const SLIP=(amtSEK,s)=>{const adv=s&&s.adv>0?s.adv*fx("USD"):0;return Math.min(0.03,0.0005+(adv?0.02*Math.sqrt(Math.max(0,amtSEK)/adv):0.001))};
+const closeScan=()=>{if(!D.updated||DEMO)return false;const h=new Date(D.updated).getUTCHours();return h>=21||h<8};   // alla marknader stängda när skanningen togs
+const scanISO=()=>(D.updated||"").slice(0,10)||todayISO();
+const isDemoP=p=>!!(p&&p.demo);
+function demoOrders(p,items,src){
+  p.demo.pend=(items||[]).filter(it=>it.q>0&&["KÖP","SÄLJ","ÖKA","MINSKA"].includes(it.a))
+    .map(it=>({t:it.t,a:it.a,q:it.q,sig:(S[it.t]&&S[it.t].lt)||scanISO(),px0:it.px,why:it.why||it.note||"",src}))}
+function demoExec(p){
+  const d=p.demo,done=[];if(!d.pend.length||!closeScan())return false;
+  const isSell=o=>o.a==="SÄLJ"||o.a==="MINSKA";
+  const ord=d.pend.slice().sort((a,b)=>(isSell(a)?0:1)-(isSell(b)?0:1));   // försäljningar först – de finansierar köpen
+  for(const o of ord){const s=S[o.t];if(!s||!(s.px>0)||!s.lt||s.lt<=o.sig)continue;   // utförs först på en stängning efter signalen
+    const F=fx(s.ccy),sell=isSell(o),h=p.h.find(x=>x.t===o.t);let q=o.q;
+    if(sell){if(!h){done.push(o);continue}q=Math.min(q,h.q)}
+    const px=s.px*(sell?1-SLIP(q*s.px*F,s):1+SLIP(q*s.px*F,s));
+    if(!sell){while(q>0&&q*px*F+tradeCost(q*px*F,o.t,"buy").tot>d.cash)q--;
+      if(q<=0){done.push(o);d.log.unshift({d:s.lt,t:o.t,a:o.a,q:0,px:0,ccy:s.ccy,amt:0,fee:0,note:"kassan räckte inte"});continue}}
+    const amt=q*px*F,fee=tradeCost(amt,o.t,sell?"sell":"buy").tot;
+    if(sell){_sellHolding(p,o.t,q,+px.toFixed(4),s.lt);d.cash+=amt-fee}else{_addHolding(p,o.t,q,+px.toFixed(4),s.lt);d.cash-=amt+fee}
+    d.log.unshift({d:s.lt,t:o.t,a:o.a,q,px:+px.toFixed(2),ccy:s.ccy,amt:Math.round(amt),fee:Math.round(fee),why:o.why,src:o.src});
+    if(p.plan&&p.plan.items)p.plan.items.forEach(it=>{if(it.t===o.t&&it.a===o.a)it.done=true});
+    done.push(o)}
+  d.pend=d.pend.filter(o=>!done.includes(o));if(d.log.length>600)d.log.length=600;
+  return done.length>0}
+function demoPlan(p){
+  if(p.demo.pend.length||!closeScan())return false;
+  const mw=monthCheckWindow(p),qd=quarterDue(p),day=scanISO();
+  if(!(mw.open||qd))return false;
+  if(!p.rules)p.rules=Object.assign({},RULE_DEF);
+  const plan=autoPlan(p,{cash:p.demo.cash,incl:true});p.plan=plan;p.cashHint=p.demo.cash;p.cashIncl=true;
+  if(mw.open)p.mchk=day;if(qd)p.qrw=day;
+  demoOrders(p,plan.items,mw.open?"månadsprövning "+mw.dueISO:"kvartalslikaviktning "+qd.iso);return true}
+function demoTick(){let ch=false;P.ps.forEach(p=>{if(!p.demo)return;p.demo.ser=p.demo.ser||[];
+  try{if(demoExec(p))ch=true;if(demoPlan(p))ch=true;
+    if(closeScan()){const day=scanISO(),v=Math.round(calc(p).tot+p.demo.cash),a=p.demo.ser;if(!a.length||a[a.length-1][0]!==day){a.push([day,v]);if(a.length>1500)a.shift();ch=true}}}
+  catch(e){}});if(ch)save();return ch}
+function demoNewSheet(){
+  const pr=profileFor(500000);
+  sheet(`<h3>Ny demoportfölj</h3><p class="mu" style="margin-top:-4px">Fiktivt kapital som modellen förvaltar helt själv: köper de högst rankade vid start, prövar hållregeln varje månadsskifte, likaviktar varje kvartal och utför alla order på nästa stängning med courtage och slippage. Du kan inte handla i den – den finns för att jämföra modellen med dina verkliga portföljer. Under 161 000 kr gäller kostnadsläget (7 nordiska innehav).</p>
+  <label class="fld"><span>Namn</span><input id="dn" value="Demo"></label><label class="fld"><span>Startkapital (kr)</span><input id="dc" type="number" inputmode="numeric" value="500000"></label><button class="btn wide" id="dgo">Skapa</button>`,()=>{$("#dgo").onclick=()=>{
+    const cap=Math.round(parseFloat($("#dc").value));if(!(cap>=20000)){toast("Minst 20 000 kr");return}
+    const day=scanISO(),p={id:uid(),name:$("#dn").value.trim()||"Demo",h:[],tx:[],re:0,rules:Object.assign({},RULE_DEF),demo:{cap,start:day,cash:cap,pend:[],log:[],ser:[]}};
+    const plan=buildPortfolio(cap,"3-6");p.plan=plan;p.cashHint=cap;p.cashIncl=true;p.mchk=day;if(quarterDue(Object.assign({},p,{h:[1]})))p.qrw=day;   // startportföljen är redan likaviktad
+    demoOrders(p,plan.items,"start");P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route();toast("Demoportföljen skapad – köporderna utförs på nästa stängning")}})}
+function demoHTML(p){const d=p.demo;if(!d)return"";const c=calc(p),v=c.tot+d.cash,ret=(v/d.cap-1)*100,nm=t=>esc((S[t]||{d:t}).d);
+  return`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">🧪</div><h2>DEMOPORTFÖLJ</h2></div>
+  <div class="mu" style="font-size:12.5px">Förvaltas mekaniskt av modellen sedan ${esc(d.start)} – inga manuella affärer. Startkapital ${kr(d.cap)} kr. Order utförs på första stängning efter signalen, med courtage (💰 Avgifter) och slippage som i backtestet.</div>
+  <div class="kv" style="margin-top:8px"><div><small>Totalt inkl. kassa</small><b>${kr(v)} kr</b></div><div><small>Kassa</small><b>${kr(d.cash)} kr</b></div><div><small>Sedan start</small><b class="${cls(ret)}">${sg(ret)}</b></div></div>
+  ${d.pend.length?`<div class="stat WAIT" style="margin-top:8px;font-size:11.5px"><b>⏳ VÄNTANDE ORDER (${d.pend.length})</b> – utförs på nästa stängningsskanning: ${d.pend.slice(0,12).map(o=>`${o.a} ${f(o.q,0)} ${nm(o.t)}`).join(" · ")}${d.pend.length>12?" …":""}</div>`:""}
+  ${d.log.length?`<h4 style="margin:12px 2px 6px">Utförda order (${d.log.length})</h4>${d.log.slice(0,12).map(x=>`<div class="k mu" style="padding:3px 2px">${esc(x.d)} · ${x.a} ${f(x.q,0)} ${nm(x.t)}${x.q?` @ ${f(x.px)} ${esc(x.ccy)} · ${kr(x.amt)} kr · avgift ${kr(x.fee)} kr`:""}${x.note?` · ${esc(x.note)}`:""}</div>`).join("")}`:""}
+  ${demoCmpHTML(p)}</div>`}
+function demoCmpHTML(p){const d=p.demo,st=d.start,rows=[];
+  const a=d.ser||[];if(a.length)rows.push([p.name+" (demo)",(a[a.length-1][1]/d.cap-1)*100,a[a.length-1][0]]);
+  P.ps.forEach(x=>{if(x.id===p.id||x.demo)return;const s=(P.snap&&P.snap[x.id])||[],b=s.find(y=>y[0]>=st);if(!b||!(b[1]>0))return;const l=s[s.length-1];rows.push([x.name,(l[1]/b[1]-1)*100,l[0]])});
+  if(rows.length<2)return`<div class="mu" style="font-size:11px;margin-top:8px">Jämförelsen mot dina verkliga portföljer byggs upp dag för dag från ${esc(st)}.</div>`;
+  return`<h4 style="margin:12px 2px 6px">Jämförelse sedan ${esc(st)}</h4>${rows.map(r=>`<div class="k mu" style="padding:3px 2px;display:flex;justify-content:space-between"><span>${esc(r[0])} <span style="opacity:.6">${esc(r[2])}</span></span><b class="${cls(r[1])}">${sg(r[1])}</b></div>`).join("")}<div class="mu" style="font-size:11px;margin-top:4px">Verkliga portföljer: värdeförändring enligt appens dagliga ögonblicksbilder – insättningar och uttag påverkar. Demo: efter courtage och slippage, inkl. kassa.</div>`}
+function execSheet(p,it,o){if(isDemoP(p)){toast("Demoportföljen utför sina order själv på nästa stängning");return}
+
   o=o||{};const px=planPx(it),tw=p.twin&&getP(p.twin);
   sheet(`<h3>${it.a==="SÄLJ"?"Registrera försäljning":"Registrera köp"} – ${esc(it.t)}</h3><p class="mu" style="margin-top:-4px">Ändra antal och kurs om din affär blev annorlunda. Appen uppdaterar bara dina innehav – du lägger ordern själv i banken.</p>
   <div class="row2"><label class="fld"><span>Antal</span><input id="pq" type="number" inputmode="decimal" step="any" value="${it.q}"></label><label class="fld"><span>Kurs (${esc(planCc(it))})</span><input id="pp" type="number" inputmode="decimal" step="any" value="${px}"></label></div>
@@ -3022,7 +3092,7 @@ async function loadNews(){
 }
 (async()=>{
   const t0=performance.now();introRun(t0);setTimeout(introHide,7000);
-  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();migrateTP();indexData();regimeCheck();await Promise.all([loadLive(),loadNews()]);snapshot();route();startMate();
+  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();migrateTP();indexData();regimeCheck();await Promise.all([loadLive(),loadNews()]);snapshot();demoTick();route();startMate();
   setInterval(async()=>{const h=location.hash,a=await loadLive(),b=await loadNews();if((!h||/#\/(daytrade|home)/.test(h))&&a)route(true);else if((!h||/#\/(home|news)/.test(h))&&b)route(true)},120000)
 })();
 </script></body></html>
