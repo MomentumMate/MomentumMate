@@ -392,7 +392,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-09-aa";
+const APPV="2026-11-11-ab";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -588,7 +588,7 @@ async function fillCharts(root){
       if(!out){box.innerHTML='<div class="mu" style="padding:10px 0">Graf saknas – kurshistoriken byggs av skanningen.</div>';continue}
       box.innerHTML=out.svg;box.classList.add("cv");
       const r=out.r,n=out.n,a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
-      head.innerHTML=`<span class="big" style="font-size:22px">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu">${r.t?histFmt(r.t[n-1],st.rng,t):""}</span>${intra?`<div class="mu" style="font-size:11px">${intraNote(r,st.rng,t)}</div>`:""}`}
+      head.innerHTML=`<span class="big" style="font-size:22px">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu">${r.t?histFmt(r.t[n-1],st.rng,t):""}</span>`}
     catch(e){box.innerHTML='<div class="mu">Grafen kunde inte ritas.</div>'}}
 }
 
@@ -2003,7 +2003,7 @@ function cvSvg(s,h,rng,lay,R){
     for(let i=0;i<n;i++){const hgt=V[i]/vm*(Hv-6),up=i?r.p[i]>=r.p[i-1]:true;g+=`<rect class="cfade" x="${X(i)-Math.max(1,(W-12)/n*0.35)}" y="${y0-hgt}" width="${Math.max(1.5,(W-12)/n*0.7)}" height="${hgt}" fill="${up?"#3fb67a":"#e86b5c"}" opacity=".5"/>`}}
   // hårkors
   g+=`<line id="cvcl" x1="0" x2="0" y1="${pt}" y2="${Hp}" stroke="#d4b86a" stroke-width="1" stroke-dasharray="2 2" style="display:none"/><circle id="cvdot" r="3.5" fill="#d4b86a" style="display:none"/>`;
-  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],rng,s.t):""}</span><span>${r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
+  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],rng,s.t):""}</span><span>${r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>${(rng==="1d"||rng==="1w")?`<div class="mu" style="font-size:11.5px;margin:2px 2px 6px">${intraNote(r,rng,s.t)}</div>`:""}`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
 }
 async function drawCV(){
   const t=CV.t,s=S[t];let h=await loadHist(t);if(CV.rng==="1d"||CV.rng==="1w")h=await mergeIntra(t,h);if(CV.t!==t||!$("#cvbody"))return;
@@ -2015,7 +2015,7 @@ async function drawCV(){
   const a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
   $("#cvhead").innerHTML=`<span class="big" id="cvpr">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu" id="cvdt">${r.t?histFmt(r.t[n-1],CV.rng):""}</span>${srHTML(s)}`;
   const st=s.strc&&s.strc.k,stl={upp:"Högre toppar och bottnar – upptrend",ned:"Lägre toppar och bottnar – nedtrend",sidled:"Sidled",kil:"Smalnande intervall",vidgande:"Vidgande svängar"}[st];
-  $("#cvinfo").innerHTML=`<div class="mu" style="font-size:11.5px">${stl?`Struktur: <b class="${st==="upp"?"up":st==="ned"?"dn":""}">${stl}</b>. `:""}${tp?`Handelsplan: köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)}, stopp ${f(tp.stop,2)} (${esc(tp.stopWhy)}), mål 1 ${f(tp.t1,2)}, R:R ${f(tp.rr,1)}:1.`:""}${!daily&&CV.lay.candle?" Ljusstakar och volym visas för dagsintervall när skanningen byggt full historik.":""}${(CV.rng==="1d"||CV.rng==="1w")?`<div style="margin-top:4px">${intraNote(r,CV.rng,t)}</div>`:""}</div>`;
+  $("#cvinfo").innerHTML=`<div class="mu" style="font-size:11.5px">${stl?`Struktur: <b class="${st==="upp"?"up":st==="ned"?"dn":""}">${stl}</b>. `:""}${tp?`Handelsplan: köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)}, stopp ${f(tp.stop,2)} (${esc(tp.stopWhy)}), mål 1 ${f(tp.t1,2)}, R:R ${f(tp.rr,1)}:1.`:""}${!daily&&CV.lay.candle&&!candle?" Ljusstakar och volym visas när skanningen byggt full historik.":""}</div>`;
   const svg=$("#cvsvg");
   const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-6)/(W-12)*(n-1)))),px=X(i),py=Y(r.p[i]);
     const cl=$("#cvcl"),dt=$("#cvdot");cl.setAttribute("x1",px);cl.setAttribute("x2",px);cl.style.display="";dt.setAttribute("cx",px);dt.setAttribute("cy",py);dt.style.display="";
