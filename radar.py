@@ -21,7 +21,8 @@ OUT = "radar.json"
 CUSIP_CACHE = "cusip_map.json"
 # SEC kräver en User-Agent på formen "Namn Namn e-post" (prövat 2026-11-11: ett enda ord före adressen ger 403 "Undeclared Automated
 # Tool"). Ägaren kan ange en egen kontaktadress som Actions-hemligheten RADAR_CONTACT – annars används repots noreply-adress.
-CONTACT = os.environ.get("RADAR_CONTACT") or "momentummate@users.noreply.github.com"
+# SEC avvisar GitHubs noreply-adress (prövat 2026-11-11). Tills ägaren lagt in RADAR_CONTACT används en platshållare – lägg in en riktig adress.
+CONTACT = os.environ.get("RADAR_CONTACT") or "momentummate@example.com"
 UA = {"User-Agent": f"Momentum Mate Radar {CONTACT}", "Accept-Encoding": "gzip, deflate", "Accept": "application/json, text/html, */*"}
 def sec_headers(url): return dict(UA)
 TODAY = dt.date.today()

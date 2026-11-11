@@ -42,6 +42,8 @@ jobs:
         run: pip install -r requirements.txt
       - name: Samla in
         if: steps.gate.outputs.run == 'true'
+        env:
+          RADAR_CONTACT: ${{ secrets.RADAR_CONTACT }}   # kontaktadress i User-Agent mot SEC (valfri men önskvärd)
         run: python radar.py
       - name: Publicera radar.json och cusip_map.json
         if: steps.gate.outputs.run == 'true'
