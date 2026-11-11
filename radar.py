@@ -145,7 +145,15 @@ def parse_infotable(xml):
     return rows
 
 def resolve_cik(name, key):
-    """Edgars företagssök (atom) – första träffen som lämnat 13F-HR och vars namn innehåller nyckelordet."""
+    """Edgars fulltextsök (efts) efter 13F-HR-lämnare med namnet; reserv: företagssök (atom)."""
+    try:
+        r = sec_get(f"https://efts.sec.gov/LATEST/search-index?q={requests.utils.quote(chr(34) + name + chr(34))}&forms=13F-HR")
+        if r:
+            for h in r.json().get("hits", {}).get("hits", []):
+                for dn in (h.get("_source", {}).get("display_names") or []):
+                    m = re.search(r"\(CIK (\d+)\)", dn)
+                    if m and (not key or key.upper() in dn.upper()): return int(m.group(1))
+    except Exception as e: log(f"  efts {name}: {str(e)[:60]}")
     q = requests.utils.quote(name)
     r = sec_get(f"https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={q}&type=13F-HR&output=atom")
     if not r: return None
@@ -175,20 +183,16 @@ def manager_13f(m, cache):
     tables = []
     for acc, fdate, rdate, prim in filings[:2]:
         nod = acc.replace("-", "")
-        idx = sec_get(f"https://www.sec.gov/Archives/edgar/data/{cik}/{nod}/index.json")
-        if not idx: tables.append(None); continue
-        items = [it["name"] for it in idx.json().get("directory", {}).get("item", [])]
-        xmls = [n for n in items if n.lower().endswith(".xml") and n != prim]
-        pick = next((n for n in xmls if "infotable" in n.lower() or "info" in n.lower()), None) or (xmls[0] if xmls else None)
-        if not pick: log(f"  13F {secname}: ingen xml-tabell i {nod}: {items[:12]}"); tables.append(None); continue
-        x = sec_get(f"https://www.sec.gov/Archives/edgar/data/{cik}/{nod}/{pick}")
+        # hela inlämningen som text ({acc}.txt) innehåller innehavstabellens xml oavsett filnamn
+        x = sec_get(f"https://www.sec.gov/Archives/edgar/data/{cik}/{nod}/{acc}.txt")
         tb = parse_infotable(x.text) if x else None
-        if x and not tb: log(f"  13F {secname}: tabellen {pick} gav 0 rader, början: {x.text[:200]!r}")
+        if x and not tb: log(f"  13F {secname}: inga infoTable-rader i {acc}.txt ({len(x.text)} tecken)")
         tables.append(tb)
     cur, prev = tables[0], (tables[1] if len(tables) > 1 else None)
     if not cur: out["err"] = "kunde inte läsa innehavstabellen"; return out
     cusip_to_ticker(list(cur.keys()) + (list(prev.keys()) if prev else []), cache)
     tot = sum(r["v"] for r in cur.values()) or 1.0
+    if tot < 20e6 and len(cur) >= 5: tot *= 1000; out["unit"] = "tusental"      # Baupost, Duquesne m.fl. rapporterar fortfarande i tusental
     out["n_pos"] = len(cur); out["value_musd"] = round(tot / 1e6)       # value anges i hela USD sedan 2023
     ev = []
     for c, r in cur.items():
@@ -217,7 +221,7 @@ def filings_13dg(S, days=60):
     t2cik = {v["ticker"].upper().replace(".", "-"): int(v["cik_str"]) for v in r.json().values()}
     us = [t for t in S if "." not in t and not t.endswith("-USD")]
     since = (TODAY - dt.timedelta(days=days)).isoformat()
-    out, miss, seen, oldest = [], 0, 0, "9999"
+    out, miss, seen, oldest, forms = [], 0, 0, "9999", {}
     for t in us:
         cik = t2cik.get(t.upper())
         if not cik: miss += 1; continue
@@ -228,7 +232,7 @@ def filings_13dg(S, days=60):
             for i in range(len(rec.get("form", []))):
                 form, fd = rec["form"][i], rec["filingDate"][i]
                 if fd < since: break
-                seen += 1; oldest = min(oldest, fd)
+                seen += 1; oldest = min(oldest, fd); forms[form] = forms.get(form, 0) + 1
                 if form in ("SC 13D", "SC 13G", "SC 13D/A", "SC 13G/A"):
                     out.append({"t": t, "form": form, "date": fd, "acc": rec["accessionNumber"][i], "cik": cik})
         except Exception as e:
@@ -244,7 +248,7 @@ def filings_13dg(S, days=60):
                 if m: ev["who"] = re.sub(r"\s+", " ", m.group(1)).strip()
         except Exception: pass
     for ev in out: ev.pop("acc", None); ev.pop("cik", None)
-    log(f"  13D/13G: {len(out)} flaggningar senaste {days} dagarna, {miss} tickers utan CIK, {seen} filings lästa (äldsta {oldest})")
+    log(f"  13D/13G: {len(out)} flaggningar senaste {days} dagarna, {miss} tickers utan CIK, {seen} filings lästa (äldsta {oldest}); vanligaste formtyper: {sorted(forms.items(), key=lambda x: -x[1])[:12]}")
     return out, None
 
 # ---------------------------------------------------------------- ARK
