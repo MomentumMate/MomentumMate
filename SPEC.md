@@ -144,7 +144,15 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 
 RSI, MACD, stöd/motstånd, volym, OBV, ATH-avstånd, fundamenta, blankning, nyheter, sektor, daghandelslistan,
 rankningsplats för befintliga innehav, ⏳ mellan prövningarna, 1.0-rankningen (visas bredvid 2.0 under övergången),
-omsättning relativt börsens median. Allt detta får visas; inget av det får ändra en rad i förslaget.
+omsättning relativt börsens median, **institutionella radarn** (nedan). Allt detta får visas; inget av det får ändra en rad i förslaget.
+
+**Institutionell radar** *(2026-11-11, `radar.py`/`radar.yml`, fliken Radar):* fyra källor, samlade varje morgon till `radar.json`.
+13F – kvartalsrapporter till SEC från förvaltarna i `radar_watch.json` (standardlista i `radar.py`; CIK verifieras mot SEC:s namn eller slås upp),
+senaste mot föregående rapport: nya innehav, ökningar/minskningar > 20 %, avslutade; CUSIP → ticker via OpenFIGI (`cusip_map.json`); släpar upp till 45 dagar.
+13D/13G – nya anmälningar ≥ 5 % i universumets USA-bolag senaste 60 dagarna, ändringar (/A) och passiva index-/depåförvaltare bortfiltrerade.
+ARK – dagliga innehavsfiler, dagens mot gårdagens. Insyn – FI:s insynsregister senaste 14 dagarna, ISIN → ticker via EODHD:s symbollista.
+Korsas mot topp 20 och portföljernas innehav. "Institutionellt stöd" i transaktionsloggen (§ 17) = köpliknande händelse utan säljliknande senaste 90 dagarna.
+Radarn som avgörare inom topp 20 är en framtida strategitest (TESTPLAN), inte en regel.
 
 ## 13. Paritetstest
 
