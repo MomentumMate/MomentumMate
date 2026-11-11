@@ -182,8 +182,12 @@ hur stor del av kapitalet som ligger i strategin och lägger resten i indexfond/
 - **Daglig datakontroll** (`datacheck.yml`, 03:30 UTC natten efter varje handelsdag): per aktie senaste stängning (högst två handelsdagar gammal i aktiens egen marknad),
   orimlig kurs (dagsrörelse > +100 %/−50 %, nollvolym fem dagar, stillastående tio dagar, dubbletter, EODHD mot Yahoo > 20 %), borta ur lista sedan
   i går (med orsak), indexkällor minst 90 % av gårdagens antal. Resultat i `datacheck.json` och `datacheck.md` på main.
-  Jobbet blir rött vid mer än 2 % tysta aktier, en hel marknad saknad eller ett eget innehav flaggat.
-- **Spärr i appen:** om kontrollen är röd, eller inte har körts natten efter senaste handelsdag, visas "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" i stället för ett förslag.
+  Jobbet blir rött vid mer än 2 % tysta aktier, en hel marknad saknad, ett eget innehav flaggat, eller *(2026-11-11)* när skanningen saknar källans senaste
+  stängning för en marknad (färre än 80 % av marknadens aktier har den). Skanningsjobbet gör då en ikapp-körning nattetid och startar om datakontrollen.
+- **Schema** *(2026-11-11)*: GitHub kör schemalagda jobb timmar sent eller inte alls. Skanningen har därför tolv körtider och datakontrollen sex, med en grind
+  som släpper igenom en körning per pass (skanning: 12:30, 14:15, 21:30 UTC; datakontroll: en per dygn). Manuell start går alltid igenom.
+- **Spärr i appen:** om kontrollen är röd, eller inte har körts natten efter senaste handelsdag, eller skanningen saknar senaste stängningen för en marknad (samma 80 %-regel,
+  räknad i appen), visas "FÖRSLAG EJ VALIDERAT – DATAPROBLEM" i stället för ett förslag.
   Spärren är det enda i § 15–18 som hindrar ett förslag; den ändrar aldrig en rads innehåll.
 - **Felaktiga kurser lagas, kastas inte:** en dagsrörelse över +300 %/under −80 % som är tillbaka inom fem handelsdagar ersätts med föregående stängning,
   i både backtest (`repair_glitches`) och skanner (`repair_closes`). Bara aktier där felet består tas bort. *(Före 2026-11-05 kastade backtestet 20 aktier helt, bland dem tolv nordiska
