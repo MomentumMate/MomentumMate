@@ -48,6 +48,11 @@ DEFAULT_MANAGERS = [
     {"n": "D1 Capital Partners", "cik": 1747057, "key": "D1 CAPITAL"},
     {"n": "Bridgewater Associates", "cik": 1350694, "key": "BRIDGEWATER"},
     {"n": "Soros Fund Management", "cik": 1029160, "key": "SOROS"},
+    # ägarens lista 2026-11-09 (Institutionell radar.pdf) – CIK slås upp via Edgars sök
+    {"n": "TCI Fund Management", "key": "TCI FUND"},
+    {"n": "Elliott Investment Management", "key": "ELLIOTT"},
+    {"n": "Greenlight Capital", "key": "GREENLIGHT"},
+    {"n": "Fundsmith", "key": "FUNDSMITH"},
 ]
 ARK_FUNDS = {"ARKK": "ARK_INNOVATION_ETF_ARKK_HOLDINGS.csv", "ARKW": "ARK_NEXT_GENERATION_INTERNET_ETF_ARKW_HOLDINGS.csv",
              "ARKG": "ARK_GENOMIC_REVOLUTION_ETF_ARKG_HOLDINGS.csv", "ARKQ": "ARK_AUTONOMOUS_TECH._&_ROBOTICS_ETF_ARKQ_HOLDINGS.csv",
@@ -201,7 +206,7 @@ def manager_13f(m, cache):
         w = r["v"] * unit / tot * 100
         p = prev.get(c) if prev else None
         if prev is None: kind = "innehav"
-        elif p is None: kind = "ny"
+        elif p is None or p["s"] < r["s"] * 0.05: kind = "ny"        # fanns inte, eller var försumbar (under 5 % av dagens antal)
         elif p["s"] > 0 and r["s"] > p["s"] * 1.2: kind = "ökat"
         elif p["s"] > 0 and r["s"] < p["s"] * 0.8: kind = "minskat"
         else: kind = "oförändrat"

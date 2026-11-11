@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-am";
+const APPV="2026-11-11-an";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -929,6 +929,8 @@ function act(a,d){
     case"logexec":{const p=getP(d.pid),e=p&&logEntries(p).find(x=>x.id===d.id);if(!e)break;const ix=p.plan&&p.plan.items?p.plan.items.findIndex(x=>x.t===e.t&&x.a===e.a):-1;if(ix>=0)planApplySheet(p.id,ix);else execSheet(p,{t:e.t,a:e.a==="MINSKA"?"SÄLJ":e.a==="ÖKA"?"KÖP":e.a,q:e.qP,px:e.pxP,n:e.n,ccy:e.ccy,why:e.why});break}
     case"logshow":logSheet(d.pid);break;
     case"radarinfo":radarInfoSheet();break;
+    case"rsig":Ui.rsig=d.v;vRadar();break;
+    case"rtog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;vRadar();window.scrollTo(0,y);break}
     case"qrwreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
       // 2026-11-05: bara kvartalet öppnas igen – månadsprövningen (p.mchk) lämnas som den är, så hållvillkoren prövas inte om
       [p].concat(tw?[tw]:[]).forEach(x=>{delete x.qrw});save();refreshAll(p.id,p.cashHint,p.cashIncl);break}
@@ -3047,6 +3049,45 @@ function rInvCard(m,mode){const ev=(m.events||[]).filter(e=>["ny","ökat","minsk
   return`<div class="mod" data-go="#/radar/${enc(m.id)}"><div class="mh"><div class="ico">${m.kind==="ark"?"🚀":"🏛"}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div><div class="mu" style="font-size:11.5px">${head}</div>${(m.top3||[]).map((h,i)=>rHoldRow(h,i)).join("")}</div>`}
 function rMoveRow(e){const who=esc(e.who||""),d=esc(e.date||"");const k=e.kind;const det=e.src==="13F"?`${k}${e.w?` · ${f(e.w,1)} % av portföljen`:""}`:e.src==="ARK"?`${k} ${e.d?f(Math.abs(e.d),0)+" st":""}${e.w?` · vikt ${f(e.w,2)} %`:""}`:e.src==="INSYN"?`${k}${e.amt?` ≈ ${kr(e.amt)} ${esc(e.ccy)}`:""}`:k;
   return`<div class="sr"><div class="m"><div>${e.t&&S[e.t]?fl(S[e.t]):""}${e.t?rLink(e.t):`<b>${esc(e.n||"?")}</b>`}${e.t&&!S[e.t]?'<span class="mu" style="font-size:10.5px"> (utanför universumet)</span>':""} <b class="${rBuy(e)?"up":rSell(e)?"dn":""}" style="font-size:12px">${det}</b></div><div class="mu" style="font-size:11px">${RSRC[e.src]||esc(e.src)} · ${who}</div></div><div class="p mu" style="font-size:11px">${d}</div></div>`}
+/* Signaler i översikten (ägarens Institutionell radar.pdf, 2026-11-09): nya köp, ökade innehav, konsensus, övertygelse,
+   tidiga signaler (mindre bolag hos flera), sektorförflyttningar, aktivister. Räknas i appen ur radar.json. */
+function rSignals(){
+  const inv=rInvestors(),per={};   // ticker -> {t, items:[{inv,src,kind,w,v,ratio,date,who}], buy:Set, sell:Set, hold:[{inv,w,v}]}
+  const P_=t=>per[t]=per[t]||{t,items:[],buy:new Set(),sell:new Set(),hold:[]};
+  inv.forEach(m=>{const date=m.kind==="ark"?m.asof:m.filed;
+    (m.holdings||[]).forEach(h=>{if(!h.t||!S[h.t])return;P_(h.t).hold.push({inv:m.n,id:m.id,w:h.w,v:h.v||0})});
+    (m.events||[]).forEach(e=>{if(!e.t||!S[e.t])return;const x=P_(e.t);const k=e.kind;
+      const it={inv:m.n,id:m.id,src:m.kind==="ark"?"ARK":"13F",kind:k,w:e.w||0,v:e.v||0,ratio:(e.psh>0&&e.sh>0)?e.sh/e.psh:null,d:e.d,date};x.items.push(it);
+      if(["ny","ökat","köp"].includes(k))x.buy.add(m.n);else if(["minskat","ut","sälj"].includes(k))x.sell.add(m.n)})});
+  (RD.filings13||[]).forEach(e=>{if(!S[e.t])return;const x=P_(e.t);x.items.push({inv:e.who||e.form,src:"13DG",kind:e.form.endsWith("13D")?"aktivist ≥ 5 %":"anmälan ≥ 5 %",date:e.date,form:e.form});x.buy.add(e.who||e.form)});
+  (RD.insyn||[]).forEach(e=>{if(!S[e.t])return;const x=P_(e.t);x.ins=x.ins||{b:0,s:0};x.items.push({inv:e.who,src:"INSYN",kind:e.kind,amt:e.amt,ccy:e.ccy,date:e.date,role:e.role});if(e.kind==="köp")x.ins.b++;else x.ins.s++});
+  const list=Object.values(per),mcSEK=t=>{const s=S[t];return s&&s.mc?s.mc*fx(s.ccy):null};
+  const buys=x=>[...x.buy].length,sells=x=>[...x.sell].length;
+  return{
+    nya:list.filter(x=>x.items.some(i=>i.kind==="ny"||i.kind==="aktivist ≥ 5 %"||i.kind==="anmälan ≥ 5 %")).map(x=>({x,k:Math.max(...x.items.filter(i=>["ny","aktivist ≥ 5 %","anmälan ≥ 5 %"].includes(i.kind)).map(i=>(i.date||"")+"|"+String(i.w||0).padStart(8,"0")))})).sort((a,b)=>a.k<b.k?1:-1).map(o=>o.x),
+    okade:list.filter(x=>x.items.some(i=>i.kind==="ökat")).map(x=>({x,k:Math.max(...x.items.filter(i=>i.kind==="ökat").map(i=>Math.min(i.ratio||1,20)*(1+i.w/100)))})).sort((a,b)=>b.k-a.k).map(o=>o.x),
+    konsensus:list.filter(x=>buys(x)>=2).sort((a,b)=>(buys(b)-sells(b))-(buys(a)-sells(a))||buys(b)-buys(a)),
+    overtygelse:list.filter(x=>x.hold.some(h=>h.w>=8)).map(x=>({x,k:Math.max(...x.hold.map(h=>h.w))})).sort((a,b)=>b.k-a.k).map(o=>o.x),
+    tidiga:list.filter(x=>{const m=mcSEK(x.t);return m&&m<50e9&&(buys(x)>=2||(buys(x)>=1&&x.hold.length>=2)||(buys(x)>=1&&x.ins&&x.ins.b>=2))}).sort((a,b)=>buys(b)-buys(a)||(mcSEK(a.t)-mcSEK(b.t))),
+    aktivist:list.filter(x=>x.items.some(i=>i.kind==="aktivist ≥ 5 %")).sort((a,b)=>{const d=x=>Math.max(...x.items.filter(i=>i.kind==="aktivist ≥ 5 %").map(i=>i.date||""));return d(a)<d(b)?1:-1}),
+    sektor:(()=>{const sec={};list.forEach(x=>{const s=S[x.t],k=s&&s.sec;if(!k)return;const o=sec[k]=sec[k]||{sec:k,buy:new Set(),sell:new Set(),t:new Set()};x.buy.forEach(i=>o.buy.add(i));x.sell.forEach(i=>o.sell.add(i));if(x.buy.size)o.t.add(x.t)});return Object.values(sec).sort((a,b)=>(b.buy.size-b.sell.size)-(a.buy.size-a.sell.size))})(),
+    per}
+}
+const RSIG=[["nya","Nya köp"],["okade","Ökade innehav"],["konsensus","Konsensus"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"],["flode","Flöde"]];
+const RSIGTXT={nya:"Aktier där en förvaltare tagit ny position (13F), ARK köpt in en ny aktie eller någon anmält ägande ≥ 5 %. Senaste först.",
+  okade:"Positioner som ökats mest sedan förra rapporten (antal aktier, sedan vikt).",konsensus:"Aktier som minst två investerare köper, rankade efter köpare minus säljare. Tre eller fler markeras.",
+  overtygelse:"Aktier som utgör en ovanligt stor del av någons portfölj (≥ 8 %).",tidiga:"Mindre bolag (börsvärde under 50 mdr kr) där minst två investerare köper, eller en köper och flera redan äger – innan den breda marknaden hittat dem.",
+  sektor:"Sektorer där flera förvaltare ökar exponeringen (antal köpare minus säljare).",aktivist:"13D-anmälningar: en ägare med avsikt att påverka bolaget.",flode:"Senaste händelserna över alla källor."};
+function rDetail(x){const rows=[];x.items.slice().sort((a,b)=>(b.date||"")<(a.date||"")?-1:1).forEach(i=>{
+  const det=i.src==="13F"?`${i.kind}${i.ratio?` · ${f((i.ratio-1)*100,0)} % fler aktier`:""}${i.w?` · ${f(i.w,1)} % av portföljen`:""}`:i.src==="ARK"?`${i.kind} ${i.d?f(Math.abs(i.d),0)+" st":""}${i.w?` · vikt ${f(i.w,2)} %`:""}`:i.src==="INSYN"?`${i.kind}${i.amt?` ≈ ${kr(i.amt)} ${esc(i.ccy)}`:""}${i.role?` · ${esc(i.role)}`:""}`:i.kind;
+  rows.push(`<div class="k" style="padding:3px 0;font-size:11.5px;display:flex;justify-content:space-between;gap:8px"><span>${i.id?`<b class="tlk" data-go="#/radar/${enc(i.id)}">${esc(i.inv)}</b>`:`<b>${esc(i.inv)}</b>`} <span class="${["ny","ökat","köp","aktivist ≥ 5 %","anmälan ≥ 5 %"].includes(i.kind)?"up":["minskat","ut","sälj"].includes(i.kind)?"dn":""}">${det}</span></span><span class="mu" style="white-space:nowrap">${esc(i.date||"")}</span></div>`)});
+  const own=x.hold.slice().sort((a,b)=>b.w-a.w);if(own.length)rows.push(`<div class="mu" style="font-size:11px;margin-top:4px">Ägs av: ${own.slice(0,8).map(h=>`<b class="tlk" data-go="#/radar/${enc(h.id)}">${esc(h.inv)}</b> ${f(h.w,1)} %`).join(" · ")}${own.length>8?` · +${own.length-8}`:""}</div>`);
+  return rows.join("")}
+function rSigRow(x,i,sig){const s=S[x.t],b=x.buy.size,sl=x.sell.size,open=!!(Ui.ropen&&Ui.ropen[x.t]),mc=s.mc?s.mc*fx(s.ccy):null;
+  const summary=sig==="overtygelse"?`${x.hold.filter(h=>h.w>=8).sort((a,b)=>b.w-a.w).slice(0,3).map(h=>`${esc(h.inv)} <b>${f(h.w,1)} %</b>`).join(" · ")}`
+    :sig==="okade"?`${x.items.filter(i=>i.kind==="ökat").sort((a,b)=>(b.ratio||0)-(a.ratio||0)).slice(0,3).map(i=>`${esc(i.inv)} <b class="up">+${i.ratio?f((i.ratio-1)*100,0):"?"} %</b>`).join(" · ")}`
+    :`${b?`<b class="up">${b} köper</b>`:""}${b&&sl?" · ":""}${sl?`<b class="dn">${sl} säljer</b>`:""}${x.ins?`${b||sl?" · ":""}insyn ${x.ins.b?`<b class="up">${x.ins.b} köp</b>`:""}${x.ins.b&&x.ins.s?"/":""}${x.ins.s?`<b class="dn">${x.ins.s} sälj</b>`:""}`:""}${x.hold.length?` · ägs av ${x.hold.length}`:""}${sig==="tidiga"&&mc?` · ${f(mc/1e9,1)} mdr kr`:""}`;
+  return`<div class="sr" style="flex-wrap:wrap"><div class="n">${i+1}</div><div class="m" data-act="rtog" data-t="${esc(x.t)}" style="cursor:pointer"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span>${b>=3?' <span class="tag" style="margin-left:4px">KONSENSUS</span>':""}</div><div class="mu" style="font-size:11px">${summary} <span class="mu">${open?"▲":"▼"}</span></div></div><div class="p"><span class="tlk" data-go="#/radar/${enc("t:"+x.t)}" style="font-size:11px">📡</span></div>${open?`<div style="flex-basis:100%;padding:4px 0 2px 44px;border-top:1px dashed var(--ln);margin-top:4px">${rDetail(x)}</div>`:""}</div>`}
 function vRadar(arg){
   if(!RD){view(`${topbar("Radar",true)}<div class="empty">Radarn har inte körts ännu (Actions → Institutionell radar).</div>`);return}
   if(arg&&arg.startsWith("t:")){vRadarStock(arg.slice(2));return}
@@ -3059,14 +3100,15 @@ function vRadar(arg){
     <div class="mod"><div class="mh"><div class="ico">${cur.kind==="ark"?"🚀":"🏛"}</div><h2>${esc(cur.n).toUpperCase()}</h2></div><div class="mu" style="font-size:11.5px">${cur.kind==="ark"?`Innehav per ${esc(cur.asof||"–")} · ${cur.n_pos} positioner`:cur.err?esc(cur.err):`Rapport per ${esc(cur.period||"")}, inlämnad ${esc(cur.filed||"")} · ${cur.n_pos} positioner · ${kr(cur.value_musd||0)} MUSD`}</div></div>
     ${ev.length?`<div class="mod"><div class="mh"><div class="ico">↔</div><h2>${cur.kind==="ark"?"SENASTE DAGENS RÖRELSER":"RÖRELSER MOT FÖRRA RAPPORTEN"}</h2></div>${ev.slice(0,40).map(e=>rMoveRow(Object.assign({src:cur.kind==="ark"?"ARK":"13F",who:cur.n,date:cur.kind==="ark"?cur.asof:cur.filed},e))).join("")}</div>`:""}
     <div class="mod"><div class="mh"><div class="ico">◔</div><h2>INNEHAV (${hl.length}${cur.n_pos>hl.length?" största av "+cur.n_pos:""})</h2></div>${hl.map((h,i)=>rHoldRow(h,i)).join("")||'<div class="mu">Inga innehav lästa.</div>'}</div>${foot}`);return}
-  // Översikt: konsensus + senaste rörelser + ett kort per investerare
-  const cons=(RD.consensus||[]).filter(c=>c.buy.length+c.sell.length>=2).slice(0,15);
-  const flat=[];for(const t in RD.byTicker||{})RD.byTicker[t].forEach(e=>{if(e.src!=="INSYN")flat.push(Object.assign({t},e))});flat.sort((a,b)=>(b.date||"")<(a.date||"")?-1:1);
-  const insyn=(RD.insyn||[]).slice(0,8).map(e=>Object.assign({src:"INSYN"},e));
+  // Översikt: valbar signal (ägarens lista), utfällbara rader, sedan ett kort per investerare
+  const SG=rSignals(),sig=Ui.rsig||"konsensus";
+  const chips=`<div class="chips" style="margin:0 0 8px;gap:6px">${RSIG.map(x=>`<span class="chip mk${sig===x[0]?" on":""}" data-act="rsig" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>`;
+  let body="";
+  if(sig==="sektor"){body=SG.sektor.slice(0,15).map((o,i)=>`<div class="sr"><div class="n">${i+1}</div><div class="m"><div><b>${esc(o.sec)}</b></div><div class="mu" style="font-size:11px"><b class="up">${o.buy.size} köpare</b>${o.sell.size?` · <b class="dn">${o.sell.size} säljare</b>`:""} · ${o.t.size} aktier: ${[...o.t].slice(0,6).map(t=>`<span class="tlk" data-go="#/radar/${enc("t:"+t)}">${esc(S[t].d)}</span>`).join(", ")}${o.t.size>6?" …":""}</div></div></div>`).join("")}
+  else if(sig==="flode"){const flat=[];for(const t in RD.byTicker||{})RD.byTicker[t].forEach(e=>flat.push(Object.assign({t},e)));flat.sort((a,b)=>(b.date||"")<(a.date||"")?-1:1);body=flat.slice(0,40).map(rMoveRow).join("")}
+  else{const L=SG[sig]||[];body=L.length?L.slice(0,40).map((x,i)=>rSigRow(x,i,sig)).join("")+(L.length>40?`<div class="mu" style="font-size:11px;padding:6px 2px">… och ${L.length-40} till</div>`:""):'<div class="mu">Inget att visa.</div>'}
   view(`${topbar("Radar",true,topBtn(`data-act="radarinfo"`,'<span class="ii">ⓘ</span>',"Om radarn"))}${dd}
-  <div class="mod"><div class="mh"><div class="ico">👥</div><h2>FLERA INVESTERARE I SAMMA AKTIE</h2></div><div class="mu" style="font-size:11.5px;margin-bottom:4px">Senaste 13F-rapporter, ARK:s senaste dag och 13D/13G-anmälningar, rankade efter antal investerare.</div>
-  ${cons.length?cons.map((c,i)=>`<div class="sr" data-go="#/radar/${enc("t:"+c.t)}"><div class="n">${i+1}</div><div class="m"><div>${fl(S[c.t])}<b>${esc(S[c.t].d)}</b> <span class="mu">${esc(S[c.t].n)}</span></div><div class="mu" style="font-size:11px">${c.buy.length?`<b class="up">${[...new Set(c.buy)].length} köper</b>: ${[...new Set(c.buy)].slice(0,4).map(esc).join(", ")}${c.buy.length>4?" …":""}`:""}${c.buy.length&&c.sell.length?" · ":""}${c.sell.length?`<b class="dn">${[...new Set(c.sell)].length} säljer</b>: ${[...new Set(c.sell)].slice(0,3).map(esc).join(", ")}`:""}</div></div><div class="p">${radarBadge(c.t)}</div></div>`).join(""):'<div class="mu">Inga aktier med fler än en investerare ännu.</div>'}</div>
-  <div class="mod"><div class="mh"><div class="ico">↔</div><h2>SENASTE RÖRELSER</h2></div>${flat.slice(0,12).map(rMoveRow).join("")||'<div class="mu">Inga.</div>'}${insyn.length?`<div class="mu" style="font-size:11px;margin:8px 0 2px">Insynshandel Norden (FI)</div>${insyn.map(rMoveRow).join("")}`:""}</div>
+  ${chips}<div class="mod"><div class="mh"><div class="ico">👥</div><h2>${esc((RSIG.find(x=>x[0]===sig)||[])[1]||"").toUpperCase()}</h2></div><div class="mu" style="font-size:11.5px;margin-bottom:4px">${RSIGTXT[sig]||""} Tryck på en rad för detaljer.</div>${body}</div>
   ${inv.map(m=>rInvCard(m)).join("")}${foot}`)
 }
 function vRadarStock(t){const s=S[t];if(!s){location.hash="#/radar";return}const ev=radarFor(t);
