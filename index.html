@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-ai";
+const APPV="2026-11-11-aj";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -3054,8 +3054,11 @@ const EQ={n:0,t:0,src:"",at:""};
 const VER={server:null,t:0};
 async function checkVersion(){
   try{
-    const u=location.pathname.replace(/[^/]*$/,"")+"index.html?nocache="+Date.now();
-    const r=await fetch(u,{cache:"no-store"});if(!r.ok)return;
+    // 2026-11-11: jämför med exakt den adress appen startar från (GitHub Pages cachar "./" upp till 10 minuter, medan "?nocache="
+    // gick direkt till källan – då visades "ny version" fast en omladdning ändå gav den gamla). cache:"reload" byter samtidigt ut
+    // iPhones sparade kopia, så nästa start får det som hämtades här.
+    const u=location.pathname.replace(/[^/]*$/,"")||"./";
+    const r=await fetch(u,{cache:"reload"});if(!r.ok)return;
     const m=(await r.text()).match(/const APPV="([^"]+)"/);if(!m)return;
     VER.server=m[1];VER.t=Date.now();
     const b=document.getElementById("verbar");
