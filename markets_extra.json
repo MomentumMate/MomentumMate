@@ -9,7 +9,8 @@
       "mixed": true,
       "tickers": [
         "NBIS-USD",
-        "SPCX"
+        "SPCX",
+        "PLEJD.ST"
       ]
     }
   ]
