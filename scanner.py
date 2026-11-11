@@ -1179,15 +1179,27 @@ def fetch_feeds():
     return sorted(sv + rest, key=lambda x: -x["ts"])
 
 def fx_rates(ccys):
+    """Växelkurser till SEK. Yahoo först; EODHD:s valutakurser som reserv; i sista hand förra skanningens kurs (2026-11-11:
+    PLN saknades helt när Yahoo inte svarade, och appen räknade då 1 zł = 1 kr)."""
     out = {"SEK": 1.0}
+    try: prev = (json.load(open("data.json", encoding="utf-8")).get("fx") or {})
+    except Exception: prev = {}
     for c in ccys:
         if c == "SEK": continue
+        base = "GBP" if c == "GBX" else c                         # London handlas i pence (GBX)
+        v = None
         try:
-            base = "GBP" if c == "GBX" else c                     # London handlas i pence (GBX)
             h = yf.Ticker(f"{base}SEK=X").history(period="5d")
             v = float(h["Close"].dropna().iloc[-1])
-            out[c] = round(v / 100 if c == "GBX" else v, 4)
         except Exception: pass
+        if not v and EODHD_KEY:
+            try:
+                j = eodhd_get(f"eod/{base}SEK.FOREX", **{"from": (dt.date.today() - dt.timedelta(days=10)).isoformat(), "period": "d"})
+                if j: v = float(j[-1]["close"])
+            except Exception: pass
+        if v: out[c] = round(v / 100 if c == "GBX" else v, 4)
+        elif c in prev: out[c] = prev[c]; print(f"  växelkurs {c}: förra skanningens värde {prev[c]} (ingen källa svarade)")
+        else: print(f"  VARNING: ingen växelkurs för {c}")
     return out
 
 # ----------------------------------------------------------------------------------

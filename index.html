@@ -319,7 +319,7 @@ const shortA=a=>({decay:a.s||"Tappar kraft",level:a.s||"Vid nivå",struct:a.s||"
 let D=null,S={},SL=[],DEMO=false,OLD=false,H={};
 const Ui={tab:{},dt:false,shown:{},news:"all"},open=new Set();
 const MK=k=>(D.markets.find(m=>m.k===k))||{n:k,flag:"",cur:""};
-const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5,NOK:.95,DKK:1.54,GBP:13.3,GBX:.133,CHF:11.8,JPY:.069,TWD:.33,HKD:1.35,INR:.125,AUD:6.9,KRW:.0073,CAD:7.6}[c]||1);
+const fx=c=>(D.fx&&D.fx[c])||({SEK:1,USD:10.5,EUR:11.5,NOK:.95,DKK:1.54,GBP:13.3,GBX:.133,CHF:11.8,JPY:.069,TWD:.33,HKD:1.35,INR:.125,AUD:6.9,KRW:.0073,CAD:7.6,PLN:2.6}[c]||1);
 /* Graham och Magic Formula togs bort 2026-10-16. Skanningsdata som redan ligger hos
    användaren kan fortfarande innehålla deras larm och fält. Allt sådant rensas här, vid
    inläsningen, så att ingen del av appen kan visa eller räkna på det. */
@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-ae";
+const APPV="2026-11-11-af";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
