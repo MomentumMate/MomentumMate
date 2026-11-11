@@ -76,7 +76,8 @@ def main():
     if prev and prev.get("sources"):
         for k, n in per_src.items():
             p = prev["sources"].get(k)
-            if p and n < 0.9 * p: src_warn.append({"k": k, "idag": n, "igar": p})
+            # små handlistor (under 20) larmar inte – 2026-11-11 gav en städning av SMSN (5 → 2) falskt rött
+            if p and p >= 20 and n < 0.9 * p: src_warn.append({"k": k, "idag": n, "igar": p})
     gone = []
     if prev and prev.get("universe"):
         gone = sorted(set(prev["universe"]) - set(tick))
