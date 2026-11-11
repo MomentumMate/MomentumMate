@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-11-ac";
+const APPV="2026-11-11-ad";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2173,7 +2173,7 @@ const RULE_DEF={mode:"core",absMom:true,sma200:true,cap:0,stop:0,tp:0,tpSell:0,b
 const MODEL={v:"2.0",date:"2026-11-05",costN:7,fullN:20,measure:"clenow120"};
 const SC=x=>(MODEL.measure==="clenow120"&&typeof x.sc2==="number")?x.sc2:x.sc;              // poäng enligt gällande modell
 const TIE=x=>(MODEL.measure==="clenow120"&&typeof x.cl==="number")?x.cl:(+x.m121||0);        // avgörare vid lika poäng
-const bySc=(a,b)=>(SC(b)-SC(a))||(TIE(b)-TIE(a));
+const bySc=(a,b)=>(SC(b)-SC(a))||(TIE(b)-TIE(a))||(a.t<b.t?-1:a.t>b.t?1:0);   // exakt lika Clenow: alfabetisk ticker, som backtestets kolumnordning (2026-11-11)
 const rulesTxt=(R,cap)=>`MODELL ${MODEL.v} · köp ur topp ${(cap>0&&cap<MIN_POST*5)?MODEL.costN+" (nordiska)":MODEL.fullN} i rankningsordning · håll så länge 12-1 > 0 och kurs > SMA200 · prövas vid månadsskiftet · likavikt vid kvartalsskiftet · inget stopp, inget band, inget tak`;
 const RLAB={ABSM:"MOMENTUM SLUT",SMA:"TREND BRUTEN",TAK:"MINSKA",TREND:"SÄLJ"};
 let RANKC=null;

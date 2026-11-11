@@ -21,7 +21,7 @@ function reference(ctx,p,o){
   const F=h=>{const s=S[h.t];return fx[s?s.ccy:(h.ccy||"SEK")]||1};
   const val=h=>h.q*px(h)*F(h);
   // § 3 rankning: poäng, lika poäng → högst 12-1
-  const ranked=Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false).sort((a,b)=>(SC(b)-SC(a))||(TIE(b)-TIE(a)));
+  const ranked=Object.values(S).filter(x=>x&&x.px>0&&SC(x)>0&&x.inf!==false).sort((a,b)=>(SC(b)-SC(a))||(TIE(b)-TIE(a))||(a.t<b.t?-1:a.t>b.t?1:0));   // SPEC § 18: exakt lika Clenow → alfabetisk ticker
   const rank={};ranked.forEach((x,i)=>rank[x.t]=i+1);
   const rk=t=>rank[t]||1e9;
   const tot=p.h.reduce((a,h)=>a+val(h),0);

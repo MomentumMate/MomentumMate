@@ -38,7 +38,7 @@ Poäng 0–100 per aktie:
   120 = mitten av det vinnande intervallet. 1.0 använde 12-1 med samma tak.)*
 - **Trendkvalitet (20 %)**: kurs > SMA50 (30), kurs > SMA200 (30), SMA50 > SMA200 (20), SMA200 i dag > SMA200 i går (20).
 - **Överhettningsavdrag**: (1-månadsuppgång − 25)/25 × 15 om uppgången överstiger 25 %, plus (RSI14 − 80)/20 × 10 om RSI överstiger 80; summan högst 25. *(Validerat 2026-10-16; formeln harmoniserad 2026-11-05.)*
-- **Lika poäng avgörs av högre Clenow-mått.** *(Avgörare-varianter testade #74: måttet spelar roll, inte avgöraren.)*
+- **Lika poäng avgörs av högre Clenow-mått; exakt lika Clenow-mått av ticker i bokstavsordning.** *(Avgörare-varianter testade #74: måttet spelar roll, inte avgöraren. Bokstavsordningen 2026-11-11 = backtestets kolumnordning.)*
 - Bara aktier **över SMA200** rankas som köpkandidater (trendfilter).
 - **12-1 (används i § 6 och som information):** stängning senaste på eller före samma datum **en kalendermånad** tillbaka, dividerad med stängning
   på eller före samma datum **tolv kalendermånader** tillbaka, minus 1. *(Paritetstest P2 2026-11-05; samma i app och backtest.)*
@@ -216,9 +216,9 @@ genomfört belopp och pris, courtage. Loggen ger: modellportfölj mot verklig po
 | Likviditetsgolv | 3 M i handelsvalutan → ingen poäng | Samma sedan 2026-11-05 (`liqok`) |
 | Universum | `get_tickers` + `collapse_share_classes` | Samma sedan 2026-11-05 |
 | Poänggolv | Inget golv, ingen övre gräns | 0–100 (påverkar inte ordningen i toppen) |
-| Lika Clenow-värde | Kolumnordning (alfabetisk ticker) | Listordning – **ska fastställas** |
+| Lika Clenow-värde | Kolumnordning (alfabetisk ticker) | Alfabetisk ticker, A först – samma sedan 2026-11-11 |
 | Felkurser | Lagar dagen (`repair_glitches`), kastar bara om felet består | Lagar dagen (`repair_closes`) – samma regel sedan 2026-11-05 |
 | Avnotering | Säljs till sista kända kurs | Varning (§ 16) |
 | Avknoppning/split | Yahoo `auto_adjust`; EODHD justerad stängning | Samma datakällor – ska verifieras |
 
-Kvar att harmonisera: lika Clenow-värde, avknoppningar.
+Kvar att harmonisera: avknoppningar.
