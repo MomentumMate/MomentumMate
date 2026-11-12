@@ -1,31 +1,33 @@
 {
-"updated": "2026-11-11T09:34:41Z",
+"updated": "2026-11-12T11:44:54Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-10",
+"senaste": "2026-11-11",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-10",
-"tysta": 7,
-"flaggade": 11
+"senaste": "2026-11-11",
+"tysta": 6,
+"flaggade": 10
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-10",
+"senaste": "2026-11-11",
 "tysta": 1,
 "flaggade": 1
 }
 },
 "n": 2293,
-"silent": 8,
-"flagged": 12,
-"gone": [],
+"silent": 7,
+"flagged": 11,
+"gone": [
+"ROKU"
+],
 "own_flagged": [],
 "issues": {
 "ACA": [
@@ -49,9 +51,6 @@
 "RAMP": [
 "tyst sedan 2026-10-30"
 ],
-"ROKU": [
-"dagsrörelse +1751 % den 2026-11-05"
-],
 "SDR.L": [
 "tyst sedan 2026-10-01"
 ],
@@ -60,7 +59,7 @@
 "stillastående 10 dagar"
 ],
 "TOELY": [
-"tyst sedan 2026-09-24"
+"ingen kursdata (tom serie)"
 ],
 "VCYT": [
 "dagsrörelse -54 % den 2026-11-05"
@@ -69,22 +68,22 @@
 "xcheck": [],
 "scan": {
 "Norden": {
-"har": 197,
-"antal": 201,
-"kalla": "2026-11-10",
-"skanning": "2026-11-11T09:21Z"
+"har": 202,
+"antal": 203,
+"kalla": "2026-11-11",
+"skanning": "2026-11-11T21:40Z"
 },
 "USA": {
-"har": 1587,
+"har": 1577,
 "antal": 1597,
-"kalla": "2026-11-10",
-"skanning": "2026-11-11T09:21Z"
+"kalla": "2026-11-11",
+"skanning": "2026-11-11T21:40Z"
 },
 "Europa": {
-"har": 496,
+"har": 477,
 "antal": 497,
-"kalla": "2026-11-10",
-"skanning": "2026-11-11T09:21Z"
+"kalla": "2026-11-11",
+"skanning": "2026-11-11T21:40Z"
 }
 },
 "sources": {
@@ -1219,6 +1218,7 @@
 "JD",
 "JD.L",
 "JEF",
+"JHX",
 "JJSF",
 "JKHY",
 "JLL",
@@ -1844,7 +1844,6 @@
 "ROG.SW",
 "ROIV",
 "ROK",
-"ROKU",
 "ROL",
 "ROP",
 "ROP.SW",
