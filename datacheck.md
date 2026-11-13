@@ -1,15 +1,13 @@
-# Datakontroll 2026-11-12T11:44:54Z – WARN
+# Datakontroll 2026-11-13T08:27:21Z – WARN
 
 
 | Marknad | Aktier | Senaste stängning | Tysta | Flaggade |
 |---|---|---|---|---|
-| Norden | 201 | 2026-11-11 | 0 | 0 |
-| USA | 1595 | 2026-11-11 | 6 | 10 |
-| Europa | 497 | 2026-11-11 | 1 | 1 |
+| Norden | 201 | 2026-11-12 | 0 | 0 |
+| USA | 1595 | 2026-11-12 | 8 | 11 |
+| Europa | 497 | 2026-11-12 | 1 | 1 |
 
-**Borta sedan i går (1):** ROKU
-
-**Flaggade aktier (11):**
+**Flaggade aktier (12):**
 - ACA: tyst sedan 2026-10-22
 - BLFS: tyst sedan 2026-10-07
 - INDV: tyst sedan 2026-11-05
@@ -19,5 +17,6 @@
 - RAMP: tyst sedan 2026-10-30
 - SDR.L: tyst sedan 2026-10-01
 - SSNLF: nollvolym 5 dagar; stillastående 10 dagar
-- TOELY: ingen kursdata (tom serie)
+- TCBI: tyst sedan 2026-11-09
+- TOELY: tyst sedan 2026-09-24
 - VCYT: dagsrörelse -54 % den 2026-11-05

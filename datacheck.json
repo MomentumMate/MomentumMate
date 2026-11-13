@@ -1,33 +1,31 @@
 {
-"updated": "2026-11-12T11:44:54Z",
+"updated": "2026-11-13T08:27:21Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-11",
+"senaste": "2026-11-12",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-11",
-"tysta": 6,
-"flaggade": 10
+"senaste": "2026-11-12",
+"tysta": 8,
+"flaggade": 11
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-11",
+"senaste": "2026-11-12",
 "tysta": 1,
 "flaggade": 1
 }
 },
 "n": 2293,
-"silent": 7,
-"flagged": 11,
-"gone": [
-"ROKU"
-],
+"silent": 9,
+"flagged": 12,
+"gone": [],
 "own_flagged": [],
 "issues": {
 "ACA": [
@@ -58,8 +56,11 @@
 "nollvolym 5 dagar",
 "stillastående 10 dagar"
 ],
+"TCBI": [
+"tyst sedan 2026-11-09"
+],
 "TOELY": [
-"ingen kursdata (tom serie)"
+"tyst sedan 2026-09-24"
 ],
 "VCYT": [
 "dagsrörelse -54 % den 2026-11-05"
@@ -70,20 +71,20 @@
 "Norden": {
 "har": 202,
 "antal": 203,
-"kalla": "2026-11-11",
-"skanning": "2026-11-11T21:40Z"
+"kalla": "2026-11-12",
+"skanning": "2026-11-12T21:43Z"
 },
 "USA": {
-"har": 1577,
+"har": 1578,
 "antal": 1597,
-"kalla": "2026-11-11",
-"skanning": "2026-11-11T21:40Z"
+"kalla": "2026-11-12",
+"skanning": "2026-11-12T21:43Z"
 },
 "Europa": {
-"har": 477,
+"har": 494,
 "antal": 497,
-"kalla": "2026-11-11",
-"skanning": "2026-11-11T21:40Z"
+"kalla": "2026-11-12",
+"skanning": "2026-11-12T21:43Z"
 }
 },
 "sources": {
