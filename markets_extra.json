@@ -18,6 +18,12 @@
       "tickers": [
         "MILDEF.ST"
       ]
+    },
+    {
+      "k": "NASDAQ",
+      "tickers": [
+        "SKHY"
+      ]
     }
   ]
 }
