@@ -1,11 +1,11 @@
-# Datakontroll 2026-11-13T08:27:21Z – WARN
+# Datakontroll 2026-11-14T10:51:46Z – WARN
 
 
 | Marknad | Aktier | Senaste stängning | Tysta | Flaggade |
 |---|---|---|---|---|
-| Norden | 201 | 2026-11-12 | 0 | 0 |
-| USA | 1595 | 2026-11-12 | 8 | 11 |
-| Europa | 497 | 2026-11-12 | 1 | 1 |
+| Norden | 201 | 2026-11-13 | 0 | 0 |
+| USA | 1595 | 2026-11-13 | 8 | 11 |
+| Europa | 497 | 2026-11-13 | 1 | 1 |
 
 **Flaggade aktier (12):**
 - ACA: tyst sedan 2026-10-22

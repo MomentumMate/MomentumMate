@@ -1,23 +1,23 @@
 {
-"updated": "2026-11-13T08:27:21Z",
+"updated": "2026-11-14T10:51:46Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-12",
+"senaste": "2026-11-13",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-12",
+"senaste": "2026-11-13",
 "tysta": 8,
 "flaggade": 11
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-12",
+"senaste": "2026-11-13",
 "tysta": 1,
 "flaggade": 1
 }
@@ -71,20 +71,20 @@
 "Norden": {
 "har": 202,
 "antal": 203,
-"kalla": "2026-11-12",
-"skanning": "2026-11-12T21:43Z"
+"kalla": "2026-11-13",
+"skanning": "2026-11-14T01:51Z"
 },
 "USA": {
-"har": 1578,
-"antal": 1597,
-"kalla": "2026-11-12",
-"skanning": "2026-11-12T21:43Z"
+"har": 1589,
+"antal": 1598,
+"kalla": "2026-11-13",
+"skanning": "2026-11-14T01:51Z"
 },
 "Europa": {
-"har": 494,
+"har": 452,
 "antal": 497,
-"kalla": "2026-11-12",
-"skanning": "2026-11-12T21:43Z"
+"kalla": "2026-11-13",
+"skanning": "2026-11-14T01:51Z"
 }
 },
 "sources": {
