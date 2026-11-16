@@ -1863,7 +1863,8 @@ def live():
         print(f"EODHD-kurser: {len(quotes)} av {len(recs)} aktier")
     # dagens session som kompakta staplar: t = sekunder sedan epoch, p/o/hi/lo avrundade, v heltal
     intra_out = {}
-    for t in intra_pool:
+    keep = [t for t in dict.fromkeys(extra + list(rk.get("cand", [])) + list(rk.get("near", []))) if t in recs]   # ~60 aktier; alla 490 gav 1,8 MB
+    for t in keep:
         df = intra.get(t)
         if df is None or df.empty: continue
         try:
