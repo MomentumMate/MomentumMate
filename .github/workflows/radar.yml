@@ -45,12 +45,17 @@ jobs:
         env:
           RADAR_CONTACT: ${{ secrets.RADAR_CONTACT }}   # kontaktadress i User-Agent mot SEC (valfri men önskvärd)
         run: python radar.py
-      - name: Publicera radar.json och cusip_map.json
+      - name: Riktkurser och analytikerrevideringar (information)
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true
+        run: python analysts.py
+      - name: Publicera radar.json, cusip_map.json och analysts.json
         if: steps.gate.outputs.run == 'true'
         run: |
           git config user.name "momentum-bot"
           git config user.email "actions@users.noreply.github.com"
           git add radar.json cusip_map.json
+          [ -f analysts.json ] && git add analysts.json || true
           git diff --cached --quiet && exit 0
           git commit -qm "radar $(date -u +%F) [skip ci]"
           for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break || sleep 20; done
