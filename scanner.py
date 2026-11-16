@@ -1825,8 +1825,17 @@ def live():
     for k, r in base["rank"].items():
         pool += (r["cand"] + r["near"]) if k == "DT" else r["mom"]
     pool = [t for t in dict.fromkeys(pool) if t in recs]
-    print(f"Live-uppdatering av {len(pool)} aktier")
-    daily = dl(pool, period="1y", interval="1d"); intra = dl(pool, period="5d", interval="5m", prepost=True)
+    # 2026-11-16: dagens 5-minutersstaplar även för egna innehav/bevakning (holdings.txt, markets_extra) och topp 20 i 2.0 –
+    # appens 1D/1V-graf visar dem när de är färskare än skanningens (Finnhubs staplar är betalfunktion, EODHD:s intraday ingår inte i planen).
+    extra = []
+    try: extra += [l.split("#")[0].strip() for l in open("holdings.txt", encoding="utf-8") if l.split("#")[0].strip()]
+    except Exception: pass
+    try: extra += [t for m in json.load(open("markets_extra.json", encoding="utf-8")).get("markets", []) for t in m.get("tickers", [])]
+    except Exception: pass
+    extra += [t for t, _ in sorted(((t, r.get("sc2") or 0) for t, r in recs.items() if (r.get("sc2") or 0) > 0 and r.get("liqok", True)), key=lambda x: -x[1])[:20]]
+    intra_pool = [t for t in dict.fromkeys(pool + extra) if t in recs]
+    print(f"Live-uppdatering av {len(pool)} aktier, intradag för {len(intra_pool)}")
+    daily = dl(pool, period="1y", interval="1d"); intra = dl(intra_pool, period="5d", interval="5m", prepost=True)
     mk_by = {m["k"]: m for m in base["markets"]}
     upd = {}
     for t in pool:
@@ -1852,8 +1861,28 @@ def live():
     if EODHD_KEY:
         quotes = eodhd_quotes(list(recs))
         print(f"EODHD-kurser: {len(quotes)} av {len(recs)} aktier")
+    # dagens session som kompakta staplar: t = sekunder sedan epoch, p/o/hi/lo avrundade, v heltal
+    intra_out = {}
+    for t in intra_pool:
+        df = intra.get(t)
+        if df is None or df.empty: continue
+        try:
+            tz, open_m = session(t)
+            d = df.dropna(subset=["Close"]).copy()
+            idx = d.index.tz_localize("UTC") if d.index.tz is None else d.index
+            d.index = idx.tz_convert(tz)
+            day = d.index[-1].date(); d = d[d.index.date == day]
+            mins = d.index.hour * 60 + d.index.minute
+            d = d[(mins >= open_m) & (mins < open_m + (390 if is_us(t) else 510))]     # ordinarie session (USA 6,5 h, Europa 8,5 h)
+            if len(d) < 3: continue
+            r_ = lambda k, nd=2: [round(float(x), nd) for x in d[k].astype(float)]
+            intra_out[t] = {"t": [int(x.timestamp()) for x in d.index], "p": r_("Close"), "o": r_("Open"), "hi": r_("High"), "lo": r_("Low"),
+                            "v": [int(x) for x in d["Volume"].fillna(0).astype(float)]}
+        except Exception as e:
+            print("  intradag hoppar över", t, "–", str(e)[:60])
+    print(f"Intradag: {len(intra_out)} aktier")
     out = {"v": 2, "updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "stocks": upd, "dt": rk, "dtx": dtx,
-           "quotes": quotes, "quotes_src": "EODHD (fördröjd 15–20 min)" if quotes else None}
+           "quotes": quotes, "quotes_src": "EODHD (fördröjd 15–20 min)" if quotes else None, "intra": intra_out}
     with open("daytrade.json", "w", encoding="utf-8") as f:
         json.dump(clean(out), f, ensure_ascii=False, separators=(",", ":"))
     print(f"Klart: {len(upd)} uppdaterade, {len(rk['cand'])} kandidater, {len(dtx)} diagram")

@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-ap";
+const APPV="2026-11-16-aq";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1901,9 +1901,14 @@ async function fhIntra(t){
 /* Lägger dagens Finnhub-session ovanpå skanningens 1D/1V när den är nyare. Muterar h (cachad), bara en gång per dag och aktie. */
 async function mergeIntra(t,h){
   if(!h||!(h["1d"]&&h["1d"].t&&h["1d"].t.length))return h;
-  const fh=await fhIntra(t);if(!fh)return h;
+  let fh=await fhIntra(t);
+  // live-jobbets 5-minutersstaplar (Yahoo via Actions, alla marknader) – används när de är nyare än både skanningen och Finnhub
+  const li=LIVE_INTRA[t];
+  if(li&&li.t&&li.t.length>=3){const last=li.t[li.t.length-1];if(!fh||last>fh.t[fh.t.length-1])fh=Object.assign({},li,{src:"live"})}
+  if(!fh)return h;
   const dFh=isoDay(fh.t[fh.t.length-1],t),dH=isoDay(h["1d"].t[h["1d"].t.length-1],t);
-  if(dFh<dH||(h.fhDay===dFh&&h["1d"].t.length===fh.t.length))return h;
+  if(dFh<dH||(h.fhDay===dFh&&h["1d"].t.length===fh.t.length&&h["1d"].src===fh.src))return h;
+  if(dFh===dH&&fh.t[fh.t.length-1]<=h["1d"].t[h["1d"].t.length-1])return h;     // skanningen har redan samma eller senare stapel
   h.fhDay=dFh;h["1d"]=fh;
   const w=h["1w"];if(w&&w.t&&w.t.length&&dFh>isoDay(w.t[w.t.length-1],t)){
     // 30-minutersstaplar av dagens session läggs till veckografen; äldsta dagen faller bort så att det förblir fem dagar
@@ -1921,8 +1926,8 @@ function intraNote(r,rng,t){
   if(!(rng==="1d"||rng==="1w")||!r||!r.t||!r.t.length)return"";
   const last=r.t[r.t.length-1],d=isoDay(last,t),lab=dayLabel(last,t)+" "+hmLabel(last,t);
   const stale=d<lastCloseDate();
-  const src=r.src==="finnhub"?"Finnhub":"senaste skanning";
-  return(rng==="1d"?`Handelsdag <b>${lab}</b>`:`Fem handelsdagar t.o.m. <b>${lab}</b>`)+` (${src})`+(stale?` – <b class="dn">inte senaste handelsdagen</b>${FHI.no?"; Finnhub-nyckeln ger inte intradagsstaplar":liveOK(t)&&!fhKey()?"; spara en Finnhub-nyckel för dagens kurser":""}`:"");
+  const src=r.src==="finnhub"?"Finnhub":r.src==="live"?"live-jobbet"+(LIVE_INTRA_TS?" "+hhmm(new Date(LIVE_INTRA_TS).toISOString()):""):"senaste skanning";
+  return(rng==="1d"?`Handelsdag <b>${lab}</b>`:`Fem handelsdagar t.o.m. <b>${lab}</b>`)+` (${src})`+(stale?` – <b class="dn">inte senaste handelsdagen</b>${FHI.no?"; Finnhub-nyckeln ger inte intradagsstaplar":""}`:"")+(r.src!=="finnhub"&&r.src!=="live"?`${FHI.no?" · Finnhub: betalfunktion":""}${runLink("daytrade.yml"," Hämta dagens staplar ›")}`:"");
 }
 function histSlice(h,s,rng){
   const cut=(o,n)=>o?{t:o.t.slice(-n),p:o.p.slice(-n)}:null;
@@ -3263,7 +3268,9 @@ async function checkVersion(){
   }catch(e){}
 }
 setTimeout(checkVersion,4000);setInterval(checkVersion,600000);
+let LIVE_INTRA={},LIVE_INTRA_TS=0;
 async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r=await fetch(u+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)return false;const j=await r.json();const lts=j.updated?Date.parse(j.updated):0;
+  if(j.intra){LIVE_INTRA=j.intra;LIVE_INTRA_TS=lts}
   Object.keys(j.stocks||{}).forEach(t=>{const s=S[t];if(!s)return;const o=j.stocks[t];
     // 2026-11-09: daghandelsfälten tas, men kurs/dagsförändring bara om live-filen är nyare än den kurs som redan finns (Finnhub var 20 s).
     const keep=s.qt&&lts&&lts<=s.qt;const px=s.px,chg=s.chg,qt=s.qt,qsrc=s.qsrc;
