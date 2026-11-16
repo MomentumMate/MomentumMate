@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-ar";
+const APPV="2026-11-16-as";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1775,6 +1775,36 @@ const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 const SHORT_HI=10,SHORT_LO=5;
 /* Enhetlig lägesrad under varje signal (2026-11-03): "Plats X av N · 12-1 +y % · över/under SMA200".
    omit = "sma" eller "m121" utelämnar den uppgift som redan står i regeltexten, så att inget upprepas. */
+/* ---------- FÖRKLARING PER RAD (arbetslista 9→5, 2026-11-16) ----------
+   Varje rad i förslaget får en klartextförklaring byggd på samma fakta som motorn använde, med hänvisning till SPEC-paragrafen.
+   Bara text – motorn (autoPlan) är oförändrad. Fälten tq/heat/d200 kommer från skannern (2026-11-16); saknas de visas färre delar. */
+function scoreParts(s){const parts=[];if(typeof s.cl==="number")parts.push(`Clenow ${f(s.cl,0)} → ${f(Math.min(Math.max(s.cl,0),150)/150*80,0)} p`);
+  if(typeof s.tq==="number")parts.push(`trendkvalitet ${s.tq}/100 → ${f(s.tq*.2,0)} p`);if(s.heat>0)parts.push(`överhettning −${f(s.heat,0)} p`);
+  return parts.length?` (${parts.join(", ")})`:""}
+function holdFacts(s){if(!s)return"";const m=typeof s.m121==="number"?`12-1 ${sg(s.m121,1)} ${s.m121>0?"> 0 ✓":"< 0 ✗"}`:"12-1 saknas";
+  const t=s.sh?"SMA200 saknas":`kurs ${typeof s.d200==="number"?`${f(Math.abs(s.d200),1)} % ${s.d200>=0?"över":"under"}`:(s.a200?"över":"under")} SMA200 ${s.a200?"✓":"✗"}`;return`${m} · ${t}`}
+function explainRow(p,it,c){
+  const s=S[it.t];if(!s)return it.note||"";const cap=(c&&c.tot)||0,pr=profileFor(cap+((p.plan&&p.plan.cash>0)?+p.plan.cash:(p.cashHint>0?+p.cashHint:0))),N=p.targetN||(pr?pr.n:MODEL.fullN),tgtW=100/N,rk=rankOf(it.t),tot=rankMap().n,sc=SC(s);
+  const r=c&&c.rows?c.rows.find(x=>x.h.t===it.t):null,w=r?r.w:null,cost=N===MODEL.costN;
+  const rankTxt=`Plats ${rk||"–"} av ${tot}, poäng ${f(sc,0)}${scoreParts(s)}`;
+  const note=(it.note||"").trim();
+  switch(it.a){
+    case"KÖP":{if(/Likaviktning/.test(note))return`ÖKA till målvikt (§ 7): vikten ${w!=null?f(w,1)+" %":"–"} ligger under 0,75 × ${f(tgtW,1)} % = ${f(tgtW*.75,1)} % vid kvartalsskiftet. Hållvillkoren gäller: ${holdFacts(s)}.`;
+      if(/Påfyllning/.test(note))return`Påfyllning (§ 5): inga lediga platser – nytt kapital fördelas upp till målvikten ${f(tgtW,1)} %, lägst vikt först. ${holdFacts(s)}.`;
+      return`Köp (§ 5): ${rankTxt} – inom topp ${N}${cost?" bland nordiska aktier (kostnadsläge, § 8)":""}. Över SMA200 ✓ (inträdesfilter § 3), likviditet ✓. Belopp = målvikt ${f(tgtW,1)} % av portföljen. ${note&&!/^$/.test(note)?note:""}`.trim()}
+    case"SÄLJ":{if(/12-1 negativt/.test(note))return`Sälj hela innehavet (§ 6): hållvillkoret 12-1 > 0 bryts vid månadsprövningen – ${holdFacts(s)}. Rankningsplats (${rk||"–"}) påverkar inte.`;
+      if(/Under SMA200/.test(note))return`Sälj hela innehavet (§ 6): hållvillkoret kurs > SMA200 bryts vid månadsprövningen – ${holdFacts(s)}. Rankningsplats (${rk||"–"}) påverkar inte.`;
+      if(/Kostnadsläge/.test(note))return`Sälj (§ 8): kostnadsläge under 161 000 kr – utländska poster ryms inte, pengarna går till nordiska aktier. ${holdFacts(s)}.`;
+      if(/Fler innehav/.test(note))return`Sälj (§ 4): portföljen har fler innehav än målet ${N} – lägst rankad säljs först. ${rankTxt}.`;
+      if(/Likaviktning/.test(note))return`MINSKA till målvikt (§ 7): vikten ${w!=null?f(w,1)+" %":"–"} ligger över 1,25 × ${f(tgtW,1)} % = ${f(tgtW*1.25,1)} % vid kvartalsskiftet. Innehavet behålls i övrigt: ${holdFacts(s)}.`;
+      return`${note||"Sälj"} ${holdFacts(s)}.`}
+    case"BEHÅLL":{const nl=newList(s);if(nl)return`Behåll utan prövning (§ 9): ${nl.why}`;
+      const okM=typeof s.m121!=="number"||s.m121>0,okS=s.sh||s.a200;
+      const band=w!=null?` Vikt ${f(w,1)} % ${w>tgtW*1.25?`över bandet (> ${f(tgtW*1.25,1)} %) – minskas vid kvartalsskiftet`:w<tgtW*.75?`under bandet (< ${f(tgtW*.75,1)} %) – fylls på vid kvartalsskiftet om kassa finns`:`inom bandet ${f(tgtW*.75,1)}–${f(tgtW*1.25,1)} %`} (§ 7).`:"";
+      if(okM&&okS)return`Behåll (§ 6): båda hållvillkoren gäller – ${holdFacts(s)}. ${rankTxt} – platsen är inte ett hållkriterium.${band}`;
+      return`Behåll t.o.m. månadsprövningen (§ 6): ${holdFacts(s)} – villkoret prövas på månadens sista stängning, inte däremellan (⏳).${band}`}
+  }
+  return note}
 function coreFact(s){if(!s)return"";const m=typeof s.m121==="number"?(s.m121>0?`12-1 positivt (${sg(s.m121,1)})`:`12-1 negativt (${sg(s.m121,1)})`):"12-1 saknas";
   const t=s.sh?"SMA200 saknas":(s.a200?"över SMA200":"under SMA200");return`${m} · ${t}`}
 function coreWhy(s,note){const l=[coreFact(s),`Plats ${rankOf(s.t)||"–"} av ${rankMap().n}.`];if(note)l.push(note);return l.join("\n")}
@@ -2145,7 +2175,7 @@ function propHTML(p,c,sigs,rot,ideas){
   items.forEach((it,i)=>{const r=rowBy[it.t],x=rotFor[it.t];const g=it.a==="SÄLJ"?"sell":it.a==="KÖP"?"buy":"hold";   // BEHÅLL-rader ligger alltid under BEHÅLL (2026-11-03)
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
     const pri=g==="buy"?(it.pri!=null?+it.pri:0):0;
-    pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${lab(it)}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)&&SIGL[r.sig.k]!==lab(it)&&!(it.a==="KÖP"&&r.sig.k==="BUY")?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}${(()=>{const w=r?r.w:(it.q&&c&&c.tot?planAmt(it)/c.tot*100:0);return w>0?` · ${f(w,1)} %${r?"":" ny"}`:""})()}</div>${it.why?`<div class="mu" style="white-space:pre-line">${esc(it.why)}</div>`:""}${g==="buy"&&pri&&rulesOf0(p).mode==="sat"?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r,it)}${extra}</div>
+    pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${lab(it)}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)&&SIGL[r.sig.k]!==lab(it)&&!(it.a==="KÖP"&&r.sig.k==="BUY")?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}${(()=>{const w=r?r.w:(it.q&&c&&c.tot?planAmt(it)/c.tot*100:0);return w>0?` · ${f(w,1)} %${r?"":" ny"}`:""})()}</div>${(()=>{let w="";try{w=explainRow(p,it,c)}catch(e){}return w?`<div class="mu" style="white-space:normal;font-size:11.5px">${esc(w)}</div>`:it.why?`<div class="mu" style="white-space:pre-line">${esc(it.why)}</div>`:""})()}${g==="buy"&&pri&&rulesOf0(p).mode==="sat"?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r,it)}${extra}</div>
      <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>${(()=>{const e=logOpenFor(p,it);return e?`<button class="btn sm ghost" data-act="logskip" data-pid="${p.id}" data-id="${e.id}" title="Avstå med orsak">✕</button>`:""})()}`}</div></div>`,pri)});
   RA.forEach(a=>{const r=a.r,h=r.h,repl=RP.get(a)||[];
     G.sell.push(`<div class="sr rls"><div class="m"><div>${flag(h.t)}${tlink(h.t,r.s?r.s.d:h.t)}<span class="pla S">${RLAB[a.k]} ${a.q} st</span></div><div class="mu">${esc(r.s?r.s.n:(h.n||h.t))} · ≈ ${kr(a.amt)} kr · vikt ${f(r.w,1)} %</div><div class="mu" style="white-space:normal">${esc(a.why)}</div>

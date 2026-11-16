@@ -1629,7 +1629,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or NAMES.get(t) or NAMES.get(t.replace(".IL", ".L")) or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq, "sc2": score2, "cl": (round(cl_, 1) if cl_ is not None else None),
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq, "sc2": score2, "cl": (round(cl_, 1) if cl_ is not None else None), "tq": round(trend), "heat": round(heat, 1), "d200": num((px / sma200 - 1) * 100, 1) if sma200 else None,   # förklaring per rad (2026-11-16)
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,
