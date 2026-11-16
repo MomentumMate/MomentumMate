@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-ao";
+const APPV="2026-11-16-ap";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -929,6 +929,7 @@ function act(a,d){
     case"logexec":{const p=getP(d.pid),e=p&&logEntries(p).find(x=>x.id===d.id);if(!e)break;const ix=p.plan&&p.plan.items?p.plan.items.findIndex(x=>x.t===e.t&&x.a===e.a):-1;if(ix>=0)planApplySheet(p.id,ix);else execSheet(p,{t:e.t,a:e.a==="MINSKA"?"SÄLJ":e.a==="ÖKA"?"KÖP":e.a,q:e.qP,px:e.pxP,n:e.n,ccy:e.ccy,why:e.why});break}
     case"logshow":logSheet(d.pid);break;
     case"radarinfo":radarInfoSheet();break;
+    case"radarwatch":radarWatchSheet();break;
     case"rsig":Ui.rsig=d.v;vRadar();break;
     case"rtog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;vRadar();window.scrollTo(0,y);break}
     case"qrwreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
@@ -1183,7 +1184,7 @@ const b64e=s=>btoa(unescape(encodeURIComponent(s))),b64d=s=>decodeURIComponent(e
 const dispatchWf=(wf,inputs)=>ghReq("/actions/workflows/"+wf+"/dispatches",{method:"POST",body:JSON.stringify({ref:"main",inputs:inputs||{}})});
 /* Starta ett jobb från appen (2026-11-11, korrigering 4): GitHub kör schemalagda jobb timmar sent, så skanning och live-kurser
    kan startas för hand med samma GitHub-token som uppslaget använder. Bara en knapp – jobbets grind avgör om det behövs. */
-const WFL={"scan.yml":"skanningen","daytrade.yml":"live-kurserna","datacheck.yml":"datakontrollen"};
+const WFL={"scan.yml":"skanningen","daytrade.yml":"live-kurserna","datacheck.yml":"datakontrollen","radar.yml":"radarn"};
 const runLink=(wf,txt)=>ghReady()&&!DEMO?` <span class="lnk" data-act="runwf" data-wf="${wf}">${txt}</span>`:"";
 async function runWf(wf){try{await dispatchWf(wf);toast("Startade "+(WFL[wf]||wf)+" – klart om några minuter, dra ner för att ladda om")}catch(e){toast("Kunde inte starta: "+e.message.slice(0,60))}}
 async function ghGet(path){const j=await ghReq("/contents/"+path+"?ref=main&t="+Date.now());return{sha:j.sha,text:b64d(j.content)}}
@@ -3088,13 +3089,30 @@ function rSigRow(x,i,sig){const s=S[x.t],b=x.buy.size,sl=x.sell.size,open=!!(Ui.
     :sig==="okade"?`${x.items.filter(i=>i.kind==="ökat").sort((a,b)=>(b.ratio||0)-(a.ratio||0)).slice(0,3).map(i=>`${esc(i.inv)} <b class="up">+${i.ratio?f((i.ratio-1)*100,0):"?"} %</b>`).join(" · ")}`
     :`${b?`<b class="up">${b} köper</b>`:""}${b&&sl?" · ":""}${sl?`<b class="dn">${sl} säljer</b>`:""}${x.ins?`${b||sl?" · ":""}insyn ${x.ins.b?`<b class="up">${x.ins.b} köp</b>`:""}${x.ins.b&&x.ins.s?"/":""}${x.ins.s?`<b class="dn">${x.ins.s} sälj</b>`:""}`:""}${x.hold.length?` · ägs av ${x.hold.length}`:""}${sig==="tidiga"&&mc?` · ${f(mc/1e9,1)} mdr kr`:""}`;
   return`<div class="sr" style="flex-wrap:wrap"><div class="n">${i+1}</div><div class="m" data-act="rtog" data-t="${esc(x.t)}" style="cursor:pointer"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span>${b>=3?' <span class="tag" style="margin-left:4px">KONSENSUS</span>':""}</div><div class="mu" style="font-size:11px">${summary} <span class="mu">${open?"▲":"▼"}</span></div></div><div class="p"><span class="tlk" data-go="#/radar/${enc("t:"+x.t)}" style="font-size:11px">📡</span></div>${open?`<div style="flex-basis:100%;padding:4px 0 2px 44px;border-top:1px dashed var(--ln);margin-top:4px">${rDetail(x)}</div>`:""}</div>`}
+/* Förvaltarlistan (radar_watch.json i repot) redigeras i appen med GitHub-tokenen. CIK slås upp av radarn vid nästa körning. */
+async function radarWatchSheet(){
+  if(!ghReady()){toast("Koppla appen till GitHub först (⚙ Inställningar)");return}
+  let j={managers:[]},sha;
+  try{const g=await ghGet("radar_watch.json");sha=g.sha;j=JSON.parse(g.text)}catch(e){if(e.status!==404){toast("Kunde inte läsa listan: "+e.message.slice(0,60));return}
+    // första gången: utgå från radarns nuvarande förvaltare
+    j={managers:((RD&&RD.managers)||[]).map(m=>({n:m.n,cik:m.cik||undefined,key:(m.n||"").split(/[ ,]/)[0].toUpperCase()}))}}
+  const L=j.managers||[];
+  const render=()=>`<h3>Förvaltare att skugga</h3><p class="mu" style="margin-top:-4px;font-size:12px">Radarn läser listan vid nästa körning (varje morgon, eller "Kör radarn nu"). Namnet söks hos SEC; nyckelordet måste finnas i SEC:s namn på förvaltaren så att rätt bolag väljs.</p>
+  ${L.map((m,i)=>`<div class="k" style="display:flex;justify-content:space-between;align-items:center;padding:5px 2px;border-bottom:1px solid var(--ln)"><span><b>${esc(m.n)}</b> <span class="mu" style="font-size:11px">${esc(m.key||"")}${m.cik?" · CIK "+m.cik:""}</span></span><button class="btn sm ghost" data-rm="${i}">Ta bort</button></div>`).join("")}
+  <label class="fld" style="margin-top:10px"><span>Lägg till – namn (som hos SEC)</span><input id="rwn" placeholder="t.ex. Dragoneer Investment Group"></label>
+  <label class="fld"><span>Nyckelord (del av SEC-namnet)</span><input id="rwk" placeholder="t.ex. DRAGONEER"></label>
+  <button class="btn wide" id="rwadd">Lägg till</button><button class="btn wide" id="rwsave" style="margin-top:8px">Spara till repot</button>`;
+  const wire=()=>{$("#shb").querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{L.splice(+b.dataset.rm,1);$("#shb").innerHTML=render();wire()});
+    $("#rwadd").onclick=()=>{const nm=($("#rwn").value||"").trim(),k=($("#rwk").value||nm.split(/[ ,]/)[0]).trim().toUpperCase();if(!nm){toast("Ange namn");return}L.push({n:nm,key:k});$("#shb").innerHTML=render();wire()};
+    $("#rwsave").onclick=async()=>{try{$("#rwsave").textContent="Sparar…";await ghPut("radar_watch.json",JSON.stringify({managers:L},null,2),sha,"Förvaltarlista: "+L.length+" förvaltare");closeSheet();toast("Sparat – gäller från nästa radarkörning");if(confirm("Kör radarn nu? (tar ca 15 minuter)"))runWf("radar.yml")}catch(e){toast("Kunde inte spara: "+e.message.slice(0,60));$("#rwsave").textContent="Spara till repot"}}};
+  sheet(render(),wire)}
 function vRadar(arg){
   if(!RD){view(`${topbar("Radar",true)}<div class="empty">Radarn har inte körts ännu (Actions → Institutionell radar).</div>`);return}
   if(arg&&arg.startsWith("t:")){vRadarStock(arg.slice(2));return}
   const inv=rInvestors(),cur=arg?rInv(arg):null;
   const dd=dropdown("ddrd",cur?esc(cur.n):"Alla investerare",[{html:"👥 Alla investerare",on:!cur,attrs:`data-go="#/radar"`},{sep:true}].concat(inv.map(m=>({html:`${m.kind==="ark"?"🚀":"🏛"} ${esc(m.n)}`,on:cur&&cur.id===m.id,attrs:`data-go="#/radar/${enc(m.id)}"`}))),{icon:"pf"});
   const src=RD.sources||{};const srcLine=Object.entries(src).map(([k,v])=>`<span class="chip${v.ok?" on":""}" style="font-size:10.5px" title="${esc(v.err||"")}">${RSRC[k]||k} ${v.ok?"✓":"✗"}</span>`).join(" ");
-  const foot=`<div class="mu" style="font-size:11px;margin-top:10px">Uppdaterad ${RD.updated?hhmm(RD.updated):"–"} · ${srcLine}<br>13F släpar upp till 45 dagar efter kvartalsslut. Allt här är information – inget ändrar en rad i förslaget (SPEC § 12).</div>`;
+  const foot=`<div class="acts" style="margin-top:10px"><button class="btn sm ghost" data-act="radarwatch">👥 Förvaltare att skugga</button>${runLink("radar.yml","Kör radarn nu ›")}</div><div class="mu" style="font-size:11px;margin-top:6px">Uppdaterad ${RD.updated?hhmm(RD.updated):"–"} · ${srcLine}<br>13F släpar upp till 45 dagar efter kvartalsslut. Allt här är information – inget ändrar en rad i förslaget (SPEC § 12).</div>`;
   if(cur){const hl=cur.holdings||[],ev=(cur.events||[]);
     view(`${topbar("Radar",true,topBtn(`data-act="radarinfo"`,'<span class="ii">ⓘ</span>',"Om radarn"))}${dd}
     <div class="mod"><div class="mh"><div class="ico">${cur.kind==="ark"?"🚀":"🏛"}</div><h2>${esc(cur.n).toUpperCase()}</h2></div><div class="mu" style="font-size:11.5px">${cur.kind==="ark"?`Innehav per ${esc(cur.asof||"–")} · ${cur.n_pos} positioner`:cur.err?esc(cur.err):`Rapport per ${esc(cur.period||"")}, inlämnad ${esc(cur.filed||"")} · ${cur.n_pos} positioner · ${kr(cur.value_musd||0)} MUSD`}${cur.stale?` · <b class="dn">lämnar inte längre – räknas inte i signalerna</b>`:""}${cur.note?`<br><span class="dn">${esc(cur.note)}</span>`:""}</div></div>
@@ -3120,7 +3138,7 @@ function vRadarStock(t){const s=S[t];if(!s){location.hash="#/radar";return}const
   <div class="acts" style="margin-top:10px"><button class="btn sm ghost" data-go="#/stock/${enc(t)}">Analys</button><button class="btn sm ghost" data-go="#/chart/${enc(t)}">Graf</button></div>`)}
 function radarInfoSheet(){sheet(`<h3>Om radarn</h3><p class="mu" style="font-size:13px">Radarn visar vad utvalda institutioner gör – inget mer. Modellens rankning, köp och sälj påverkas inte av den (SPEC § 12). Källor:</p>
 <ul class="mu" style="font-size:12.5px;padding-left:18px"><li><b>13F</b> – kvartalsrapporter till SEC från förvaltarna i listan. Jämför senaste rapporten med den föregående: nya innehav, ökningar/minskningar över 20 %, avslutade. Släpar upp till 45 dagar.</li><li><b>13D/13G</b> – anmälningar om ägande ≥ 5 % i bolag i universumet, senaste 60 dagarna.</li><li><b>ARK</b> – ARK Invests dagliga innehavsfiler, dagens mot gårdagens.</li><li><b>Insyn</b> – Finansinspektionens insynsregister, senaste 14 dagarna, bara bolag i universumet.</li></ul>
-<p class="mu" style="font-size:12.5px">Översikten visar aktier där flera investerare gjort samma sak, de senaste rörelserna och ett kort per investerare med de tre största innehaven; välj en investerare i rullistan för hela innehavslistan med vikter. Aktiens egen radarsida (📡) visar vilka som äger den och alla händelser – det är där modellens kandidater kan stämmas av mot institutionerna. Förvaltarlistan ändras i filen <b>radar_watch.json</b> i repot (namn + nyckelord; CIK slås upp automatiskt). "Institutionellt stöd" i transaktionsloggen = köpliknande händelse utan säljliknande senaste 90 dagarna.</p>`)}
+<p class="mu" style="font-size:12.5px">Förvaltarlistan ändras med knappen "Förvaltare att skugga" längst ner i översikten. Översikten visar aktier där flera investerare gjort samma sak, de senaste rörelserna och ett kort per investerare med de tre största innehaven; välj en investerare i rullistan för hela innehavslistan med vikter. Aktiens egen radarsida (📡) visar vilka som äger den och alla händelser – det är där modellens kandidater kan stämmas av mot institutionerna. Listan sparas i <b>radar_watch.json</b> i repot (namn + nyckelord; CIK slås upp automatiskt). "Institutionellt stöd" i transaktionsloggen = köpliknande händelse utan säljliknande senaste 90 dagarna.</p>`)}
 function execSheet(p,it,o){if(isDemoP(p)){toast("Demoportföljen utför sina order själv på nästa stängning");return}
 
   o=o||{};const px=planPx(it),tw=p.twin&&getP(p.twin);
