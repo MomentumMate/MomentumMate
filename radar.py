@@ -191,6 +191,11 @@ def manager_13f(m, cache):
                for i in range(len(rec.get("form", []))) if rec["form"][i] == "13F-HR"]
     if not filings: return {"n": secname or m["n"], "cik": cik, "err": "inga 13F-HR"}
     out = {"n": secname or m["n"], "cik": cik, "filed": filings[0][1], "period": filings[0][2]}
+    # 13F-NT = förvaltaren har begärt att innehaven hemlighålls (Pershing Square Q2 2026); visa det i stället för att låtsas att Q1 är senaste
+    nts = [rec.get("reportDate", [""] * 999)[i] for i in range(len(rec.get("form", []))) if rec["form"][i] == "13F-NT"]
+    if nts and max(nts) > out["period"]: out["note"] = f"Kvartalet per {max(nts)} lämnat som 13F-NT – innehaven hemlighålls; visar senaste öppna rapport"
+    # Ingen rapport på över 400 dagar = lämnar inte längre (Scion stängde 2025, Greenlight sedan 2023). Kortet visas men signalerna räknar inte med dem.
+    if (TODAY - dt.date.fromisoformat(filings[0][1])).days > 400: out["stale"] = True
     tables = []
     for acc, fdate, rdate, prim in filings[:2]:
         nod = acc.replace("-", "")
@@ -287,17 +292,9 @@ def filings_13dg(S, days=60):
 # ---------------------------------------------------------------- ARK
 def ark_holdings():
     hold = {}; err = []
-    for fund, fn in ARK_FUNDS.items():
-        got = None
-        for host in ARK_HOSTS:
-            try:
-                r = requests.get(host + fn, headers={"User-Agent": UA["User-Agent"]}, timeout=30)
-                if r.ok and "ticker" in r.text[:400].lower(): got = r.text; break
-            except Exception: pass
-        if not got: err.append(fund); continue
-        rows = list(csv.DictReader(io.StringIO(got)))
+    def parse(text):
         asof = None; h = {}
-        for row in rows:
+        for row in csv.DictReader(io.StringIO(text)):
             k = {kk.strip().lower(): (v or "").strip() for kk, v in row.items() if kk}
             t = k.get("ticker", "").upper().replace(" ", "")
             if not t or not k.get("company"): continue
@@ -305,7 +302,22 @@ def ark_holdings():
             except ValueError: continue
             asof = asof or k.get("date")
             h[t] = {"n": k["company"], "sh": sh, "w": w}
-        hold[fund] = {"asof": asof, "h": h}
+        return asof, h
+    def iso(d):   # "11/13/2026" -> "2026-11-13"
+        m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", d or "")
+        return f"{m.group(3)}-{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else (d or "")
+    for fund, fn in ARK_FUNDS.items():
+        best = None   # (isodatum, asof, h, värd) – båda värdarna prövas, färskaste filen vinner (assets-värden gav gamla ARKW/ARKF/ARKX)
+        for host in ARK_HOSTS:
+            try:
+                r = requests.get(host + fn, headers={"User-Agent": UA["User-Agent"]}, timeout=30)
+                if r.ok and "ticker" in r.text[:400].lower():
+                    asof, h = parse(r.text)
+                    if h and (best is None or iso(asof) > best[0]): best = (iso(asof), asof, h, host)
+            except Exception: pass
+        if not best: err.append(fund); continue
+        hold[fund] = {"asof": best[1], "h": best[2]}
+        log(f"  ARK {fund}: {len(best[2])} innehav per {best[0]} ({best[3].split('/')[2]})")
     return hold, err
 
 def ark_trades(new, prev):
@@ -424,6 +436,7 @@ def main():
         c = cons.setdefault(t, {"t": t, "buy": [], "sell": [], "last": ""})
         (c["buy"] if side == "buy" else c["sell"]).append(who); c["last"] = max(c["last"], date or "")
     for m in managers:
+        if m.get("stale"): continue
         for e in m.get("events", []):
             if e["kind"] in ("ny", "ökat"): c_add(e["t"], m["n"], "buy", m.get("filed"))
             elif e["kind"] in ("minskat", "ut"): c_add(e["t"], m["n"], "sell", m.get("filed"))
