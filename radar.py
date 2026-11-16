@@ -234,6 +234,48 @@ def manager_13f(m, cache):
     return out
 
 # ---------------------------------------------------------------- 13D / 13G
+FORM4_DAYS, FORM4_QUEUE = 14, []
+
+def form4_parse(xml):
+    """Insideraffärer ur en Form 4: bara köp (P) och sälj (S) på marknaden – inte tilldelningar, optionslösen eller skatteförsäljningar."""
+    g = lambda tag, b: (re.search(rf"<{tag}>\s*(?:<value>)?\s*([^<]*?)\s*(?:</value>)?\s*</{tag}>", b, re.S) or [None, ""])[1].strip()
+    who = g("rptOwnerName", xml); role = g("officerTitle", xml) or ("styrelseledamot" if g("isDirector", xml) in ("1", "true") else "")
+    rows = []
+    for m in re.finditer(r"<nonDerivativeTransaction>(.*?)</nonDerivativeTransaction>", xml, re.S):
+        b = m.group(1); code = g("transactionCode", b)
+        if code not in ("P", "S"): continue
+        try: sh = float(g("transactionShares", b) or 0); px = float(g("transactionPricePerShare", b) or 0)
+        except ValueError: continue
+        if sh <= 0: continue
+        rows.append({"date": g("transactionDate", b)[:10], "kind": "köp" if code == "P" else "sälj", "vol": sh, "px": px, "amt": round(sh * px)})
+    return who, role, rows
+
+def form4_events(S):
+    """USA:s insynsregister (Form 4) för bolagen i universumet, senaste FORM4_DAYS dagarna. Samma form som FI:s insyn."""
+    out = []
+    q = sorted(FORM4_QUEUE, key=lambda x: x["date"], reverse=True)[:2500]
+    for f in q:
+        try:
+            nod = f["acc"].replace("-", "")
+            r = sec_get(f"https://www.sec.gov/Archives/edgar/data/{f['cik']}/{nod}/{f['doc']}")
+            if not r: continue
+            who, role, rows = form4_parse(r.text)
+            for x in rows:
+                out.append({"t": f["t"], "date": x["date"] or f["date"], "pub": f["date"], "who": who, "role": role, "kind": x["kind"], "vol": x["vol"], "px": x["px"],
+                            "ccy": "USD", "amt": x["amt"], "rel": False})
+        except Exception as e:
+            log(f"  Form 4 {f['t']}: {str(e)[:50]}")
+    # slå ihop samma person + dag + riktning (en Form 4 har ofta flera delavslut)
+    agg = {}
+    for e in out:
+        k = (e["t"], e["who"], e["date"], e["kind"])
+        a = agg.get(k)
+        if a: a["vol"] += e["vol"]; a["amt"] += e["amt"]; a["px"] = round(a["amt"] / a["vol"], 2) if a["vol"] else a["px"]
+        else: agg[k] = dict(e)
+    res = sorted(agg.values(), key=lambda e: e["date"], reverse=True)
+    log(f"  Form 4: {len(q)} filings lästa, {len(res)} köp/sälj i universumet")
+    return res
+
 def filings_13dg(S, days=60):
     r = sec_get("https://www.sec.gov/files/company_tickers.json")
     if not r: return [], "company_tickers.json saknas"
@@ -244,6 +286,7 @@ def filings_13dg(S, days=60):
     us = [t for t in S if "." not in t and not t.endswith("-USD")]
     since = (TODAY - dt.timedelta(days=days)).isoformat()
     out, miss, seen, oldest, forms = [], 0, 0, "9999", {}
+    f4, since4 = [], (TODAY - dt.timedelta(days=FORM4_DAYS)).isoformat()      # Form 4 (USA:s insynsregister) samlas i samma varv
     for t in us:
         cik = t2cik.get(t.upper())
         if not cik: miss += 1; continue
@@ -258,6 +301,8 @@ def filings_13dg(S, days=60):
                 # Edgar heter numera "SCHEDULE 13D"/"SCHEDULE 13G" (tidigare "SC 13D"). Ändringar (/A) hoppas över – mest indexfonders rutinuppdateringar.
                 if re.match(r"(SC|SCHEDULE) 13[DG]$", form):
                     out.append({"t": t, "form": form, "date": fd, "acc": rec["accessionNumber"][i], "cik": cik})
+                elif form == "4" and fd >= since4:
+                    f4.append({"t": t, "date": fd, "acc": rec["accessionNumber"][i], "cik": cik, "doc": rec["primaryDocument"][i]})
         except Exception as e:
             log(f"  13D/13G {t}: {str(e)[:50]}")
     # anmälarens namn ur filingens indexsida; passiva jättar (index- och depåförvaltare, market makers) filtreras bort – de anmäler rutinmässigt
@@ -285,6 +330,7 @@ def filings_13dg(S, days=60):
     out = [ev for ev in out if not ev.get("drop")]
     n_all = len(out)
     out = [ev for ev in out if not (ev.get("who") and PASSIVE.search(ev["who"]))]
+    FORM4_QUEUE.extend(f4)
     for ev in out: ev.pop("acc", None); ev.pop("cik", None)
     log(f"  13D/13G: {n_all} flaggningar, {len(out)} kvar när passiva förvaltare filtrerats bort, senaste {days} dagarna, {miss} tickers utan CIK, {seen} filings lästa (äldsta {oldest}); vanligaste formtyper: {sorted(forms.items(), key=lambda x: -x[1])[:12]}")
     return out, None
@@ -410,6 +456,13 @@ def main():
         insyn = fi_insyn(S, by_name, isin_map); src["INSYN"] = {"ok": True, "n": len(insyn)}
     except Exception as e:
         insyn = prev.get("insyn") or []; src["INSYN"] = {"ok": False, "n": len(insyn), "err": str(e)[:80]}; log("  FI insyn FEL", e)
+    # USA insyn (Form 4) – samma lista som FI:s
+    try:
+        us4 = form4_events(S) if FORM4_QUEUE else []
+        src["FORM4"] = {"ok": bool(FORM4_QUEUE), "n": len(us4), "err": None if FORM4_QUEUE else "inga Form 4 i kön (13D/13G-steget misslyckades?)"}
+        insyn = sorted(insyn + us4, key=lambda e: e["date"], reverse=True)
+    except Exception as e:
+        src["FORM4"] = {"ok": False, "n": 0, "err": str(e)[:80]}; log("  Form 4 FEL", e)
 
     # per ticker – det appen korsar mot topp 20 och portföljer
     by = {}
@@ -450,7 +503,7 @@ def main():
     consensus = sorted(cons.values(), key=lambda c: (-(len(c["buy"]) + len(c["sell"])), c["last"]), reverse=False)
     consensus = sorted(consensus, key=lambda c: -(len(set(c["buy"])) + len(set(c["sell"]))))[:60]
     out = {"updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "sources": src,
-           "managers": managers, "funds": funds, "consensus": consensus, "filings13": f13[:200], "ark": trades[:300], "ark_hold": ark_hold, "insyn": insyn[:300],
+           "managers": managers, "funds": funds, "consensus": consensus, "filings13": f13[:200], "ark": trades[:300], "ark_hold": ark_hold, "insyn": insyn[:600],
            "byTicker": by, "own_hits": sorted(t for t in own if t in by)}
     json.dump(out, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     log(f"Skrev {OUT}: {len(by)} aktier i universumet med radarhändelser, egna träffar: {out['own_hits']}")
