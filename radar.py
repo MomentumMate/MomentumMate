@@ -426,8 +426,11 @@ def main():
     funds = []
     for fund, v in (ark_hold or {}).items():
         hl = sorted([{"t": t, "n": x["n"], "w": round(x["w"], 2), "sh": x["sh"]} for t, x in (v.get("h") or {}).items()], key=lambda e: -e["w"])
+        m_ = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", v.get("asof") or "")
+        old = m_ and (TODAY - dt.date(int(m_.group(3)), int(m_.group(1)), int(m_.group(2)))).days > 10   # ARK:s fil uppdateras inte (ARKW/ARKF/ARKX hösten 2026)
         funds.append({"id": fund, "n": "ARK " + fund, "kind": "ark", "asof": v.get("asof"), "n_pos": len(hl), "holdings": hl[:60], "top3": hl[:3],
-                      "events": [e for e in trades if e["fund"] == fund][:60]})
+                      "events": [e for e in trades if e["fund"] == fund][:60], "stale": bool(old),
+                      "note": "Filen på ark-funds.com har inte uppdaterats sedan dess – fonden räknas inte i signalerna" if old else None})
     for m in managers: m["id"] = f"m{m.get('cik') or m['n']}"; m["kind"] = "13f"
     # konsensus: aktier där flera investerare gjort samma sak (13F senaste rapport, ARK senaste dag, 13D/13G)
     cons = {}
@@ -440,7 +443,9 @@ def main():
         for e in m.get("events", []):
             if e["kind"] in ("ny", "ökat"): c_add(e["t"], m["n"], "buy", m.get("filed"))
             elif e["kind"] in ("minskat", "ut"): c_add(e["t"], m["n"], "sell", m.get("filed"))
-    for e in trades: c_add(e["t"], "ARK " + e["fund"], "buy" if e["kind"] == "köp" else "sell", e["date"])
+    stale_funds = {f["id"] for f in funds if f.get("stale")}
+    for e in trades:
+        if e["fund"] not in stale_funds: c_add(e["t"], "ARK " + e["fund"], "buy" if e["kind"] == "köp" else "sell", e["date"])
     for e in f13: c_add(e["t"], e.get("who") or e["form"], "buy", e["date"])
     consensus = sorted(cons.values(), key=lambda c: (-(len(c["buy"]) + len(c["sell"])), c["last"]), reverse=False)
     consensus = sorted(consensus, key=lambda c: -(len(set(c["buy"])) + len(set(c["sell"]))))[:60]
