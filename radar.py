@@ -257,8 +257,12 @@ def form4_events(S):
     for f in q:
         try:
             nod = f["acc"].replace("-", "")
-            r = sec_get(f"https://www.sec.gov/Archives/edgar/data/{f['cik']}/{nod}/{f['doc']}")
+            # primaryDocument pekar ofta på den xsl-renderade sidan ("xslF345X05/wk-form4_….xml"); råa xml-filen är samma namn utan mappen
+            doc = (f["doc"] or "").split("/")[-1]
+            r = sec_get(f"https://www.sec.gov/Archives/edgar/data/{f['cik']}/{nod}/{doc}")
             if not r: continue
+            if "<ownershipDocument" not in r.text[:3000] and not _last.get("f4dbg"):
+                _last["f4dbg"] = 1; log(f"  Form 4 exempel utan ownershipDocument: {doc} – början: {r.text[:160]!r}")
             who, role, rows = form4_parse(r.text)
             for x in rows:
                 out.append({"t": f["t"], "date": x["date"] or f["date"], "pub": f["date"], "who": who, "role": role, "kind": x["kind"], "vol": x["vol"], "px": x["px"],
