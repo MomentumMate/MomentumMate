@@ -437,5 +437,16 @@ def main():
     json.dump(out, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     log(f"Skrev {OUT}: {len(by)} aktier i universumet med radarhändelser, egna träffar: {out['own_hits']}")
 
+def probe_filings(arg):
+    """Diagnos: alla 13F-relaterade filings för ett CIK eller namn (diagnos.yml)."""
+    cik = int(arg) if arg.isdigit() else resolve_cik(arg, None)
+    r = sec_get(f"https://data.sec.gov/submissions/CIK{int(cik):010d}.json")
+    j = r.json(); rec = j["filings"]["recent"]
+    print(j.get("name"), cik)
+    for i in range(len(rec["form"])):
+        if "13F" in rec["form"][i]:
+            print(f"  {rec['form'][i]:10s} inlämnad {rec['filingDate'][i]} period {rec.get('reportDate', [''] * 999)[i]} {rec['accessionNumber'][i]}")
+
 if __name__ == "__main__":
-    main()
+    if "--filings" in sys.argv: probe_filings(sys.argv[sys.argv.index("--filings") + 1])
+    else: main()

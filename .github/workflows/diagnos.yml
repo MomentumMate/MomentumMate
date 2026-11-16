@@ -5,8 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       tickers:
-        description: "Tickers, kommaseparerade (Yahoo-form), t.ex. AHT.L,ROG.SW"
-        required: true
+        description: "Tickers, kommaseparerade (Yahoo-form), t.ex. AHT.L,ROG.SW – eller tomt"
+        required: false
+      sec:
+        description: "Förvaltare (CIK eller namn) – listar alla 13F-filings hos SEC"
+        required: false
 
 jobs:
   probe:
@@ -19,7 +22,13 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
-      - run: python scanner.py --probe "$TICKERS"
+      - if: github.event.inputs.tickers != ''
+        run: python scanner.py --probe "$TICKERS"
         env:
           TICKERS: ${{ github.event.inputs.tickers }}
           EODHD_KEY: ${{ secrets.EODHD_KEY }}
+      - if: github.event.inputs.sec != ''
+        run: python radar.py --filings "$SEC"
+        env:
+          SEC: ${{ github.event.inputs.sec }}
+          RADAR_CONTACT: ${{ secrets.RADAR_CONTACT }}
