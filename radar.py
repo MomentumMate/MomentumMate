@@ -194,8 +194,8 @@ def manager_13f(m, cache):
     # 13F-NT = förvaltaren har begärt att innehaven hemlighålls (Pershing Square Q2 2026); visa det i stället för att låtsas att Q1 är senaste
     nts = [rec.get("reportDate", [""] * 999)[i] for i in range(len(rec.get("form", []))) if rec["form"][i] == "13F-NT"]
     if nts and max(nts) > out["period"]: out["note"] = f"Kvartalet per {max(nts)} lämnat som 13F-NT – innehaven hemlighålls; visar senaste öppna rapport"
-    # Ingen rapport på över 400 dagar = lämnar inte längre (Scion stängde 2025, Greenlight sedan 2023). Kortet visas men signalerna räknar inte med dem.
-    if (TODAY - dt.date.fromisoformat(filings[0][1])).days > 400: out["stale"] = True
+    # Ingen rapport på över 200 dagar (minst ett missat kvartal) = lämnar inte längre (Scion stängde 2025, Greenlight sedan 2023). Kortet visas men signalerna räknar inte med dem.
+    if (TODAY - dt.date.fromisoformat(filings[0][1])).days > 200: out["stale"] = True      # mer än ett missat kvartal
     tables = []
     for acc, fdate, rdate, prim in filings[:2]:
         nod = acc.replace("-", "")
