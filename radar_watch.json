@@ -1,0 +1,119 @@
+{
+  "managers": [
+    {
+      "n": "Berkshire Hathaway",
+      "cik": 1067983,
+      "key": "BERKSHIRE"
+    },
+    {
+      "n": "Baillie Gifford",
+      "cik": 1088875,
+      "key": "BAILLIE"
+    },
+    {
+      "n": "ARK Investment Management",
+      "cik": 1697748,
+      "key": "ARK"
+    },
+    {
+      "n": "Tiger Global",
+      "cik": 1167483,
+      "key": "TIGER"
+    },
+    {
+      "n": "Coatue Management",
+      "cik": 1135730,
+      "key": "COATUE"
+    },
+    {
+      "n": "Lone Pine Capital",
+      "cik": 1061165,
+      "key": "LONE PINE"
+    },
+    {
+      "n": "Baupost Group",
+      "cik": 1061768,
+      "key": "BAUPOST"
+    },
+    {
+      "n": "Viking Global",
+      "cik": 1103804,
+      "key": "VIKING"
+    },
+    {
+      "n": "Pershing Square",
+      "cik": 1336528,
+      "key": "PERSHING"
+    },
+    {
+      "n": "Third Point",
+      "cik": 1040273,
+      "key": "THIRD POINT"
+    },
+    {
+      "n": "Duquesne Family Office",
+      "cik": 1536411,
+      "key": "DUQUESNE"
+    },
+    {
+      "n": "Appaloosa",
+      "cik": 1656456,
+      "key": "APPALOOSA"
+    },
+    {
+      "n": "Altimeter Capital",
+      "cik": 1541617,
+      "key": "ALTIMETER"
+    },
+    {
+      "n": "Whale Rock Capital",
+      "cik": 1387322,
+      "key": "WHALE ROCK"
+    },
+    {
+      "n": "D1 Capital Partners",
+      "cik": 1747057,
+      "key": "D1 CAPITAL"
+    },
+    {
+      "n": "Soros Fund Management",
+      "cik": 1029160,
+      "key": "SOROS"
+    },
+    {
+      "n": "TCI Fund Management",
+      "cik": 1647251,
+      "key": "TCI FUND"
+    },
+    {
+      "n": "Elliott Investment Management",
+      "cik": 1791786,
+      "key": "ELLIOTT"
+    },
+    {
+      "n": "Fundsmith",
+      "cik": 1569205,
+      "key": "FUNDSMITH"
+    },
+    {
+      "n": "Dragoneer Investment Group",
+      "key": "DRAGONEER"
+    },
+    {
+      "n": "Light Street Capital",
+      "key": "LIGHT STREET"
+    },
+    {
+      "n": "Sands Capital Management",
+      "key": "SANDS CAPITAL"
+    },
+    {
+      "n": "Polen Capital Management",
+      "key": "POLEN"
+    },
+    {
+      "n": "Akre Capital Management",
+      "key": "AKRE"
+    }
+  ]
+}
