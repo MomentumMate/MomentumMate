@@ -392,11 +392,11 @@ function dataGate(){
 function dataStatusHTML(){
   if(!DC)return"";
   const g=dataGate(),m=DC.markets||{};
-  const row=Object.entries(m).map(([k,v])=>`${k}: senast ${v.senaste||"–"}${v.tysta?", "+v.tysta+" tysta":""}${v.flaggade?", "+v.flaggade+" flaggade":""}`).join(" · ");
-  return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
+  const row=Object.entries(m).map(([k,v])=>`${k}: handelsdag ${v.senaste||"–"}${v.tysta?", "+v.tysta+" tysta":""}${v.flaggade?", "+v.flaggade+" flaggade":""}`).join(" · ");
+  return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-at";
+const APPV="2026-11-16-au";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -989,6 +989,7 @@ const enc=encodeURIComponent;
 const fmtV=n=>n==null?"–":n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?Math.round(n/1e3)+"k":String(n);
 const TZL=(()=>{try{const o=-new Date().getTimezoneOffset()/60;return "lokal tid (UTC"+(o>=0?"+":"")+o+")"}catch(e){return "lokal tid"}})();
 const hhmm=iso=>{try{return new Date(iso).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"})}catch(e){return""}};
+const dhm=iso=>{try{const d=new Date(iso);return d.toLocaleDateString("sv-SE",{weekday:"short",day:"numeric",month:"short"})+" "+hhmm(iso)}catch(e){return""}};
 /* Kursens ursprung (2026-11-09): varje kurs visas med källa och tid så att gammal data aldrig ser ut som "nu".
    qsrc: finnhub (realtid, USA), live (EODHD fördröjd via live-grenen), eodhd (fördröjd kurs), annars skanningen (stängning lt). */
 function pxSrc(s){
@@ -3077,7 +3078,7 @@ function radarBadge(t){const ev=radarFor(t);if(!ev.length)return"";const b=ev.fi
 function rEvHTML(e,withT){const who=esc(e.who||""),k=esc(e.kind),d=esc(e.date||"");
   const det=e.src==="13F"?`${k}${e.w?` · ${f(e.w,1)} % av portföljen`:""}`:e.src==="ARK"?`${k} ${e.d?f(Math.abs(e.d),0)+" st":""}${e.w?` · vikt ${f(e.w,2)} %`:""}`:e.src==="INSYN"?`${k}${e.amt?` ≈ ${kr(e.amt)} ${esc(e.ccy)}`:""}`:k;
   return`<div class="k" style="padding:4px 2px;font-size:12px;border-bottom:1px solid var(--ln)"><div style="display:flex;justify-content:space-between;gap:8px"><span>${withT?`${flagOf(e.t)} <b class="tlk" data-act="gostock" data-t="${esc(e.t)}">${esc((S[e.t]||{d:e.t}).d)}</b> · `:""}<b class="${rBuy(e)?"up":rSell(e)?"dn":""}">${det}</b></span><span class="mu" style="white-space:nowrap">${d}</span></div><div class="mu" style="font-size:11px">${RSRC[e.src]||esc(e.src)} · ${who}</div></div>`}
-function rInvestors(){return((RD&&RD.managers)||[]).concat((RD&&RD.funds)||[])}
+function rInvestors(){return((RD&&RD.managers)||[]).concat((RD&&RD.funds)||[]).slice().sort((a,b)=>(a.n||"").localeCompare(b.n||"","sv",{sensitivity:"base"}))}
 function rInv(id){return rInvestors().find(x=>x.id===id)}
 const rNm=t=>S[t]?esc(S[t].d):esc(t),rLink=t=>S[t]?`<b class="tlk" data-act="gostock" data-t="${esc(t)}">${esc(S[t].d)}</b>`:`<b>${esc(t||"?")}</b>`;
 function rHoldRow(h,i){return`<div class="sr"><div class="n">${i+1}</div><div class="m"><div>${h.t&&S[h.t]?fl(S[h.t]):""}${rLink(h.t||h.n)} <span class="mu">${esc(h.t&&S[h.t]?S[h.t].n:(h.n||""))}</span></div>${h.kind&&h.kind!=="innehav"&&h.kind!=="oförändrat"?`<div class="mu" style="font-size:11px"><b class="${["ny","ökat"].includes(h.kind)?"up":"dn"}">${esc(h.kind)}</b> sedan förra rapporten</div>`:""}</div><div class="p"><b>${f(h.w,1)} %</b>${h.v?`<div class="mu" style="font-size:11px">${kr(h.v)} MUSD</div>`:""}</div></div>`}
