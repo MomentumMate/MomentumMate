@@ -185,6 +185,11 @@ vikt per innehav; portföljens realiserade volatilitet (60 dagar); största nedg
 Varning visas vid hög koncentration (t.ex. fler än 8 av 20 i en sektor). Riskprofil hanteras utanför modellen: användaren bestämmer
 hur stor del av kapitalet som ligger i strategin och lägger resten i indexfond/räntor.
 
+*Byggt 2026-11-16 (app aw), modulen RISK i portföljvyn:* exponering per marknad/valuta/sektor, vikt per innehav mot målvikt och band, volatilitet 60 d (årstakt),
+nedgång från topp (nu och största) och värsta/bästa dag ur appens dagliga ögonblicksbilder rensade för registrerade köp/sälj; hållvillkorens läge (⏳);
+koncentrationsvarningar (sektor > 40 % av antalet eller vikten, marknad ≥ 80 %, innehav över bandet); marknadsbredd för hela universumet (andel över SMA200, andel
+med positivt 12-1, andel upp i dag, per marknad). Information – styr inget.
+
 ## 16. Datakvalitet och exekvering (information och spärr)
 
 - **Daglig datakontroll** (`datacheck.yml`, 03:30 UTC natten efter varje handelsdag): per aktie senaste stängning (högst två handelsdagar gammal i aktiens egen marknad),

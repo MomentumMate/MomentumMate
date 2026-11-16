@@ -398,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-av";
+const APPV="2026-11-16-aw";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -693,6 +693,7 @@ function vPort(id){
   ${pfHero(p,c,"detail")}
   ${p.demo?demoHTML(p):""}
   ${dataStatusHTML()}${propHTML(p,c,sigs,rot,ideas)}
+  ${riskHTML(p,c)}
   <div class="mh" style="margin:14px 0 8px;padding:0 16px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd);flex:1">INNEHAV (${c.rows.length})</h2>${(p.archive||[]).length?`<span class="pmh" data-act="archtoggle" data-pid="${p.id}" style="display:flex;align-items:center;gap:6px;cursor:pointer"><span style="font-size:13px;letter-spacing:1.8px;color:var(--gd);font-weight:700">ARKIV</span><span class="pchev" id="archchev">${Ui.archOpen?"▴":"▾"}</span></span>`:""}</div>
   ${Ui.archOpen?archiveHTML(p):""}
   ${c.rows.length?`<div class="srt" style="padding:0 16px;margin:0 0 14px"><span class="mu">Sortera:</span>${[["size","Storlek"],["name","A–Ö"],["ret","Förändring"],["day","Idag"]].map(x=>`<span class="chip mk${Ui.psort===x[0]?" on":""}" data-act="psort" data-v="${x[0]}">${x[1]}</span>`).join("")}<span class="chip mk" data-act="pick" data-pid="${p.id}" title="Lägg till aktie">＋</span><span class="pchev" style="margin-left:auto;cursor:pointer" data-act="psexp" data-pid="${p.id}" title="${p.h.every(h=>open.has("h:"+h.t))?"Fäll ihop alla":"Fäll ut alla"}">${p.h.every(h=>open.has("h:"+h.t))?"▴":"▾"}</span></div>`:`<div class="srt" style="padding:0 16px"><span class="chip mk" data-act="pick" data-pid="${p.id}">＋ Lägg till aktie</span></div>`}
@@ -933,6 +934,7 @@ function act(a,d){
     case"logshow":logSheet(d.pid);break;
     case"radarinfo":radarInfoSheet();break;
     case"radarwatch":radarWatchSheet();break;
+    case"risktog":{Ui.riskOpen=!Ui.riskOpen;const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rsig":Ui.rsig=d.v;vRadar();break;
     case"rtog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;vRadar();window.scrollTo(0,y);break}
     case"qrwreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
@@ -1333,6 +1335,47 @@ function health(h){
   if(s.lt){const days=(Date.now()-Date.parse(s.lt))/864e5;if(days>6)return{k:"stale",short:"Gammal kurs",msg:"Senaste kurs är från "+s.lt+" – aktien kan vara handelsstoppad eller avnoterad."}}
   return null
 }
+/* ---------- RISKPANEL (SPEC § 15 – information, styr inget; arbetslista 6, 2026-11-16) ----------
+   Exponering per marknad, valuta och sektor; vikt per innehav mot målvikt; portföljens realiserade volatilitet (60 dagar) och
+   nedgång från tidigare topp ur appens dagliga ögonblicksbilder (rensade för registrerade köp/sälj, som transaktionsloggen);
+   hållvillkorens läge; koncentrationsvarningar. Därtill marknadsbredd för hela universumet. Inget av detta ändrar en rad i förslaget. */
+const mkGroup=t=>/\.(ST|CO|OL|HE)$/.test(t)?"Norden":t.includes(".")?"Europa":"USA";
+function riskSeries(p,days){const snap=((P.snap&&P.snap[p.id])||[]).slice(-(days||400));if(snap.length<3)return null;
+  const flows={};(p.tx||[]).forEach(x=>{const s=S[x.t]||{},a=x.q*x.px*fx(s.ccy||"SEK");flows[x.d]=(flows[x.d]||0)+(x.k==="buy"?a:-a)});
+  const idx=[1],rets=[];for(let i=1;i<snap.length;i++){const d0=snap[i-1][0],d1=snap[i][0];let fl=0;for(const d in flows)if(d>d0&&d<=d1)fl+=flows[d];const base=snap[i-1][1]+fl;const r=base>0?snap[i][1]/base-1:0;rets.push(r);idx.push(idx[idx.length-1]*(1+r))}
+  return{dates:snap.map(x=>x[0]),idx,rets}}
+function riskStats(p){const rs=riskSeries(p);if(!rs)return null;const r=rs.rets.slice(-60);if(r.length<10)return{n:r.length};
+  const m=r.reduce((a,b)=>a+b,0)/r.length,v=Math.sqrt(r.reduce((a,b)=>a+(b-m)*(b-m),0)/(r.length-1))*Math.sqrt(252)*100;
+  let pk=-1,dd=0,ddNow=0;rs.idx.forEach(x=>{if(x>pk)pk=x;const d=x/pk-1;if(d<dd)dd=d;ddNow=d});
+  const worst=Math.min(...r)*100,best=Math.max(...r)*100;
+  return{n:r.length,vol:v,dd:dd*100,ddNow:ddNow*100,worst,best,days:rs.dates.length,from:rs.dates[0]}}
+function breadth(){const L=Object.values(S).filter(x=>x&&x.px>0&&x.inf!==false),n=L.length||1;
+  const a200=L.filter(x=>x.a200).length,pos=L.filter(x=>typeof x.m121==="number"&&x.m121>0).length,up=L.filter(x=>x.chg>0).length;
+  const by={};L.forEach(x=>{const g=mkGroup(x.t);const o=by[g]=by[g]||{n:0,a:0};o.n++;if(x.a200)o.a++});
+  return{n,a200:a200/n*100,pos:pos/n*100,up:up/n*100,by}}
+function riskHTML(p,c){if(!c.rows.length)return"";const tot=c.tot||1,N=p.targetN||(profileFor(tot)||{}).n||MODEL.fullN,tgtW=100/N;
+  const agg=(key)=>{const o={};c.rows.forEach(r=>{const k=key(r);o[k]=(o[k]||0)+r.w});return Object.entries(o).sort((a,b)=>b[1]-a[1])};
+  const bar=(rows,warnAt)=>rows.map(([k,w])=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:2px 0"><span style="flex:0 0 110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(k)}</span><span style="flex:1;height:7px;background:var(--ln);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:${Math.min(100,w)}%;background:${warnAt&&w>=warnAt?"var(--dn)":"var(--gd)"}"></span></span><b style="flex:0 0 46px;text-align:right">${f(w,0)} %</b></div>`).join("");
+  const secs=agg(r=>r.s&&r.s.sec||"Okänd"),mk=agg(r=>mkGroup(r.h.t)),ccy=agg(r=>r.s?r.s.ccy:(r.h.ccy||"SEK"));
+  const secCnt={};c.rows.forEach(r=>{const k=r.s&&r.s.sec||"Okänd";secCnt[k]=(secCnt[k]||0)+1});
+  const warns=[];Object.entries(secCnt).forEach(([k,n])=>{if(n>0.4*N&&c.rows.length>=5)warns.push(`${n} av ${c.rows.length} innehav i ${k} (över 40 % av antalet)`)});
+  secs.forEach(([k,w])=>{if(w>=40)warns.push(`${esc(k)} väger ${f(w,0)} % av portföljen`)});
+  const big=c.rows.filter(r=>r.w>tgtW*1.25);if(big.length)warns.push(`${big.length} innehav över bandet 1,25 × målvikt (${f(tgtW*1.25,1)} %) – likaviktas vid kvartalsskiftet (§ 7)`);
+  const under=c.rows.filter(r=>r.s&&!r.s.a200).length,neg=c.rows.filter(r=>r.s&&typeof r.s.m121==="number"&&r.s.m121<=0).length;
+  if(under)warns.push(`${under} innehav under SMA200 ⏳ (prövas vid månadsskiftet, § 6)`);if(neg)warns.push(`${neg} innehav med 12-1 ≤ 0 ⏳`);
+  if(mk[0]&&mk[0][1]>=80&&mk.length>1)warns.push(`${f(mk[0][1],0)} % i ${mk[0][0]}`);
+  const st=riskStats(p),br=breadth();
+  const open=!!Ui.riskOpen;
+  return`<div class="mod"><div class="mh" data-act="risktog" style="cursor:pointer"><div class="ico">⚖</div><h2>RISK${warns.length?` <span class="tag" style="margin-left:6px;background:rgba(232,107,92,.18)">${warns.length} varning${warns.length>1?"ar":""}</span>`:""}</h2><span class="go">${open?"▲":"▼"}</span></div>
+  ${warns.length&&!open?`<div class="mu" style="font-size:11.5px">${warns.slice(0,2).join(" · ")}${warns.length>2?" …":""}</div>`:""}
+  ${open?`
+  ${warns.length?`<div class="stat WAIT" style="margin:4px 0 8px;font-size:11.5px"><b>⚠ KONCENTRATION</b>${warns.map(w=>`<div class="k" style="padding:2px 0">• ${w}</div>`).join("")}</div>`:'<div class="mu" style="font-size:11.5px;margin-bottom:6px">Inga koncentrationsvarningar.</div>'}
+  <div class="kv" style="margin:6px 0"><div><small>Volatilitet 60 d (årstakt)</small><b>${st&&st.vol!=null?f(st.vol,0)+" %":"–"}</b></div><div><small>Nedgång från topp nu</small><b class="${st&&st.ddNow<0?"dn":""}">${st&&st.ddNow!=null?f(st.ddNow,1)+" %":"–"}</b></div><div><small>Största nedgång</small><b class="dn">${st&&st.dd!=null?f(st.dd,1)+" %":"–"}</b></div><div><small>Värsta dag 60 d</small><b class="dn">${st&&st.worst!=null?f(st.worst,1)+" %":"–"}</b></div><div><small>Bästa dag 60 d</small><b class="up">${st&&st.best!=null?"+"+f(st.best,1)+" %":"–"}</b></div><div><small>Innehav / målvikt</small><b>${c.rows.length} / ${f(tgtW,1)} %</b></div></div>
+  ${!st||st.vol==null?`<div class="mu" style="font-size:11px">Volatilitet och nedgång räknas ur appens dagliga ögonblicksbilder – ${st?st.n:0} av 10 dagar hittills; öppna appen dagligen så fylls de på.</div>`:`<div class="mu" style="font-size:11px">Ur ${st.days} dagliga ögonblicksbilder sedan ${esc(st.from)}, rensade för registrerade köp/sälj. Backtestets referens: största nedgång −43 %, räkna med −50 % (§ 14).</div>`}
+  <h4 style="margin:10px 2px 4px">Marknad</h4>${bar(mk,80)}<h4 style="margin:10px 2px 4px">Valuta</h4>${bar(ccy,80)}<h4 style="margin:10px 2px 4px">Sektor</h4>${bar(secs,40)}
+  <h4 style="margin:10px 2px 4px">Vikt per innehav (målvikt ${f(tgtW,1)} %, band ${f(tgtW*.75,1)}–${f(tgtW*1.25,1)} %)</h4>${bar(c.rows.slice().sort((a,b)=>b.w-a.w).map(r=>[(r.s?r.s.d:r.h.t)+(r.s&&!r.s.a200?" ⏳":""),r.w]),tgtW*1.25)}
+  <h4 style="margin:10px 2px 4px">Marknadsbredd (hela universumet, ${br.n} aktier)</h4><div class="kv"><div><small>Över SMA200</small><b class="${br.a200>=50?"up":"dn"}">${f(br.a200,0)} %</b></div><div><small>12-1 positivt</small><b class="${br.pos>=50?"up":"dn"}">${f(br.pos,0)} %</b></div><div><small>Upp i dag</small><b>${f(br.up,0)} %</b></div>${Object.entries(br.by).map(([k,o])=>`<div><small>${esc(k)} över SMA200</small><b>${f(o.a/o.n*100,0)} %</b></div>`).join("")}</div>
+  <div class="mu" style="font-size:11px;margin-top:6px">Information – inget här ändrar en rad i förslaget (SPEC § 15). Risknivån styrs av hur stor del av kapitalet som ligger i strategin.</div>`:""}</div>`}
 function healthPanel(c,p){
   const bad=c.rows.filter(r=>r.hl);if(!bad.length)return"";
   const unv=bad.filter(r=>r.hl.k!=="stale").reduce((a,r)=>a+r.val,0);
