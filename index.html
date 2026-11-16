@@ -128,6 +128,8 @@ h4[data-i]{cursor:pointer}
 .dd.open .ddl{display:block}
 .dd .ddl .it{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;cursor:pointer;white-space:nowrap;font-size:14.5px}
 .dd .ddl .it .ic{color:var(--gd);display:inline-flex;width:18px;justify-content:center}
+.icb{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:4px;background:#000;color:var(--gd);font-size:12px;line-height:1;margin-right:6px;vertical-align:-4px;flex:none}
+.icb svg{width:12px;height:12px}
 .dd .ddl .it:hover,.dd .ddl .it.on{background:#2a2217}
 .dd .ddl .it.on{color:var(--gd)}
 .dd .ddl .sep{height:1px;background:var(--bd);margin:6px 4px}
@@ -396,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-au";
+const APPV="2026-11-16-av";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1757,6 +1759,7 @@ function orderedMkts(){
    right: html som läggs längst till höger (⋯, ⓘ). Samma utseende som modulrubrikerna. */
 const DDIC={
   pf:'<span class="ic">▦</span>',
+  radar:'<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v9l6 3"/></svg></span>',
   globe:'<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg></span>',
   bolt:'<span class="ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span>',
   news:'<span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h13v14H6a2 2 0 0 1-2-2zM17 9h3v8a2 2 0 0 1-2 2M7 9h7M7 13h7"/></svg></span>'};
@@ -3084,7 +3087,7 @@ const rNm=t=>S[t]?esc(S[t].d):esc(t),rLink=t=>S[t]?`<b class="tlk" data-act="gos
 function rHoldRow(h,i){return`<div class="sr"><div class="n">${i+1}</div><div class="m"><div>${h.t&&S[h.t]?fl(S[h.t]):""}${rLink(h.t||h.n)} <span class="mu">${esc(h.t&&S[h.t]?S[h.t].n:(h.n||""))}</span></div>${h.kind&&h.kind!=="innehav"&&h.kind!=="oförändrat"?`<div class="mu" style="font-size:11px"><b class="${["ny","ökat"].includes(h.kind)?"up":"dn"}">${esc(h.kind)}</b> sedan förra rapporten</div>`:""}</div><div class="p"><b>${f(h.w,1)} %</b>${h.v?`<div class="mu" style="font-size:11px">${kr(h.v)} MUSD</div>`:""}</div></div>`}
 function rInvCard(m,mode){const ev=(m.events||[]).filter(e=>["ny","ökat","minskat","ut","köp","sälj"].includes(e.kind));
   const head=m.kind==="ark"?`Innehav per ${esc(m.asof||"–")} · ${m.n_pos} positioner · ${ev.length} rörelser senaste dagen`:m.err?`<span class="dn">${esc(m.err)}</span>`:`Rapport per ${esc(m.period||"")}, inlämnad ${esc(m.filed||"")} · ${m.n_pos} positioner · ${kr(m.value_musd||0)} MUSD · ${ev.length} rörelser mot förra rapporten${m.stale?` · <b class="dn">lämnar inte längre – räknas inte i signalerna</b>`:""}${m.note?`<br><span class="dn">${esc(m.note)}</span>`:""}`;
-  return`<div class="mod" data-go="#/radar/${enc(m.id)}"><div class="mh"><div class="ico">${m.kind==="ark"?"🚀":"🏛"}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div><div class="mu" style="font-size:11.5px">${head}</div>${(m.top3||[]).map((h,i)=>rHoldRow(h,i)).join("")}</div>`}
+  return`<div class="mod" data-go="#/radar/${enc(m.id)}"><div class="mh"><div class="ico"><span class="icb" style="margin:0">▦</span></div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div><div class="mu" style="font-size:11.5px">${head}</div>${(m.top3||[]).map((h,i)=>rHoldRow(h,i)).join("")}</div>`}
 function rMoveRow(e){const who=esc(e.who||""),d=esc(e.date||"");const k=e.kind;const det=e.src==="13F"?`${k}${e.w?` · ${f(e.w,1)} % av portföljen`:""}`:e.src==="ARK"?`${k} ${e.d?f(Math.abs(e.d),0)+" st":""}${e.w?` · vikt ${f(e.w,2)} %`:""}`:e.src==="INSYN"?`${k}${e.amt?` ≈ ${kr(e.amt)} ${esc(e.ccy)}`:""}`:k;
   return`<div class="sr"><div class="m"><div>${e.t&&S[e.t]?fl(S[e.t]):""}${e.t?rLink(e.t):`<b>${esc(e.n||"?")}</b>`}${e.t&&!S[e.t]?'<span class="mu" style="font-size:10.5px"> (utanför universumet)</span>':""} <b class="${rBuy(e)?"up":rSell(e)?"dn":""}" style="font-size:12px">${det}</b></div><div class="mu" style="font-size:11px">${RSRC[e.src]||esc(e.src)} · ${who}</div></div><div class="p mu" style="font-size:11px">${d}</div></div>`}
 /* Signaler i översikten (ägarens Institutionell radar.pdf, 2026-11-09): nya köp, ökade innehav, konsensus, övertygelse,
@@ -3172,12 +3175,13 @@ function vRadar(arg){
   if(!RD){view(`${topbar("Radar",true)}<div class="empty">Radarn har inte körts ännu (Actions → Institutionell radar).</div>`);return}
   if(arg&&arg.startsWith("t:")){vRadarStock(arg.slice(2));return}
   const inv=rInvestors(),cur=arg?rInv(arg):null;
-  const dd=dropdown("ddrd",cur?esc(cur.n):"Alla investerare",[{html:"👥 Alla investerare",on:!cur,attrs:`data-go="#/radar"`},{sep:true}].concat(inv.map(m=>({html:`${m.kind==="ark"?"🚀":"🏛"} ${esc(m.n)}`,on:cur&&cur.id===m.id,attrs:`data-go="#/radar/${enc(m.id)}"`}))),{icon:"pf"});
+  const RIC='<span class="icb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v9l6 3"/></svg></span>';
+  const dd=dropdown("ddrd",cur?esc(cur.n):"Alla investerare",[{html:RIC+"Alla investerare",on:!cur,attrs:`data-go="#/radar"`},{sep:true}].concat(inv.map(m=>({html:`<span class="icb">▦</span>${esc(m.n)}`,on:cur&&cur.id===m.id,attrs:`data-go="#/radar/${enc(m.id)}"`}))),{icon:"radar"});
   const src=RD.sources||{};const srcLine=Object.entries(src).map(([k,v])=>`<span class="chip${v.ok?" on":""}" style="font-size:10.5px" title="${esc(v.err||"")}">${RSRC[k]||k} ${v.ok?"✓":"✗"}</span>`).join(" ");
   const foot=`<div class="acts" style="margin-top:10px"><button class="btn sm ghost" data-act="radarwatch">👥 Förvaltare att skugga</button>${runLink("radar.yml","Kör radarn nu ›")}</div><div class="mu" style="font-size:11px;margin-top:6px">Uppdaterad ${RD.updated?hhmm(RD.updated):"–"} · ${srcLine}<br>13F släpar upp till 45 dagar efter kvartalsslut. Allt här är information – inget ändrar en rad i förslaget (SPEC § 12).</div>`;
   if(cur){const hl=cur.holdings||[],ev=(cur.events||[]);
     view(`${topbar("Radar",true,topBtn(`data-act="radarinfo"`,'<span class="ii">ⓘ</span>',"Om radarn"))}${dd}
-    <div class="mod"><div class="mh"><div class="ico">${cur.kind==="ark"?"🚀":"🏛"}</div><h2>${esc(cur.n).toUpperCase()}</h2></div><div class="mu" style="font-size:11.5px">${cur.kind==="ark"?`Innehav per ${esc(cur.asof||"–")} · ${cur.n_pos} positioner`:cur.err?esc(cur.err):`Rapport per ${esc(cur.period||"")}, inlämnad ${esc(cur.filed||"")} · ${cur.n_pos} positioner · ${kr(cur.value_musd||0)} MUSD`}${cur.stale?` · <b class="dn">lämnar inte längre – räknas inte i signalerna</b>`:""}${cur.note?`<br><span class="dn">${esc(cur.note)}</span>`:""}</div></div>
+    <div class="mod"><div class="mh"><div class="ico"><span class="icb" style="margin:0">▦</span></div><h2>${esc(cur.n).toUpperCase()}</h2></div><div class="mu" style="font-size:11.5px">${cur.kind==="ark"?`Innehav per ${esc(cur.asof||"–")} · ${cur.n_pos} positioner`:cur.err?esc(cur.err):`Rapport per ${esc(cur.period||"")}, inlämnad ${esc(cur.filed||"")} · ${cur.n_pos} positioner · ${kr(cur.value_musd||0)} MUSD`}${cur.stale?` · <b class="dn">lämnar inte längre – räknas inte i signalerna</b>`:""}${cur.note?`<br><span class="dn">${esc(cur.note)}</span>`:""}</div></div>
     ${ev.length?`<div class="mod"><div class="mh"><div class="ico">↔</div><h2>${cur.kind==="ark"?"SENASTE DAGENS RÖRELSER":"RÖRELSER MOT FÖRRA RAPPORTEN"}</h2></div>${ev.slice(0,40).map(e=>rMoveRow(Object.assign({src:cur.kind==="ark"?"ARK":"13F",who:cur.n,date:cur.kind==="ark"?cur.asof:cur.filed},e))).join("")}</div>`:""}
     <div class="mod"><div class="mh"><div class="ico">◔</div><h2>INNEHAV (${hl.length}${cur.n_pos>hl.length?" största av "+cur.n_pos:""})</h2></div>${hl.map((h,i)=>rHoldRow(h,i)).join("")||'<div class="mu">Inga innehav lästa.</div>'}</div>${foot}`);return}
   // Översikt: valbar signal (ägarens lista), utfällbara rader, sedan ett kort per investerare
