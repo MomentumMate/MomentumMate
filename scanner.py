@@ -1954,6 +1954,16 @@ def probe(tickers):
             h = yf.Ticker(t).history(period="1mo")
             print(f"  Yahoo 1 mån: {len(h)} rader" + (f", senaste {h.index[-1].date()} close {float(h['Close'].iloc[-1]):.2f}" if len(h) else ""))
         except Exception as e: print("  Yahoo fel:", str(e)[:80])
+        # intradag (2026-11-16): EODHD:s intraday-API (ingår i vissa planer) och Yahoo 5 min
+        try:
+            now = int(time.time())
+            j = eodhd_get(f"intraday/{eodhd_symbol(t)}", interval="5m", **{"from": now - 3 * 86400, "to": now})
+            print(f"  EODHD intraday 5m: {len(j) if j else 0} rader" + (f", senaste {j[-1].get('datetime')} close {j[-1].get('close')}" if j else ""))
+        except Exception as e: print("  EODHD intraday fel:", str(e)[:100])
+        try:
+            h = yf.download(t, period="2d", interval="5m", prepost=True, progress=False, auto_adjust=True)
+            print(f"  Yahoo 5m: {len(h)} rader" + (f", senaste {h.index[-1]}" if len(h) else ""))
+        except Exception as e: print("  Yahoo 5m fel:", str(e)[:80])
 
 def read_extra_markets():
     try:
