@@ -398,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-aw";
+const APPV="2026-11-16-ax";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -690,7 +690,7 @@ function vPort(id){
   ${dropdown("ddpf",esc(p.name),[{html:"▦ Översikt",attrs:`data-go="#/portfolio"`},{sep:true}].concat(P.ps.map(x=>({html:esc(x.name),on:x.id===p.id,attrs:`data-act="psel" data-id="${x.id}"`}))).concat([{sep:true},{html:"＋ Ny portfölj",attrs:`data-act="newport"`},{html:"🧪 Ny demoportfölj",attrs:`data-act="demonew"`}]),{icon:"pf"})}
   ${quoteStatus()}
   ${staleBanner()}${healthPanel(c,p)}
-  ${pfHero(p,c,"detail")}
+  ${pfHero(p,p.demo?Object.assign({},c,{tot:c.tot+(p.demo.cash||0)}):c,"detail")}
   ${p.demo?demoHTML(p):""}
   ${dataStatusHTML()}${propHTML(p,c,sigs,rot,ideas)}
   ${riskHTML(p,c)}
@@ -2224,7 +2224,7 @@ function propHTML(p,c,sigs,rot,ideas){
     const extra=x?`<div class="mu" style="white-space:normal;font-size:11.5px">Appens omfördelning: ${x.map(y=>esc(y.a.s.d)).join(", ")} → ${esc(dn(it.t))} (${esc(x[0].wb[0]||"")})</div>`:"";
     const pri=g==="buy"?(it.pri!=null?+it.pri:0):0;
     pushG(g,`<div class="sr plr${it.done?" done":""}"><div class="m"><div>${g==="buy"?"@@RANK@@":""}${flag(it.t)}${tlink(it.t,dn(it.t))}<span class="pla ${g==="sell"?"S":g==="buy"?"B":"H"}">${lab(it)}${it.q?" "+it.q+" st":""}</span>${r&&["BUY","SELL","TRIM","WATCH"].includes(r.sig.k)&&SIGL[r.sig.k]!==lab(it)&&!(it.a==="KÖP"&&r.sig.k==="BUY")?`<span class="sig ${r.sig.k}" style="margin-left:6px" title="Appens egen signal">appen: ${SIGL[r.sig.k]}</span>`:""}</div><div class="mu">${esc(nm(it.t,it))}${it.q?" · ≈ "+kr(planAmt(it))+" kr":""}${(()=>{const w=r?r.w:(it.q&&c&&c.tot?planAmt(it)/c.tot*100:0);return w>0?` · ${f(w,1)} %${r?"":" ny"}`:""})()}</div>${(()=>{let w="";try{w=explainRow(p,it,c)}catch(e){}return w?`<div class="mu" style="white-space:normal;font-size:11.5px">${esc(w)}</div>`:it.why?`<div class="mu" style="white-space:pre-line">${esc(it.why)}</div>`:""})()}${g==="buy"&&pri&&rulesOf0(p).mode==="sat"?`<div class="mu" style="font-size:11px">Prioritetspoäng ${f(pri,1)}</div>`:""}${appLine(r,it)}${extra}</div>
-     <div class="p">${it.a==="BEHÅLL"?"":it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>${(()=>{const e=logOpenFor(p,it);return e?`<button class="btn sm ghost" data-act="logskip" data-pid="${p.id}" data-id="${e.id}" title="Avstå med orsak">✕</button>`:""})()}`}</div></div>`,pri)});
+     <div class="p">${it.a==="BEHÅLL"?"":p.demo?(it.done?'<span class="chip">✓ utförd</span>':'<span class="chip" title="Demoportföljen utför ordern själv på första stängning efter signalen">⏳ automatiskt</span>'):it.done?`<span class="chip" data-act="plandone" data-pid="${p.id}" data-i="${i}">✓ klart</span>`:`<button class="btn sm" data-act="planapply" data-pid="${p.id}" data-i="${i}">Registrera</button>${(()=>{const e=logOpenFor(p,it);return e?`<button class="btn sm ghost" data-act="logskip" data-pid="${p.id}" data-id="${e.id}" title="Avstå med orsak">✕</button>`:""})()}`}</div></div>`,pri)});
   RA.forEach(a=>{const r=a.r,h=r.h,repl=RP.get(a)||[];
     G.sell.push(`<div class="sr rls"><div class="m"><div>${flag(h.t)}${tlink(h.t,r.s?r.s.d:h.t)}<span class="pla S">${RLAB[a.k]} ${a.q} st</span></div><div class="mu">${esc(r.s?r.s.n:(h.n||h.t))} · ≈ ${kr(a.amt)} kr · vikt ${f(r.w,1)} %</div><div class="mu" style="white-space:normal">${esc(a.why)}</div>
       ${repl.length?repl.map((x,ix)=>`<div class="mu" style="white-space:normal;font-size:11.5px">↪ Ersätt med <b class="rk">#${ix+1}</b> ${tlink(x.s.t,x.s.d)} ${x.q} st (≈ ${kr(x.amt)} kr · poäng ${x.s.sc} · RSI ${x.s.rsi}) <span class="chip" data-act="rulebuy" data-pid="${p.id}" data-t="${esc(x.s.t)}" data-q="${x.q}">Köp</span></div>`).join(""):`<div class="mu" style="font-size:11.5px">↪ Ingen ersättare uppfyller reglerna just nu (poäng ≥ 60, trend upp, RSI ≤ ${p.rules.maxRsi}).</div>`}</div>
@@ -3036,7 +3036,7 @@ function demoNewSheet(){
     demoOrders(p,plan.items,"start");P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route();toast("Demoportföljen skapad – köporderna utförs på nästa stängning")}})}
 function demoHTML(p){const d=p.demo;if(!d)return"";const c=calc(p),v=c.tot+d.cash,ret=(v/d.cap-1)*100,nm=t=>esc((S[t]||{d:t}).d);
   return`<div class="mod" style="margin-top:10px"><div class="mh"><div class="ico">🧪</div><h2>DEMOPORTFÖLJ</h2></div>
-  <div class="mu" style="font-size:12.5px">Förvaltas mekaniskt av modellen sedan ${esc(d.start)} – inga manuella affärer. Startkapital ${kr(d.cap)} kr. Order utförs på första stängning efter signalen, med courtage (💰 Avgifter) och slippage som i backtestet.</div>
+  <div class="mu" style="font-size:12.5px">Förvaltas helt av modellen sedan ${esc(d.start)} – du registrerar ingenting. Startkapital ${kr(d.cap)} kr. Order läggs på en stängningsskanning och utförs automatiskt på nästa stängning som skanningen ser för aktien (T+1, som backtestet), till stängningskurs med courtage (💰 Avgifter) och slippage. Köporderna syns nedan som ⏳ tills de är utförda – i praktiken nästa morgon för USA-aktier, en dag senare för nordiska som låg öppna när skanningen togs.</div>
   <div class="kv" style="margin-top:8px"><div><small>Totalt inkl. kassa</small><b>${kr(v)} kr</b></div><div><small>Kassa</small><b>${kr(d.cash)} kr</b></div><div><small>Sedan start</small><b class="${cls(ret)}">${sg(ret)}</b></div></div>
   ${d.pend.length?`<div class="stat WAIT" style="margin-top:8px;font-size:11.5px"><b>⏳ VÄNTANDE ORDER (${d.pend.length})</b> – utförs på nästa stängningsskanning: ${d.pend.slice(0,12).map(o=>`${o.a} ${f(o.q,0)} ${nm(o.t)}`).join(" · ")}${d.pend.length>12?" …":""}</div>`:""}
   ${d.log.length?`<h4 style="margin:12px 2px 6px">Utförda order (${d.log.length})</h4>${d.log.slice(0,12).map(x=>`<div class="k mu" style="padding:3px 2px">${esc(x.d)} · ${x.a} ${f(x.q,0)} ${nm(x.t)}${x.q?` @ ${f(x.px)} ${esc(x.ccy)} · ${kr(x.amt)} kr · avgift ${kr(x.fee)} kr`:""}${x.note?` · ${esc(x.note)}`:""}</div>`).join("")}`:""}
