@@ -396,7 +396,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+hhmm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-16-as";
+const APPV="2026-11-16-at";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -755,6 +755,7 @@ function vStock(t){
   <div class="al">${s.dok?'<span class="tag" style="margin:0">DAGHANDEL</span>':""}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(a=>`<span class="ab ${a.k}">${ic(a.k)}${shortA(a)}</span>`).join("")}</div>
 
   ${inP.length?`<div class="mu" style="margin-top:8px">I portfölj → ${inP.map(esc).join(" · ")}</div>`:""}</div>
+  ${anHTML(s.t)}
   <div class="c o" style="border:0;background:none">${detail(s,s.m[0],`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`)}</div>`)
 }
 
@@ -2405,7 +2406,7 @@ function autoPlan(p,o){
 async function refreshAll(pid,cash,incl){
   toast("Hämtar färska data…");
   if(!DEMO){try{const r=await loadData();if(r&&r.d){D=r.d;DEMO=r.demo;OLD=r.old;mergePending();indexData()}}catch(e){}}
-  await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{}),loadRadar().catch(()=>{})]);regimeCheck();
+  await Promise.all([loadLive().catch(()=>{}),loadNews().catch(()=>{}),refreshQuotes().catch(()=>{}),loadRadar().catch(()=>{}),loadAnalysts().catch(()=>{})]);regimeCheck();
   demoTick();
   const p=getP(pid);if(!p)return;const tw=p.twin&&getP(p.twin);
   if(p.demo){save();snapshot();route(true);toast("Demoportföljen räknar om sig själv vid varje stängningsskanning");return}
@@ -3109,11 +3110,13 @@ function rSignals(){
     sektor:(()=>{const sec={};list.forEach(x=>{const s=S[x.t],k=s&&s.sec;if(!k)return;const o=sec[k]=sec[k]||{sec:k,buy:new Set(),sell:new Set(),t:new Set()};x.buy.forEach(i=>o.buy.add(i));x.sell.forEach(i=>o.sell.add(i));if(x.buy.size)o.t.add(x.t)});return Object.values(sec).sort((a,b)=>(b.buy.size-b.sell.size)-(a.buy.size-a.sell.size))})(),
     per}
 }
-const RSIG=[["nya","Nya köp"],["okade","Ökade innehav"],["konsensus","Konsensus"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"],["flode","Flöde"]];
+const RSIG=[["nya","Nya köp"],["okade","Ökade innehav"],["konsensus","Konsensus"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"],["hojn","Höjningar"],["sank","Sänkningar"],["flode","Flöde"]];
 const RSIGTXT={nya:"Aktier där en förvaltare tagit ny position (13F), ARK köpt in en ny aktie eller någon anmält ägande ≥ 5 %. Senaste först.",
   okade:"Positioner som ökats mest sedan förra rapporten (antal aktier, sedan vikt).",konsensus:"Aktier som minst två investerare köper, rankade efter köpare minus säljare. Tre eller fler markeras.",
   overtygelse:"Aktier som utgör en ovanligt stor del av någons portfölj (≥ 8 %).",tidiga:"Mindre bolag (börsvärde under 50 mdr kr) där minst två investerare köper, eller en köper och flera redan äger – innan den breda marknaden hittat dem.",
-  sektor:"Sektorer där flera förvaltare ökar exponeringen (antal köpare minus säljare).",aktivist:"13D-anmälningar: en ägare med avsikt att påverka bolaget.",flode:"Senaste händelserna över alla källor."};
+  sektor:"Sektorer där flera förvaltare ökar exponeringen (antal köpare minus säljare).",aktivist:"13D-anmälningar: en ägare med avsikt att påverka bolaget.",flode:"Senaste händelserna över alla källor.",
+  hojn:"Analytiker: uppgraderingar senaste 30 dagarna och konsensusriktkurs som höjts ≥ 5 % på 30 dagar (bara innehav, bevakning, topp 30 och kandidater – Yahoo stryper annars).",
+  sank:"Analytiker: nedgraderingar senaste 30 dagarna och konsensusriktkurs som sänkts ≥ 5 % på 30 dagar."};
 function rDetail(x){const rows=[];x.items.slice().sort((a,b)=>(b.date||"")<(a.date||"")?-1:1).forEach(i=>{
   const det=i.src==="13F"?`${i.kind}${i.ratio?` · ${f((i.ratio-1)*100,0)} % fler aktier`:""}${i.w?` · ${f(i.w,1)} % av portföljen`:""}`:i.src==="ARK"?`${i.kind} ${i.d?f(Math.abs(i.d),0)+" st":""}${i.w?` · vikt ${f(i.w,2)} %`:""}`:i.src==="INSYN"?`${i.kind}${i.amt?` ≈ ${kr(i.amt)} ${esc(i.ccy)}`:""}${i.role?` · ${esc(i.role)}`:""}`:i.kind;
   rows.push(`<div class="k" style="padding:3px 0;font-size:11.5px;display:flex;justify-content:space-between;gap:8px"><span>${i.id?`<b class="tlk" data-go="#/radar/${enc(i.id)}">${esc(i.inv)}</b>`:`<b>${esc(i.inv)}</b>`} <span class="${["ny","ökat","köp","aktivist ≥ 5 %","anmälan ≥ 5 %"].includes(i.kind)?"up":["minskat","ut","sälj"].includes(i.kind)?"dn":""}">${det}</span></span><span class="mu" style="white-space:nowrap">${esc(i.date||"")}</span></div>`)});
@@ -3141,6 +3144,29 @@ async function radarWatchSheet(){
     $("#rwadd").onclick=()=>{const nm=($("#rwn").value||"").trim(),k=($("#rwk").value||nm.split(/[ ,]/)[0]).trim().toUpperCase();if(!nm){toast("Ange namn");return}L.push({n:nm,key:k});$("#shb").innerHTML=render();wire()};
     $("#rwsave").onclick=async()=>{try{$("#rwsave").textContent="Sparar…";await ghPut("radar_watch.json",JSON.stringify({managers:L},null,2),sha,"Förvaltarlista: "+L.length+" förvaltare");closeSheet();toast("Sparat – gäller från nästa radarkörning");if(confirm("Kör radarn nu? (tar ca 15 minuter)"))runWf("radar.yml")}catch(e){toast("Kunde inte spara: "+e.message.slice(0,60));$("#rwsave").textContent="Spara till repot"}}};
   sheet(render(),wire)}
+/* ---------- RIKTKURSER OCH ANALYTIKERREVIDERINGAR (SPEC § 12 – information, styr inget; arbetslista 6, 2026-11-16) ----------
+   analysts.json skrivs av radar.yml varje morgon (analysts.py, Yahoo): konsensusriktkurs, antal analytiker, rekommendation,
+   upp-/nedgraderingar 60 dagar, och riktkursens förändring mot 30 dagar sedan ur den egna historiken. Bara ett urval bolag
+   (innehav, bevakning, topp 30, kandidater). Nivån på riktkursen är svag information – förändringen är signalen. */
+let AN=null;
+async function loadAnalysts(){try{const r=await fetch("analysts.json?t="+Date.now());AN=r.ok?await r.json():null}catch(e){AN=null}}
+const anFor=t=>(AN&&AN.stocks&&AN.stocks[t])||null;
+const AN_UP=/up|init|strong/i,AN_DOWN=/down/i;
+const anRec=r=>r==null?"–":r<=1.5?"starkt köp":r<=2.5?"köp":r<=3.5?"behåll":r<=4.5?"sälj":"starkt sälj";
+function anChanges(a,days){const since=new Date(Date.now()-(days||30)*864e5).toISOString().slice(0,10);return(a&&a.changes||[]).filter(c=>c.date>=since)}
+function anHTML(t){const a=anFor(t),s=S[t];if(!a||(!a.tgt&&!(a.changes||[]).length))return"";
+  const ch=anChanges(a,30),ups=ch.filter(c=>AN_UP.test(c.action)&&!/down/i.test(c.action)),downs=ch.filter(c=>AN_DOWN.test(c.action));
+  return`<div class="mod"><div class="mh"><div class="ico">🎯</div><h2>ANALYTIKER</h2></div>
+  ${a.tgt?`<div class="kv"><div><small>Riktkurs (snitt)</small><b>${f(a.tgt)} ${esc(s.cur)}</b></div><div><small>Uppsida</small><b class="${cls(a.upside||0)}">${a.upside!=null?sg(a.upside,0):"–"}</b></div><div><small>Spann</small><b>${a.lo!=null?f(a.lo,0):"–"}–${a.hi!=null?f(a.hi,0):"–"}</b></div><div><small>Analytiker</small><b>${a.n||"–"}</b></div><div><small>Rekommendation</small><b>${anRec(a.rec)}</b></div><div><small>Riktkurs 30 d</small><b class="${cls(a.tgtchg||0)}">${a.tgtchg!=null?sg(a.tgtchg,1):"–"}</b></div></div>`:""}
+  ${ch.length?`<div class="mu" style="font-size:11px;margin:8px 0 2px">Senaste 30 dagarna: <b class="up">${ups.length} höjningar</b> · <b class="dn">${downs.length} sänkningar</b></div>${ch.slice(0,8).map(c=>`<div class="k mu" style="padding:2px 0;font-size:11.5px;display:flex;justify-content:space-between"><span><b class="${AN_DOWN.test(c.action)?"dn":AN_UP.test(c.action)?"up":""}">${esc(c.to||"")}</b>${c.from&&c.from!==c.to?` <span style="opacity:.7">(från ${esc(c.from)})</span>`:""} · ${esc(c.firm)}</span><span>${esc(c.date)}</span></div>`).join("")}`:'<div class="mu" style="font-size:11px;margin-top:6px">Inga graderingsändringar senaste 30 dagarna.</div>'}
+  <div class="mu" style="font-size:11px;margin-top:6px">Yahoo, ${AN.updated?hhmm(AN.updated):""}. Information – styr inget (SPEC § 12). Riktkursens nivå är svag; revideringar (höjningar/sänkningar, riktkurs 30 d) är signalen.</div></div>`}
+function anSignals(){const L=[];if(!AN||!AN.stocks)return{hojn:[],sank:[]};
+  for(const t in AN.stocks){const a=AN.stocks[t];if(!S[t])continue;const ch=anChanges(a,30);const ups=ch.filter(c=>AN_UP.test(c.action)&&!/down/i.test(c.action)).length,downs=ch.filter(c=>AN_DOWN.test(c.action)).length;
+    const tc=a.tgtchg!=null?a.tgtchg:0;L.push({t,a,ups,downs,tc,score:ups-downs+(tc>=5?1:tc<=-5?-1:0)})}
+  return{hojn:L.filter(x=>x.ups>0||x.tc>=5).sort((a,b)=>b.score-a.score||b.ups-a.ups||b.tc-a.tc),sank:L.filter(x=>x.downs>0||x.tc<=-5).sort((a,b)=>a.score-b.score||b.downs-a.downs||a.tc-b.tc)}}
+function anRow(x,i){const s=S[x.t],a=x.a,open=!!(Ui.ropen&&Ui.ropen["an:"+x.t]);const ch=anChanges(a,30);
+  return`<div class="sr" style="flex-wrap:wrap"><div class="n">${i+1}</div><div class="m" data-act="rtog" data-t="an:${esc(x.t)}" style="cursor:pointer"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div><div class="mu" style="font-size:11px">${x.ups?`<b class="up">${x.ups} höjningar</b>`:""}${x.ups&&x.downs?" · ":""}${x.downs?`<b class="dn">${x.downs} sänkningar</b>`:""}${a.tgtchg!=null?` · riktkurs 30 d <b class="${cls(a.tgtchg)}">${sg(a.tgtchg,1)}</b>`:""}${a.tgt?` · riktkurs ${f(a.tgt)} (${sg(a.upside||0,0)})`:""}${a.n?` · ${a.n} analytiker`:""} <span class="mu">${open?"▲":"▼"}</span></div></div><div class="p"><span class="tlk" data-go="#/stock/${enc(x.t)}" style="font-size:11px">🎯</span></div>
+  ${open?`<div style="flex-basis:100%;padding:4px 0 2px 44px;border-top:1px dashed var(--ln);margin-top:4px">${ch.length?ch.map(c=>`<div class="k" style="padding:2px 0;font-size:11.5px;display:flex;justify-content:space-between"><span><b class="${AN_DOWN.test(c.action)?"dn":AN_UP.test(c.action)?"up":""}">${esc(c.to||"")}</b>${c.from&&c.from!==c.to?` <span class="mu">(från ${esc(c.from)})</span>`:""} · ${esc(c.firm)}</span><span class="mu">${esc(c.date)}</span></div>`).join(""):'<div class="mu" style="font-size:11px">Inga graderingsändringar – signalen är riktkursens förändring.</div>'}${a.rec!=null?`<div class="mu" style="font-size:11px;margin-top:3px">Rekommendation ${anRec(a.rec)} (${f(a.rec,1)})</div>`:""}</div>`:""}</div>`}
 function vRadar(arg){
   if(!RD){view(`${topbar("Radar",true)}<div class="empty">Radarn har inte körts ännu (Actions → Institutionell radar).</div>`);return}
   if(arg&&arg.startsWith("t:")){vRadarStock(arg.slice(2));return}
@@ -3158,6 +3184,7 @@ function vRadar(arg){
   const chips=`<div class="chips" style="margin:0 0 8px;gap:6px">${RSIG.map(x=>`<span class="chip mk${sig===x[0]?" on":""}" data-act="rsig" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>`;
   let body="";
   if(sig==="sektor"){body=SG.sektor.slice(0,15).map((o,i)=>`<div class="sr"><div class="n">${i+1}</div><div class="m"><div><b>${esc(o.sec)}</b></div><div class="mu" style="font-size:11px"><b class="up">${o.buy.size} köpare</b>${o.sell.size?` · <b class="dn">${o.sell.size} säljare</b>`:""} · ${o.t.size} aktier: ${[...o.t].slice(0,6).map(t=>`<span class="tlk" data-go="#/radar/${enc("t:"+t)}">${esc(S[t].d)}</span>`).join(", ")}${o.t.size>6?" …":""}</div></div></div>`).join("")}
+  else if(sig==="hojn"||sig==="sank"){const L=anSignals()[sig];body=L.length?L.slice(0,40).map((x,i)=>anRow(x,i)).join(""):`<div class="mu">${AN?"Inget att visa.":"Analytikerdata hämtas i morgonens radarkörning."}</div>`}
   else if(sig==="flode"){const flat=[];for(const t in RD.byTicker||{})RD.byTicker[t].forEach(e=>flat.push(Object.assign({t},e)));flat.sort((a,b)=>(b.date||"")<(a.date||"")?-1:1);body=flat.slice(0,40).map(rMoveRow).join("")}
   else{const L=SG[sig]||[];body=L.length?L.slice(0,40).map((x,i)=>rSigRow(x,i,sig)).join("")+(L.length>40?`<div class="mu" style="font-size:11px;padding:6px 2px">… och ${L.length-40} till</div>`:""):'<div class="mu">Inget att visa.</div>'}
   view(`${topbar("Radar",true,topBtn(`data-act="radarinfo"`,'<span class="ii">ⓘ</span>',"Om radarn"))}${dd}
@@ -3322,7 +3349,7 @@ async function loadNews(){
 }
 (async()=>{
   const t0=performance.now();introRun(t0);setTimeout(introHide,7000);
-  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();migrateTP();indexData();regimeCheck();await Promise.all([loadLive(),loadNews(),loadRadar()]);snapshot();demoTick();route();startMate();
+  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();migrateTP();indexData();regimeCheck();await Promise.all([loadLive(),loadNews(),loadRadar(),loadAnalysts()]);snapshot();demoTick();route();startMate();
   setInterval(async()=>{const h=location.hash,a=await loadLive(),b=await loadNews();if((!h||/#\/(daytrade|home)/.test(h))&&a)route(true);else if((!h||/#\/(home|news)/.test(h))&&b)route(true)},120000)
 })();
 </script></body></html>
