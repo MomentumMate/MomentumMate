@@ -246,7 +246,7 @@ def form4_parse(xml):
         if code not in ("P", "S"): continue
         try: sh = float(g("transactionShares", b) or 0); px = float(g("transactionPricePerShare", b) or 0)
         except ValueError: continue
-        if sh <= 0: continue
+        if sh <= 0 or px <= 0: continue        # pris 0 = gåva/omflyttning som kodats P/S – ingen marknadsaffär
         rows.append({"date": g("transactionDate", b)[:10], "kind": "köp" if code == "P" else "sälj", "vol": sh, "px": px, "amt": round(sh * px)})
     return who, role, rows
 
@@ -507,7 +507,7 @@ def main():
     consensus = sorted(cons.values(), key=lambda c: (-(len(c["buy"]) + len(c["sell"])), c["last"]), reverse=False)
     consensus = sorted(consensus, key=lambda c: -(len(set(c["buy"])) + len(set(c["sell"]))))[:60]
     out = {"updated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "sources": src,
-           "managers": managers, "funds": funds, "consensus": consensus, "filings13": f13[:200], "ark": trades[:300], "ark_hold": ark_hold, "insyn": insyn[:600],
+           "managers": managers, "funds": funds, "consensus": consensus, "filings13": f13[:200], "ark": trades[:300], "ark_hold": ark_hold, "insyn": insyn[:1500],
            "byTicker": by, "own_hits": sorted(t for t in own if t in by)}
     json.dump(out, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     log(f"Skrev {OUT}: {len(by)} aktier i universumet med radarhändelser, egna träffar: {out['own_hits']}")
