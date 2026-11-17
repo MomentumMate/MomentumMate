@@ -1,38 +1,44 @@
 {
-"updated": "2026-11-14T10:51:46Z",
+"updated": "2026-11-17T12:22:37Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-13",
+"senaste": "2026-11-16",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-13",
+"senaste": "2026-11-16",
 "tysta": 8,
-"flaggade": 11
+"flaggade": 12
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-13",
-"tysta": 1,
-"flaggade": 1
+"senaste": "2026-11-16",
+"tysta": 2,
+"flaggade": 2
 }
 },
 "n": 2293,
-"silent": 9,
-"flagged": 12,
+"silent": 10,
+"flagged": 14,
 "gone": [],
 "own_flagged": [],
 "issues": {
+"1COV.DE": [
+"tyst sedan 2026-11-11"
+],
 "ACA": [
 "tyst sedan 2026-10-22"
 ],
 "BLFS": [
-"tyst sedan 2026-10-07"
+"tyst sedan 2026-10-05"
+],
+"EMBJ": [
+"dagsrörelse -76 % den 2026-11-16"
 ],
 "INDV": [
 "tyst sedan 2026-11-05"
@@ -71,20 +77,20 @@
 "Norden": {
 "har": 202,
 "antal": 203,
-"kalla": "2026-11-13",
-"skanning": "2026-11-14T01:51Z"
+"kalla": "2026-11-16",
+"skanning": "2026-11-16T22:43Z"
 },
 "USA": {
-"har": 1589,
+"har": 1587,
 "antal": 1598,
-"kalla": "2026-11-13",
-"skanning": "2026-11-14T01:51Z"
+"kalla": "2026-11-16",
+"skanning": "2026-11-16T22:43Z"
 },
 "Europa": {
-"har": 452,
+"har": 494,
 "antal": 497,
-"kalla": "2026-11-13",
-"skanning": "2026-11-14T01:51Z"
+"kalla": "2026-11-16",
+"skanning": "2026-11-16T22:43Z"
 }
 },
 "sources": {
