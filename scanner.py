@@ -2058,6 +2058,10 @@ def write_hist(recs, daily, intra_a, intra_b):
                 if len(df):
                     days = sorted(set(df.index.date)); keep = set(days[-5:])
                     last = df[[x.date() == days[-1] for x in df.index]]
+                    # Skanningen 14:15 UTC tas minuter efter USA-öppningen: dagens session har då 1–2 staplar och grafen blev "Graf saknas"
+                    # (2026-11-18). Färre än sex staplar (30 min) → behåll föregående hela session som 1D; live-jobbet fyller på dagens.
+                    if len(last) < 6 and len(days) > 1:
+                        last = df[[x.date() == days[-2] for x in df.index]]
                     h["1d"] = _ohlcv(last)
                     w5 = df[[x.date() in keep for x in df.index]].resample("30min").agg(
                         {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}).dropna(subset=["Close"])
