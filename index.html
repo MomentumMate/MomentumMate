@@ -398,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-18-bc";
+const APPV="2026-11-18-bd";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1994,7 +1994,7 @@ async function loadHist(t){
 const FHI={no:false,c:{}};
 function isoDay(ts,t){try{const p=new Intl.DateTimeFormat("sv-SE",{timeZone:tzOf(t),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date(ts*1000)).reduce((a,x)=>(a[x.type]=x.value,a),{});return`${p.year}-${p.month}-${p.day}`}catch(e){return""}}
 function dayLabel(ts,t){try{return new Date(ts*1000).toLocaleDateString("sv-SE",{timeZone:tzOf(t),weekday:"short",day:"numeric",month:"short"})}catch(e){return""}}
-function hmLabel(ts,t){try{return new Date(ts*1000).toLocaleTimeString("sv-SE",{timeZone:tzOf(t),hour:"2-digit",minute:"2-digit"})}catch(e){return""}}
+function hmLabel(ts,t){try{return new Date(ts*1000).toLocaleTimeString("sv-SE",{timeZone:"Europe/Stockholm",hour:"2-digit",minute:"2-digit"})}catch(e){return""}}
 async function fhIntra(t){
   const key=fhKey();if(!key||DEMO||FHI.no||!liveOK(t))return null;
   const c=FHI.c[t];if(c&&Date.now()-c.at<5*60e3)return c.r;
@@ -2066,8 +2066,12 @@ function histChart(r,rng,up,lv){
   return`<svg id="hsvg" viewBox="0 0 ${W} ${Hh}" style="width:100%;display:block;touch-action:pinch-zoom;background:#0a0805;border:1px solid var(--bd);border-radius:14px"><defs><linearGradient id="ha" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".35"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>${g}${zones}<path d="${area}" fill="url(#ha)"/><path d="${line}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><line id="hcl" x1="0" x2="0" y1="${pt}" y2="${Hh-pb}" stroke="#ffd166" stroke-width="1" style="display:none"/><circle id="hdot" r="4" fill="#ffd166" style="display:none"/><text id="hx0" x="${pl+2}" y="${Hh-6}" fill="#7a7060" font-size="8.5"></text><text id="hx1" x="${W-pr-2}" y="${Hh-6}" fill="#7a7060" font-size="8.5" text-anchor="end"></text></svg>`
 }
 const TZS={".ST":"Europe/Stockholm",".CO":"Europe/Copenhagen",".OL":"Europe/Oslo",".DE":"Europe/Berlin",".PA":"Europe/Paris",".L":"Europe/London",".AS":"Europe/Amsterdam",".HE":"Europe/Helsinki",".SW":"Europe/Zurich",".MC":"Europe/Madrid",".MI":"Europe/Rome"};
+/* Ordinarie handelstid (minuter från midnatt, marknadens tid) – 1D-grafen ritas över hela sessionen så att den växer fram under dagen (2026-11-18). */
+const SESSH={"America/New_York":[570,960],"Europe/Stockholm":[540,1050],"Europe/Copenhagen":[540,1020],"Europe/Oslo":[540,980],"Europe/Helsinki":[600,1110],"Europe/London":[480,990],"Europe/Berlin":[540,1050],"Europe/Paris":[540,1050],"Europe/Amsterdam":[540,1050],"Europe/Zurich":[540,1050],"Europe/Madrid":[540,1050],"Europe/Rome":[540,1050]};
+function sessionWin(ts,t){const tz=tzOf(t);if(!tz||!SESSH[tz])return null;try{const p=new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ts*1000)).reduce((a,x)=>(a[x.type]=x.value,a),{});
+  const m=+p.hour*60+ +p.minute,[o,c]=SESSH[tz];return{open:ts-(m-o)*60,close:ts+(c-m)*60}}catch(e){return null}}
 function tzOf(t){if(/-USD$/.test(t))return undefined;for(const k in TZS)if(t.endsWith(k))return TZS[k];return"America/New_York"}
-function histFmt(ts,rng,t){if(!ts)return"";const d=new Date(ts*1000),tz=tzOf(t||HCUR.t||"");
+function histFmt(ts,rng,t){if(!ts)return"";const d=new Date(ts*1000),tz=(rng==="1d"||rng==="1w")?"Europe/Stockholm":tzOf(t||HCUR.t||"");
   try{return(rng==="1d"||rng==="1w")?d.toLocaleString("sv-SE",{timeZone:tz,month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("sv-SE",{timeZone:tz,year:"numeric",month:"short",day:"numeric"})}catch(e){return""}}
 /* ====== HELSIDESGRAF ======
    Ljusstakar (när OHLC finns i historiken, annars linje), volym, SMA50/200, stöd- och
@@ -2117,8 +2121,12 @@ function cvSvg(s,h,rng,lay,R){
   vals=vals.concat(lv.map(z=>z.lvl).filter(near));
   if(tp)vals=vals.concat([tp.stop,tp.t1].filter(near));
   const mn=Math.min(...vals),mx=Math.max(...vals),sp=(mx-mn)||1;
-  const X=i=>6+i/(n-1)*(W-12),Y=v=>pt+(mx-v)/sp*(Hp-pt);
+  const sw=rng==="1d"&&r.t&&r.t.length===n?sessionWin(r.t[n-1],s.t):null;
+  const XS=sw?r.t.map(ts=>6+Math.max(0,Math.min(1,(ts-sw.open)/(sw.close-sw.open)))*(W-12)):null;
+  const X=XS?i=>XS[i]:i=>6+i/(n-1)*(W-12),Y=v=>pt+(mx-v)/sp*(Hp-pt);
+  const slots=sw?Math.max(n,(sw.close-sw.open)/300):n;   // staplar per session (5 min) – styr bredden på ljusstakar och volym
   let g="";
+  if(sw){const xn=X(n-1);if(xn<W-7)g+=`<rect x="${xn}" y="${pt}" width="${W-6-xn}" height="${Hp-pt}" fill="#ffffff" opacity=".025"/><line x1="${xn}" x2="${xn}" y1="${pt}" y2="${Hp}" stroke="#6b5f4a" stroke-width="1" stroke-dasharray="3 3"/>`}
   // rutnät
   for(let k=0;k<=4;k++){const v=mn+sp*k/4,y=Y(v);g+=`<line x1="6" x2="${W-6}" y1="${y}" y2="${y}" stroke="#2a2217" stroke-width="1"/><text x="${W-8}" y="${y-3}" fill="#6b5f4a" font-size="8.5" text-anchor="end">${v.toFixed(v<10?2:v<100?1:0)}</text>`}
   // stöd/motstånd-zoner
@@ -2133,7 +2141,7 @@ function cvSvg(s,h,rng,lay,R){
     const path=(arr,col)=>{let d="",st=false;arr.forEach((v,i)=>{if(v==null||v<mn||v>mx){st=false;return}d+=(st?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" ";st=true});return d?`<path class="cfade" d="${d}" fill="none" stroke="${col}" stroke-width="1.2" opacity=".85"/>`:""};
     g+=path(s50,"#8fb4ff")+path(s200,"#c9a85a")}
   // kurs: ljusstakar eller linje
-  if(candle){const bw=Math.max(1.5,(W-12)/n*0.62);
+  if(candle){const bw=Math.max(1.5,(W-12)/slots*0.62);
     for(let i=0;i<n;i++){const o=O[i],c=r.p[i],hi=HI[i],lo=LO[i];if(!(o>0&&c>0))continue;const up=c>=o,col=up?"#3fb67a":"#e86b5c",x=X(i);
       g+=`<line x1="${x}" x2="${x}" y1="${Y(hi)}" y2="${Y(lo)}" stroke="${col}" stroke-width="1"/><rect x="${x-bw/2}" y="${Y(Math.max(o,c))}" width="${bw}" height="${Math.max(1,Math.abs(Y(o)-Y(c)))}" fill="${col}"/>`}}
   else{let d="";r.p.forEach((v,i)=>{d+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)+" "});
@@ -2145,11 +2153,12 @@ function cvSvg(s,h,rng,lay,R){
     sw.lo.slice(-6).forEach(i=>{g+=`<circle class="cfade" cx="${X(i)}" cy="${Y(r.p[i])+5}" r="2.4" fill="#3fb67a"/>`})}
   // volym
   if(lay.vol&&V){const vm=Math.max(...V)||1,y0=Hp+Hv+4;
-    for(let i=0;i<n;i++){const hgt=V[i]/vm*(Hv-6),up=i?r.p[i]>=r.p[i-1]:true;g+=`<rect class="cfade" x="${X(i)-Math.max(1,(W-12)/n*0.35)}" y="${y0-hgt}" width="${Math.max(1.5,(W-12)/n*0.7)}" height="${hgt}" fill="${up?"#3fb67a":"#e86b5c"}" opacity=".5"/>`}}
+    for(let i=0;i<n;i++){const hgt=V[i]/vm*(Hv-6),up=i?r.p[i]>=r.p[i-1]:true;g+=`<rect class="cfade" x="${X(i)-Math.max(1,(W-12)/slots*0.35)}" y="${y0-hgt}" width="${Math.max(1.5,(W-12)/slots*0.7)}" height="${hgt}" fill="${up?"#3fb67a":"#e86b5c"}" opacity=".5"/>`}}
   // hårkors
   g+=`<line id="cvcl" x1="0" x2="0" y1="${pt}" y2="${Hp}" stroke="#d4b86a" stroke-width="1" stroke-dasharray="2 2" style="display:none"/><circle id="cvdot" r="3.5" fill="#d4b86a" style="display:none"/>`;
-  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${r.t?histFmt(r.t[0],rng,s.t):""}</span><span>${r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>${(rng==="1d"||rng==="1w")?`<div class="mu" style="font-size:11.5px;margin:2px 2px 6px">${intraNote(r,rng,s.t)}</div>`:""}`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
+  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${sw?histFmt(sw.open,rng,s.t):r.t?histFmt(r.t[0],rng,s.t):""}</span>${sw?`<span>${histFmt(r.t[n-1],rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"senast $1")}</span>`:""}<span>${sw?histFmt(sw.close,rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"stängning $1"):r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>${(rng==="1d"||rng==="1w")?`<div class="mu" style="font-size:11.5px;margin:2px 2px 6px">${intraNote(r,rng,s.t)}</div>`:""}`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
 }
+function nearestI(X,n,x){let b=0,bd=1e9;for(let i=0;i<n;i++){const d=Math.abs(X(i)-x);if(d<bd){bd=d;b=i}}return b}
 async function drawCV(){
   const t=CV.t,s=S[t];let h=await loadHist(t);if(CV.rng==="1d"||CV.rng==="1w")h=await mergeIntra(t,h);if(CV.t!==t||!$("#cvbody"))return;
   const out=cvSvg(s,h,CV.rng,CV.lay);
@@ -2162,7 +2171,7 @@ async function drawCV(){
   const st=s.strc&&s.strc.k,stl={upp:"Högre toppar och bottnar – upptrend",ned:"Lägre toppar och bottnar – nedtrend",sidled:"Sidled",kil:"Smalnande intervall",vidgande:"Vidgande svängar"}[st];
   $("#cvinfo").innerHTML=`<div class="mu" style="font-size:11.5px">${stl?`Struktur: <b class="${st==="upp"?"up":st==="ned"?"dn":""}">${stl}</b>. `:""}${tp?`Handelsplan: köpzon ${f(tp.eLo,2)}–${f(tp.eHi,2)}, stopp ${f(tp.stop,2)} (${esc(tp.stopWhy)}), mål 1 ${f(tp.t1,2)}, R:R ${f(tp.rr,1)}:1.`:""}${!daily&&CV.lay.candle&&!candle?" Ljusstakar och volym visas när skanningen byggt full historik.":""}</div>`;
   const svg=$("#cvsvg");
-  const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=Math.max(0,Math.min(n-1,Math.round((x-6)/(W-12)*(n-1)))),px=X(i),py=Y(r.p[i]);
+  const mv=e=>{const bb=svg.getBoundingClientRect(),x=(e.clientX-bb.left)/bb.width*W,i=nearestI(X,n,x),px=X(i),py=Y(r.p[i]);
     const cl=$("#cvcl"),dt=$("#cvdot");cl.setAttribute("x1",px);cl.setAttribute("x2",px);cl.style.display="";dt.setAttribute("cx",px);dt.setAttribute("cy",py);dt.style.display="";
     $("#cvpr").textContent=r.p[i].toFixed(2)+" "+s.cur;$("#cvdt").textContent=(r.t?histFmt(r.t[i],CV.rng):"")+(candle?`  Ö ${O[i]} H ${HI[i]} L ${LO[i]}`:"")};
   svg.addEventListener("pointerdown",mv);svg.addEventListener("pointermove",e=>{if(e.buttons||e.pointerType==="touch")mv(e)});
