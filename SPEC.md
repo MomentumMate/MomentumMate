@@ -139,6 +139,10 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 | Clenows gapfilter (ingen kandidat med dagsrörelse > 15 %) | #76 2026-11-05 | sämre |
 | Relativt likviditetsavdrag mot börsens median (fanns bara i appen) | aldrig validerat | borttaget 2026-11-05 |
 | 15, 25 eller 30 innehav i fullt läge | #80 2026-11-05 | 15 faller på förskjutet kvartal; 25/30 sämre |
+| Gapsäljning 22/25/30 % under 2.0 | strat 2026-11-18 | bättre Sharpe/Calmar hela perioden men lägre Sharpe i första halvan och vid förskjutet kvartal – faller på TESTPLAN § 9 |
+| Riskbudget efter bredd (inga köp / halv exponering under 30–40 % över SMA200) | strat 2026-11-18 | 31–40 % mot 43 %, Sharpe 0,98–1,15 – modellens kassaeffekt gör jobbet |
+| Sektortak 6 eller 8 av 20 | strat 2026-11-18 | 6: −5 pe CAGR; 8: inom bruset, faller på halvor och nedgång |
+| Vikter i omvänd proportion till volatilitet | strat 2026-11-18 | Sharpe 1,38, nedgång −34 %, men CAGR 38,3 mot 43,2 – faller på CAGR-gränsen (§ 1 prioriterar tillväxt) |
 
 ## 12. Information som visas men inte styr
 
