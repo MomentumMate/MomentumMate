@@ -398,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-18-be";
+const APPV="2026-11-18-bf";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -549,7 +549,7 @@ function card(s,i,o={}){
   const preObj=h?{sig:h.sig,rule:h.rule,html:`<h4>Innehav</h4><div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}`,
     acts:`<div class="acts one"><button class="btn sm up" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp</button><button class="btn sm dn" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`}:null;
   return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
-  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}${h?` · ${f(h.h.q,h.h.q%1?2:0)} st · GAV ${f(h.h.c)}`:""}</div></div>
+  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':""}${repChip(s)}</div><div class="mu">${coName(s)}</div></div>
   ${trendArrow(s)}${right}</div>
   <div class="al2">${chips}${(s.al||[]).filter(a=>["decay","struct","level"].includes(a.k)).slice(0,3).map(flagChip).join("")}${newChip(s)}${shortChip(s)}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,h?"":`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`,preObj)}</div>`
@@ -3210,13 +3210,12 @@ function rSignals(){
     sektor:(()=>{const sec={};list.forEach(x=>{const s=S[x.t],k=s&&s.sec;if(!k)return;const o=sec[k]=sec[k]||{sec:k,buy:new Set(),sell:new Set(),t:new Set()};x.buy.forEach(i=>o.buy.add(i));x.sell.forEach(i=>o.sell.add(i));if(x.buy.size)o.t.add(x.t)});return Object.values(sec).sort((a,b)=>(b.buy.size-b.sell.size)-(a.buy.size-a.sell.size))})(),
     per}
 }
-const RSIG=[["nya","Nya köp"],["okade","Ökade innehav"],["konsensus","Konsensus"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"],["hojn","Höjningar"],["sank","Sänkningar"],["flode","Flöde"]];
+const RSIG=[["nya","Nya köp"],["okade","Ökade innehav"],["konsensus","Konsensus"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"],["flode","Flöde"]];
 const RSIGTXT={nya:"Aktier där en förvaltare tagit ny position (13F), ARK köpt in en ny aktie eller någon anmält ägande ≥ 5 %. Senaste först.",
   okade:"Positioner som ökats mest sedan förra rapporten (antal aktier, sedan vikt).",konsensus:"Aktier som minst två investerare köper, rankade efter köpare minus säljare. Tre eller fler markeras.",
   overtygelse:"Aktier som utgör en ovanligt stor del av någons portfölj (≥ 8 %).",tidiga:"Mindre bolag (börsvärde under 50 mdr kr) där minst två investerare köper, eller en köper och flera redan äger – innan den breda marknaden hittat dem.",
   sektor:"Sektorer där flera förvaltare ökar exponeringen (antal köpare minus säljare).",aktivist:"13D-anmälningar: en ägare med avsikt att påverka bolaget.",flode:"Senaste händelserna över alla källor.",
-  hojn:"Analytiker: uppgraderingar senaste 30 dagarna och konsensusriktkurs som höjts ≥ 5 % på 30 dagar (bara innehav, bevakning, topp 30 och kandidater – Yahoo stryper annars).",
-  sank:"Analytiker: nedgraderingar senaste 30 dagarna och konsensusriktkurs som sänkts ≥ 5 % på 30 dagar."};
+};
 function rDetail(x){const rows=[];x.items.slice().sort((a,b)=>(b.date||"")<(a.date||"")?-1:1).forEach(i=>{
   const det=i.src==="13F"?`${i.kind}${i.ratio?` · ${f((i.ratio-1)*100,0)} % fler aktier`:""}${i.w?` · ${f(i.w,1)} % av portföljen`:""}`:i.src==="ARK"?`${i.kind} ${i.d?f(Math.abs(i.d),0)+" st":""}${i.w?` · vikt ${f(i.w,2)} %`:""}`:i.src==="INSYN"?`${i.kind}${i.amt?` ≈ ${kr(i.amt)} ${esc(i.ccy)}`:""}${i.role?` · ${esc(i.role)}`:""}`:i.kind;
   rows.push(`<div class="k" style="padding:3px 0;font-size:11.5px;display:flex;justify-content:space-between;gap:8px"><span>${i.id?`<b class="tlk" data-go="#/radar/${enc(i.id)}">${esc(i.inv)}</b>`:`<b>${esc(i.inv)}</b>`} <span class="${["ny","ökat","köp","aktivist ≥ 5 %","anmälan ≥ 5 %"].includes(i.kind)?"up":["minskat","ut","sälj"].includes(i.kind)?"dn":""}">${det}</span></span><span class="mu" style="white-space:nowrap">${esc(i.date||"")}</span></div>`)});
@@ -3281,11 +3280,10 @@ function vRadar(arg){
     ${ev.length?`<div class="mod"><div class="mh"><div class="ico">↔</div><h2>${cur.kind==="ark"?"SENASTE DAGENS RÖRELSER":"RÖRELSER MOT FÖRRA RAPPORTEN"}</h2></div>${ev.slice(0,40).map(e=>rMoveRow(Object.assign({src:cur.kind==="ark"?"ARK":"13F",who:cur.n,date:cur.kind==="ark"?cur.asof:cur.filed},e))).join("")}</div>`:""}
     <div class="mod"><div class="mh"><div class="ico">◔</div><h2>INNEHAV (${hl.length}${cur.n_pos>hl.length?" största av "+cur.n_pos:""})</h2></div>${hl.map((h,i)=>rHoldRow(h,i)).join("")||'<div class="mu">Inga innehav lästa.</div>'}</div>${foot}`);return}
   // Översikt: valbar signal (ägarens lista), utfällbara rader, sedan ett kort per investerare
-  const SG=rSignals(),sig=Ui.rsig||"konsensus";
+  const SG=rSignals(),sig=RSIG.some(x=>x[0]===Ui.rsig)?Ui.rsig:"konsensus";
   const chips=`<div class="chips" style="margin:0 0 8px;gap:6px">${RSIG.map(x=>`<span class="chip mk${sig===x[0]?" on":""}" data-act="rsig" data-v="${x[0]}">${x[1]}</span>`).join("")}</div>`;
   let body="";
   if(sig==="sektor"){body=SG.sektor.slice(0,15).map((o,i)=>`<div class="sr"><div class="n">${i+1}</div><div class="m"><div><b>${esc(o.sec)}</b></div><div class="mu" style="font-size:11px"><b class="up">${o.buy.size} köpare</b>${o.sell.size?` · <b class="dn">${o.sell.size} säljare</b>`:""} · ${o.t.size} aktier: ${[...o.t].slice(0,6).map(t=>`<span class="tlk" data-go="#/radar/${enc("t:"+t)}">${esc(S[t].d)}</span>`).join(", ")}${o.t.size>6?" …":""}</div></div></div>`).join("")}
-  else if(sig==="hojn"||sig==="sank"){const L=anSignals()[sig];body=L.length?L.slice(0,40).map((x,i)=>anRow(x,i)).join(""):`<div class="mu">${AN?"Inget att visa.":"Analytikerdata hämtas i morgonens radarkörning."}</div>`}
   else if(sig==="flode"){const flat=[];for(const t in RD.byTicker||{})RD.byTicker[t].forEach(e=>flat.push(Object.assign({t},e)));flat.sort((a,b)=>(b.date||"")<(a.date||"")?-1:1);body=flat.slice(0,40).map(rMoveRow).join("")}
   else{const L=SG[sig]||[];body=L.length?L.slice(0,40).map((x,i)=>rSigRow(x,i,sig)).join("")+(L.length>40?`<div class="mu" style="font-size:11px;padding:6px 2px">… och ${L.length-40} till</div>`:""):'<div class="mu">Inget att visa.</div>'}
   view(`${topbar("Radar",true,topBtn(`data-act="radarinfo"`,'<span class="ii">ⓘ</span>',"Om radarn"))}${dd}
