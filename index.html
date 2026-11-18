@@ -398,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-18-ay";
+const APPV="2026-11-18-az";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -670,6 +670,7 @@ function vPortOverview(){
   ${quoteStatus()}
   ${real.length>1?`<div class="mu" style="margin:8px 2px 0">Totalt alla portföljer${real.length<items.length?" (utom demo)":""}: <b style="color:var(--tx)">${kr(tot)} kr</b> · <span class="${cls(day)}">${day>=0?"+":"−"}${kr(Math.abs(day))} kr idag</span></div>`:""}
   ${items.map(x=>pfHero(x.p,x.c,"list")).join("")}
+  ${allocHTML(items)}
   <div class="mu" style="text-align:center;margin-top:12px;font-size:12px">Tryck på en portfölj för att se innehav, förslag och signaler.</div>`)
 }
 function pfReorderView(){
@@ -845,10 +846,11 @@ function moveSheet(pid,t,pre){
 function newPortSheet(){sheet(`<h3>Ny portfölj</h3><label class="fld"><span>Namn</span><input id="np" placeholder="t.ex. Långsiktigt, Daghandel, ISK…"></label><button class="btn wide" id="npg">Skapa</button>`,()=>{$("#npg").onclick=()=>{const p={id:uid(),name:$("#np").value.trim()||"Min portfölj",h:[],tx:[],re:0};P.ps.push(p);P.cur=p.id;save();closeSheet();location.hash="#/portfolio/"+p.id;route()};setTimeout(()=>$("#np").focus(),100)})}
 function pmenuSheet(pid){
   const p=getP(pid);sheet(`<h3>${esc(p.name)}</h3><label class="fld"><span>Byt namn</span><input id="rn" value="${esc(p.name)}"></label>
-  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="lgs">📒 Transaktionslogg</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
+  <div class="acts" style="margin:0 0 14px"><button class="btn sm" id="rng">Spara namn</button><button class="btn sm" data-act="imp" data-pid="${pid}">Importera från bank</button><button class="btn sm" id="cxp">📋 Analys för chatt</button><button class="btn sm" id="rls">🎯 Regler…</button><button class="btn sm ghost" id="fes">💰 Avgifter…</button><button class="btn sm ghost" id="sgs">🔬 Signalutfall…</button>${p.twin&&getP(p.twin)?'<button class="btn sm ghost" id="tws">⇄ Systerportfölj</button>':""}<button class="btn sm ghost" id="hld">📄 Innehav till skannern</button><button class="btn sm ghost" id="lgs">📒 Transaktionslogg</button><button class="btn sm ghost" id="flw">💵 Insättningar/uttag</button><button class="btn sm ghost" id="exg">Exportera backup</button><button class="btn sm ghost" id="img">Importera backup</button><button class="btn sm dn" id="dlp">Ta bort portfölj</button></div><div id="io"></div>`,()=>{
     $("#rng").onclick=()=>{p.name=$("#rn").value.trim()||p.name;save();closeSheet();route(true)};
     $("#hld").onclick=()=>{closeSheet();setTimeout(holdingsSheet,260)};
     $("#lgs").onclick=()=>{closeSheet();setTimeout(()=>logSheet(pid),260)};
+    $("#flw").onclick=()=>{closeSheet();setTimeout(()=>flowSheet(pid),260)};
     $("#sgs").onclick=()=>{closeSheet();setTimeout(sigSheet,260)};
     $("#fes").onclick=()=>{closeSheet();setTimeout(feeSheet,260)};
     if($("#tws"))$("#tws").onclick=()=>{closeSheet();setTimeout(()=>twinSheet(pid),260)};
@@ -934,6 +936,8 @@ function act(a,d){
     case"logshow":logSheet(d.pid);break;
     case"radarinfo":radarInfoSheet();break;
     case"radarwatch":radarWatchSheet();break;
+    case"flows":flowSheet(d.pid);break;
+    case"allocedit":allocSheet();break;
     case"risktog":{Ui.riskOpen=!Ui.riskOpen;const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rsig":Ui.rsig=d.v;vRadar();break;
     case"rtog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;vRadar();window.scrollTo(0,y);break}
@@ -1341,7 +1345,7 @@ function health(h){
    hållvillkorens läge; koncentrationsvarningar. Därtill marknadsbredd för hela universumet. Inget av detta ändrar en rad i förslaget. */
 const mkGroup=t=>/\.(ST|CO|OL|HE)$/.test(t)?"Norden":t.includes(".")?"Europa":"USA";
 function riskSeries(p,days){const snap=((P.snap&&P.snap[p.id])||[]).slice(-(days||400));if(snap.length<3)return null;
-  const flows={};(p.tx||[]).forEach(x=>{const s=S[x.t]||{},a=x.q*x.px*fx(s.ccy||"SEK");flows[x.d]=(flows[x.d]||0)+(x.k==="buy"?a:-a)});
+  const flows=flowsFor(p).m;
   const idx=[1],rets=[];for(let i=1;i<snap.length;i++){const d0=snap[i-1][0],d1=snap[i][0];let fl=0;for(const d in flows)if(d>d0&&d<=d1)fl+=flows[d];const base=snap[i-1][1]+fl;const r=base>0?snap[i][1]/base-1:0;rets.push(r);idx.push(idx[idx.length-1]*(1+r))}
   return{dates:snap.map(x=>x[0]),idx,rets}}
 function riskStats(p){const rs=riskSeries(p);if(!rs)return null;const r=rs.rets.slice(-60);if(r.length<10)return{n:r.length};
@@ -1376,6 +1380,29 @@ function riskHTML(p,c){if(!c.rows.length)return"";const tot=c.tot||1,N=p.targetN
   <h4 style="margin:10px 2px 4px">Vikt per innehav (målvikt ${f(tgtW,1)} %, band ${f(tgtW*.75,1)}–${f(tgtW*1.25,1)} %)</h4>${bar(c.rows.slice().sort((a,b)=>b.w-a.w).map(r=>[(r.s?r.s.d:r.h.t)+(r.s&&!r.s.a200?" ⏳":""),r.w]),tgtW*1.25)}
   <h4 style="margin:10px 2px 4px">Marknadsbredd (hela universumet, ${br.n} aktier)</h4><div class="kv"><div><small>Över SMA200</small><b class="${br.a200>=50?"up":"dn"}">${f(br.a200,0)} %</b></div><div><small>12-1 positivt</small><b class="${br.pos>=50?"up":"dn"}">${f(br.pos,0)} %</b></div><div><small>Upp i dag</small><b>${f(br.up,0)} %</b></div>${Object.entries(br.by).map(([k,o])=>`<div><small>${esc(k)} över SMA200</small><b>${f(o.a/o.n*100,0)} %</b></div>`).join("")}</div>
   <div class="mu" style="font-size:11px;margin-top:6px">Information – inget här ändrar en rad i förslaget (SPEC § 15). Risknivån styrs av hur stor del av kapitalet som ligger i strategin.</div>`:""}</div>`}
+/* ---------- INSÄTTNINGAR/UTTAG OCH ALLOKERING (arbetslista 8–9, 2026-11-18) ----------
+   p.flows = [{d, amt, note}] – registrerade insättningar (+) och uttag (−) i kronor. Finns de används de i den tidsviktade
+   avkastningen (transaktionslogg, riskpanel, demojämförelse) i stället för approximationen "nettoköp = insättning".
+   P.alloc = {other, note} – kapital utanför strategin (indexfonder, räntor, kassa) för allokeringsvyn. Information – styr inget. */
+function flowsFor(p){const m={};if(p.flows&&p.flows.length){p.flows.forEach(x=>{m[x.d]=(m[x.d]||0)+(+x.amt||0)});return{m,src:"registrerade insättningar/uttag"}}
+  (p.tx||[]).forEach(x=>{const s=S[x.t]||{},a=x.q*x.px*fx(s.ccy||"SEK");m[x.d]=(m[x.d]||0)+(x.k==="buy"?a:-a)});return{m,src:"approximation: nettoköp per dag"}}
+function flowSheet(pid){const p=getP(pid);if(!p)return;p.flows=p.flows||[];
+  const render=()=>`<h3>Insättningar och uttag – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px;font-size:12px">Registrera pengar som satts in på eller tagits ut från kontot (inte köp och sälj – de loggas av sig själva). Då räknas avkastningen i transaktionsloggen och riskpanelen rätt: en insättning är inte avkastning.</p>
+  ${p.flows.length?p.flows.slice().sort((a,b)=>a.d<b.d?1:-1).map((x,i)=>`<div class="k" style="display:flex;justify-content:space-between;align-items:center;padding:4px 2px;border-bottom:1px solid var(--ln)"><span>${esc(x.d)} · <b class="${x.amt>=0?"up":"dn"}">${x.amt>=0?"+":"−"}${kr(Math.abs(x.amt))} kr</b> ${x.note?`<span class="mu">${esc(x.note)}</span>`:""}</span><button class="btn sm ghost" data-rmf="${p.flows.indexOf(x)}">Ta bort</button></div>`).join(""):'<div class="mu" style="font-size:12px">Inga registrerade ännu. Tills dess approximeras insättningar med nettoköp per dag.</div>'}
+  <label class="fld" style="margin-top:10px"><span>Datum</span><input id="fld" type="date" value="${todayISO()}"></label>
+  <label class="fld"><span>Belopp (kr, minus för uttag)</span><input id="fla" type="number" inputmode="numeric" placeholder="t.ex. 50000 eller -20000"></label>
+  <label class="fld"><span>Notering (valfri)</span><input id="fln" placeholder="t.ex. månadssparande"></label>
+  <button class="btn wide" id="flgo">Registrera</button>`;
+  const wire=()=>{$("#shb").querySelectorAll("[data-rmf]").forEach(b=>b.onclick=()=>{p.flows.splice(+b.dataset.rmf,1);save();$("#shb").innerHTML=render();wire()});
+    $("#flgo").onclick=()=>{const amt=parseFloat($("#fla").value),d=$("#fld").value;if(!d||!(Math.abs(amt)>0)){toast("Ange datum och belopp");return}p.flows.push({d,amt:Math.round(amt),note:($("#fln").value||"").trim().slice(0,60)});save();toast("Registrerat");$("#shb").innerHTML=render();wire()}};
+  sheet(render(),wire)}
+function allocHTML(items){const real=items.filter(x=>!x.p.demo),inS=real.reduce((a,x)=>a+x.c.tot,0),A=P.alloc||{},other=+A.other||0,tot=inS+other,share=tot>0?inS/tot*100:100;
+  return`<div class="mod"><div class="mh" data-act="allocedit" style="cursor:pointer"><div class="ico">◧</div><h2>ALLOKERING</h2><span class="go">✎</span></div>
+  <div class="kv"><div><small>I strategin</small><b>${kr(inS)} kr</b></div><div><small>Utanför (${esc(A.note||"index, räntor, kassa")})</small><b>${other?kr(other)+" kr":"–"}</b></div><div><small>Andel i strategin</small><b>${f(share,0)} %</b></div></div>
+  <div style="height:8px;background:var(--ln);border-radius:4px;overflow:hidden;margin:8px 0 4px"><div style="height:100%;width:${Math.min(100,share)}%;background:var(--gd)"></div></div>
+  <div class="mu" style="font-size:11px">${other?`Backtestets största nedgång −43 % (räkna med −50 %, § 14) ger med ${f(share,0)} % i strategin en nedgång på hela kapitalet omkring <b>−${f(share*0.5,0)} %</b> i värsta skedet. Risknivån styrs här – inte i modellen (SPEC § 15).`:"Ange kapitalet utanför strategin (tryck ✎) så visas andelen och vad en −50 %-nedgång i strategin betyder för hela kapitalet."}</div></div>`}
+function allocSheet(){const A=P.alloc||{};sheet(`<h3>Kapital utanför strategin</h3><p class="mu" style="margin-top:-4px;font-size:12px">Indexfonder, räntor, kassa – det som inte ligger i MomentumMate-portföljerna. Används bara för allokeringsvyn.</p>
+  <label class="fld"><span>Belopp (kr)</span><input id="alo" type="number" inputmode="numeric" value="${A.other||""}"></label><label class="fld"><span>Beskrivning</span><input id="aln" value="${esc(A.note||"")}" placeholder="t.ex. indexfond + räntekonto"></label><button class="btn wide" id="algo">Spara</button>`,()=>{$("#algo").onclick=()=>{P.alloc={other:Math.max(0,Math.round(parseFloat($("#alo").value)||0)),note:($("#aln").value||"").trim().slice(0,40)};save();closeSheet();route(true)}})}
 function healthPanel(c,p){
   const bad=c.rows.filter(r=>r.hl);if(!bad.length)return"";
   const unv=bad.filter(r=>r.hl.k!=="stale").reduce((a,r)=>a+r.val,0);
@@ -3043,9 +3070,9 @@ function demoHTML(p){const d=p.demo;if(!d)return"";const c=calc(p),v=c.tot+d.cas
   ${demoCmpHTML(p)}</div>`}
 function demoCmpHTML(p){const d=p.demo,st=d.start,rows=[];
   const a=d.ser||[];if(a.length)rows.push([p.name+" (demo)",(a[a.length-1][1]/d.cap-1)*100,a[a.length-1][0]]);
-  P.ps.forEach(x=>{if(x.id===p.id||x.demo)return;const s=(P.snap&&P.snap[x.id])||[],b=s.find(y=>y[0]>=st);if(!b||!(b[1]>0))return;const l=s[s.length-1];rows.push([x.name,(l[1]/b[1]-1)*100,l[0]])});
+  P.ps.forEach(x=>{if(x.id===p.id||x.demo)return;const s=(P.snap&&P.snap[x.id])||[],b=s.find(y=>y[0]>=st);if(!b||!(b[1]>0))return;const l=s[s.length-1],r=twr(x,st);if(r==null)return;rows.push([x.name,r,l[0]])});
   if(rows.length<2)return`<div class="mu" style="font-size:11px;margin-top:8px">Jämförelsen mot dina verkliga portföljer byggs upp dag för dag från ${esc(st)}.</div>`;
-  return`<h4 style="margin:12px 2px 6px">Jämförelse sedan ${esc(st)}</h4>${rows.map(r=>`<div class="k mu" style="padding:3px 2px;display:flex;justify-content:space-between"><span>${esc(r[0])} <span style="opacity:.6">${esc(r[2])}</span></span><b class="${cls(r[1])}">${sg(r[1])}</b></div>`).join("")}<div class="mu" style="font-size:11px;margin-top:4px">Verkliga portföljer: värdeförändring enligt appens dagliga ögonblicksbilder – insättningar och uttag påverkar. Demo: efter courtage och slippage, inkl. kassa.</div>`}
+  return`<h4 style="margin:12px 2px 6px">Jämförelse sedan ${esc(st)}</h4>${rows.map(r=>`<div class="k mu" style="padding:3px 2px;display:flex;justify-content:space-between"><span>${esc(r[0])} <span style="opacity:.6">${esc(r[2])}</span></span><b class="${cls(r[1])}">${sg(r[1])}</b></div>`).join("")}<div class="mu" style="font-size:11px;margin-top:4px">Verkliga portföljer: tidsviktad avkastning ur appens dagliga ögonblicksbilder, rensad för registrerade insättningar/uttag (annars approximerade med nettoköp). Demo: efter courtage och slippage, inkl. kassa.</div>`}
 /* ---------- TRANSAKTIONSLOGG MED AVVIKELSEHANTERING (SPEC § 17, 2026-11-11, arbetslista 7) ----------
    En rad per förslagsrad (KÖP/SÄLJ/ÖKA/MINSKA) när ett förslag räknas: datum, aktie, marknad, beslut, modellversion, poäng och
    rankning vid beslutet, orsak, föreslaget antal och belopp. Raden uppdateras när affären registreras (genomfört antal, kurs,
@@ -3084,7 +3111,7 @@ function logOpenFor(p,it){return logEntries(p).find(e=>e.st==="open"&&e.t===it.t
 /* Tidsviktad avkastning ur dagliga ögonblicksbilder, rensad för registrerade köp/sälj (insättningar och uttag ≈ nettoköp per dag). Approximation. */
 function twr(p,from,to){
   const snap=((P.snap&&P.snap[p.id])||[]).filter(x=>x[0]>=from&&(!to||x[0]<=to));if(snap.length<2)return null;
-  const flows={};(p.tx||[]).forEach(x=>{if(x.d<from||(to&&x.d>to))return;const s=S[x.t]||{},a=x.q*x.px*fx(s.ccy||"SEK");flows[x.d]=(flows[x.d]||0)+(x.k==="buy"?a:-a)});
+  const flows=flowsFor(p).m;
   let r=1;for(let i=1;i<snap.length;i++){const d0=snap[i-1][0],d1=snap[i][0];let fl=0;for(const d in flows)if(d>d0&&d<=d1)fl+=flows[d];const base=snap[i-1][1]+fl;if(base>0)r*=snap[i][1]/base}
   return(r-1)*100}
 function idxRet(k,from,to,sek){const I=D.idx&&D.idx[k];if(!I)return null;const at=d=>{let v=null;for(let i=0;i<I.d.length;i++){if(I.d[i]<=d)v=I.p[i];else break}return v};
@@ -3103,7 +3130,8 @@ function logSheet(pid){
     ${e.st==="open"?`<div class="acts" style="margin-top:4px"><button class="btn sm" data-act="logexec" data-pid="${p.id}" data-id="${e.id}">Registrera</button><button class="btn sm ghost" data-act="logskip" data-pid="${p.id}" data-id="${e.id}">Avstår…</button></div>`:""}</div>`;
   sheet(`<h3>📒 Transaktionslogg – ${esc(p.name)}</h3><p class="mu" style="margin-top:-4px;font-size:12px">Varje förslagsrad loggas när den räknas och följs tills den är genomförd, avstådd eller ersatt. Information – styr inget (SPEC § 17).</p>
   <div class="kv" style="margin:8px 0"><div><small>Rader</small><b>${L.length}</b></div><div><small>Genomförda</small><b>${n("done")+n("partial")}</b></div><div><small>Avvikelser</small><b class="${n("skipped")+n("superseded")+n("manual")?"dn":""}">${n("skipped")+n("superseded")+n("manual")}</b></div><div><small>Öppna</small><b>${n("open")}</b></div><div><small>Courtage</small><b>${kr(fees)} kr</b></div><div><small>Realiserat</small><b class="${cls(p.re||0)}">${(p.re||0)>=0?"+":"−"}${kr(Math.abs(p.re||0))} kr</b></div></div>
-  ${from?`<h4 style="margin:10px 2px 6px">Sedan ${esc(from)} (t.o.m. ${esc(to)})</h4><div class="kv"><div><small>Portföljen, tidsviktat*</small>${pct(r)}</div><div><small>OMXSPI</small>${pct(ox)}</div><div><small>MSCI World i SEK</small>${pct(wd)}</div></div><div class="mu" style="font-size:11px;margin-top:4px">*Ur appens dagliga ögonblicksbilder, rensat för registrerade köp och sälj (≈ insättningar/uttag). Kräver att appen öppnats regelbundet. Modellportfölj utan avsteg = demoportföljen.</div>`:""}
+  ${from?`<h4 style="margin:10px 2px 6px">Sedan ${esc(from)} (t.o.m. ${esc(to)})</h4><div class="kv"><div><small>Portföljen, tidsviktat*</small>${pct(r)}</div><div><small>OMXSPI</small>${pct(ox)}</div><div><small>MSCI World i SEK</small>${pct(wd)}</div></div><div class="mu" style="font-size:11px;margin-top:4px">*Ur appens dagliga ögonblicksbilder, rensat för ${flowsFor(p).src}. Kräver att appen öppnats regelbundet. Modellportfölj utan avsteg = demoportföljen.</div>`:""}
+  <div class="acts" style="margin:8px 0 0"><button class="btn sm ghost" data-act="flows" data-pid="${p.id}">💵 Insättningar/uttag${(p.flows||[]).length?` (${p.flows.length})`:""}</button></div>
   <div class="acts" style="margin:10px 0"><button class="btn sm ghost" id="lgcp">📋 Kopiera som text</button></div>
   ${L.length?L.map(row).join(""):'<div class="empty">Inga rader ännu – loggen fylls när nästa förslag räknas.</div>'}`,()=>{$("#lgcp").onclick=()=>{
     const T=[`Transaktionslogg ${p.name} · app ${APPV} · ${new Date().toLocaleString("sv-SE")}`,`Rader ${L.length}, genomförda ${n("done")+n("partial")}, avvikelser ${n("skipped")+n("superseded")+n("manual")}, courtage ${kr(fees)} kr`];
