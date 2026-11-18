@@ -1,0 +1,112 @@
+  OMXS: 110 aktier
+  EODHD: planen omfattar inte fundamentaldata (403) – indexlistor, namn och nyckeltal hämtas från andra källor
+  SP500: 503 aktier
+  Nasdaq-100 hämtad från Nasdaq API
+  NASDAQ: 101 aktier
+  DOW: 30 aktier
+  OMXC: 27 aktier
+  OSE: 31 aktier
+  OMXH: 17 aktier
+  DAX: 48 aktier
+  CAC: 43 aktier
+  FTSE: 68 aktier
+  AEX: 23 aktier
+  SMI: 18 aktier
+  IBEX: 20 aktier
+  MIB: 20 aktier
+  SP400: 400 aktier
+  SP600: 600 aktier
+  STOXX600: 590 tickers med börssuffix
+  STOXX600: 590 aktier
+  ADR: 84 aktier
+  SMSN: 2 aktier
+Universum: 2293 aktier – Europa/övrigt 497, Norden 201, USA 1595
+Hämtar 2293 aktier 2015-10-15 → 2026-11-18 …
+  Datakälla: EODHD (nyckel hittad), Yahoo som reserv
+  EODHD 200/2293
+  EODHD 400/2293
+  EODHD 600/2293
+  EODHD 800/2293
+  EODHD 1000/2293
+  EODHD 1200/2293
+  EODHD 1400/2293
+  EODHD 1600/2293
+  EODHD 1800/2293
+  EODHD 2000/2293
+  EODHD 2200/2293
+  EODHD: 2210 ok, 41 tomma, 42 fel: 42× 429 Client Error: Too Many Requests
+  EODHD gav 2210 av 2293 – 83 hämtas från Yahoo
+  1–83 av 83 …
+  FELKURSER LAGADE: 10 aktier (dagar ersatta med föregående stängning):
+    BUFAB.ST       2019-06-10 (3 dagar)
+    HTRO.ST        2019-06-10 (3 dagar)
+    INSTAL.ST      2019-06-10 (3 dagar)
+    KINV-B.ST      2019-06-10 (3 dagar)
+    LAGR-B.ST      2019-06-10 (3 dagar)
+    MYCR.ST        2019-06-10 (3 dagar)
+    NCAB.ST        2019-06-10 (3 dagar)
+    NOLA-B.ST      2019-06-10 (3 dagar)
+    PACT.ST        2019-06-10 (3 dagar)
+    TROAX.ST       2019-06-10 (2 dagar)
+  FELKURSFILTER: 9 aktier bortfiltrerade (felet består):
+    ABVX.PA        2025-07-23 +510 %, kommer inte tillbaka inom 5 dagar
+    ATO.PA         2024-11-12 +8528 %, kommer inte tillbaka inom 5 dagar
+    CLSK           2015-05-13 +1088 %, kommer inte tillbaka inom 5 dagar
+    IVT            2021-08-06 -90 %, kommer inte tillbaka inom 5 dagar
+    KNTK           2018-11-13 +9092 %, kommer inte tillbaka inom 5 dagar
+    QLINEA.ST      2025-02-21 -82 %, kommer inte tillbaka inom 5 dagar
+    SEZL           2023-09-14 -81 %, kommer inte tillbaka inom 5 dagar
+    SUPN           2014-12-29 +1980475 %, kommer inte tillbaka inom 5 dagar
+    TALO           2016-06-13 +9011 %, kommer inte tillbaka inom 5 dagar
+  2284 aktier med data, 3114 handelsdagar
+Nedladdat: Europa/övrigt 495, Norden 200, USA 1589
+
+=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===
+   slutkapital       6.697
+   CAGR_%            18.5
+   volatilitet_%     17.4
+   Sharpe            1.06
+   max_nedgång_%     -39.2
+   Calmar            0.47
+   affärer           0
+   köp               0
+   köp_per_år        0.0
+   innehavstid_dagar None
+   längsta_innehav_dagarNone
+   utgångar          {}
+
+########## Strategitester under 2.0 (breadth)  portfölj 10,000,000 kr  (2284 aktier) ##########
+   Beslutsregel (TESTPLAN § 9, skriven innan körning): en variant går in bara om Sharpe OCH Calmar slår A på hela perioden,
+   Sharpe inte är lägre än A i någon halva, det håller med dubbla kostnader och förskjutet kvartal, CAGR faller högst 2 pe
+   (riskbudget: 4 pe) och nedgången inte är djupare än A. Vinner flera nivåer väljs den mittersta.
+
+   A.  Modell 2.0 (referens)                                               43.23 %  Sharpe 1.25  Calmar 1.03  nedgång -42.0 %  köp/år  23.7  | halvor Sharpe 1.45 / 1.14  | dubbla 42.23 % 1.22 1.0  | Q+1 42.44 % 1.34 1.04  utgångar {'12-1 negativt': 10, 'under SMA200': 235}
+
+   --- T2 riskbudget efter marknadsläge (bredd = andel av universumet över SMA200, dagen före) ---
+   T2-a. Inga nya köp när bredd < 40 %                                     34.55 %  Sharpe 1.02  Calmar 0.82  nedgång -42.2 %  köp/år  22.8  | halvor Sharpe 1.15 / 1.03  | dubbla 33.42 % 0.99 0.78  | Q+1 28.02 % 1.05 0.82  utgångar {'12-1 negativt': 8, 'under SMA200': 227}
+   T2-b. Inga nya köp när bredd < 30 %                                     39.53 %  Sharpe 1.15  Calmar 0.98  nedgång -40.5 %  köp/år  23.4  | halvor Sharpe 1.3 / 1.05  | dubbla 38.3 % 1.12 0.95  | Q+1 39.44 % 1.33 0.98  utgångar {'12-1 negativt': 14, 'under SMA200': 228}
+   T2-c. Halv exponering (10 innehav) när bredd < 40 %, full igen över 40 %  34.47 %  Sharpe 1.07  Calmar 0.83  nedgång -41.6 %  köp/år  26.4  | halvor Sharpe 1.61 / 0.69  | dubbla 32.83 % 1.02 0.8  | Q+1 30.8 % 1.06 0.84  utgångar {'12-1 negativt': 12, 'under SMA200': 186}
+   T2-d. Halv exponering när bredd < 30 %, full igen först över 50 %       31.12 %  Sharpe 0.98  Calmar 0.82  nedgång -38.2 %  köp/år  26.6  | halvor Sharpe 1.5 / 0.61  | dubbla 32.12 % 1.0 0.84  | Q+1 32.62 % 1.1 0.85  utgångar {'12-1 negativt': 9, 'under SMA200': 204}
+
+   === PRÖVNING MOT BESLUTSREGELN (A: 43.23 %, Sharpe 1.25, Calmar 1.03, nedgång -42.0 %) ===
+   T2-a. Inga nya köp när bredd < 40 %                                   faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −4 pe:✗  nedgång:✗
+   T2-b. Inga nya köp när bredd < 30 %                                   faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −4 pe:✓  nedgång:✓
+   T2-c. Halv exponering (10 innehav) när bredd < 40 %, full igen över 40 %faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −4 pe:✗  nedgång:✓
+   T2-d. Halv exponering när bredd < 30 %, full igen först över 50 %     faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −4 pe:✗  nedgång:✓
+
+   === ÅR FÖR ÅR ===
+   år             A    T2-a    T2-b    T2-c    T2-d
+   2015        -0.6    -0.6    -0.6    -0.6    -0.6
+   2016        47.2    39.5    43.7    43.5    40.2
+   2017        34.1    31.7    34.3    36.4    39.5
+   2018         0.8     9.0     0.5     7.3     4.7
+   2019        44.2    34.7    41.3    50.8    47.9
+   2020       148.1    91.2   108.3   140.3   108.1
+   2021        77.5    69.1    81.7    78.4    60.2
+   2022       -10.3   -25.4   -14.9   -17.9    -1.7
+   2023        44.1    29.6    33.7    29.7    18.7
+   2024        56.8    74.9    59.9    36.9    36.1
+   2025        67.5    67.6    69.5     9.8    13.2
+   2026        26.8    12.2    26.8    25.3    11.3
+
+Skrev backtest.json
