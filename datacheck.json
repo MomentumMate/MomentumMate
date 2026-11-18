@@ -1,31 +1,33 @@
 {
-"updated": "2026-11-17T12:22:37Z",
+"updated": "2026-11-18T09:40:16Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-16",
+"senaste": "2026-11-17",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-16",
+"senaste": "2026-11-17",
 "tysta": 8,
 "flaggade": 12
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-16",
+"senaste": "2026-11-17",
 "tysta": 2,
-"flaggade": 2
+"flaggade": 3
 }
 },
 "n": 2293,
 "silent": 10,
-"flagged": 14,
-"gone": [],
+"flagged": 15,
+"gone": [
+"BKH"
+],
 "own_flagged": [],
 "issues": {
 "1COV.DE": [
@@ -38,7 +40,7 @@
 "tyst sedan 2026-10-05"
 ],
 "EMBJ": [
-"dagsrörelse -76 % den 2026-11-16"
+"dagsrörelse -76 % den 2026-11-17"
 ],
 "INDV": [
 "tyst sedan 2026-11-05"
@@ -68,6 +70,9 @@
 "TOELY": [
 "tyst sedan 2026-09-24"
 ],
+"TRN.MI": [
+"ingen kursdata (tom serie)"
+],
 "VCYT": [
 "dagsrörelse -54 % den 2026-11-05"
 ]
@@ -77,20 +82,20 @@
 "Norden": {
 "har": 202,
 "antal": 203,
-"kalla": "2026-11-16",
-"skanning": "2026-11-16T22:43Z"
+"kalla": "2026-11-17",
+"skanning": "2026-11-17T22:35Z"
 },
 "USA": {
-"har": 1587,
+"har": 1585,
 "antal": 1598,
-"kalla": "2026-11-16",
-"skanning": "2026-11-16T22:43Z"
+"kalla": "2026-11-17",
+"skanning": "2026-11-17T22:35Z"
 },
 "Europa": {
-"har": 494,
-"antal": 497,
-"kalla": "2026-11-16",
-"skanning": "2026-11-16T22:43Z"
+"har": 493,
+"antal": 496,
+"kalla": "2026-11-17",
+"skanning": "2026-11-17T22:35Z"
 }
 },
 "sources": {
@@ -431,7 +436,6 @@
 "BJRI",
 "BKE",
 "BKG.L",
-"BKH",
 "BKNG",
 "BKR",
 "BKT.MC",
@@ -1131,6 +1135,7 @@
 "HWKN",
 "HWM",
 "HXL",
+"HZN",
 "HZO",
 "IAG.L",
 "IAG.MC",
