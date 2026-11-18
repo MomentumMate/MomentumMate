@@ -189,6 +189,8 @@ hur stor del av kapitalet som ligger i strategin och lägger resten i indexfond/
 nedgång från topp (nu och största) och värsta/bästa dag ur appens dagliga ögonblicksbilder rensade för registrerade köp/sälj; hållvillkorens läge (⏳);
 koncentrationsvarningar (sektor > 40 % av antalet eller vikten, marknad ≥ 80 %, innehav över bandet); marknadsbredd för hela universumet (andel över SMA200, andel
 med positivt 12-1, andel upp i dag, per marknad). Information – styr inget.
+*Allokeringsvy 2026-11-18 (app az), portföljöversikten:* kapital i strategin (summan av verkliga portföljer) mot registrerat kapital utanför (indexfond/räntor/kassa, redigerbart),
+andel i strategin och vad en −50 %-nedgång i strategin betyder för hela kapitalet. Information – styr inget.
 
 ## 16. Datakvalitet och exekvering (information och spärr)
 
@@ -218,6 +220,8 @@ genomfört belopp och pris, courtage. Loggen ger: modellportfölj mot verklig po
 avgiftsinställningen), delvis genomförd, avstådd (orsak väljs) eller ersatt av ett nyare förslag. Affärer utanför förslaget loggas som avvikelse.
 Avkastning: tidsviktad ur appens dagliga ögonblicksbilder, rensad för registrerade köp/sälj (approximation av insättningar/uttag); jämförs med OMXSPI och
 MSCI World i SEK (ETF:en URTH × USD/SEK), serier i `data.json` (`idx`). Modellportföljen utan avsteg är demoportföljen. Fältet "institutionellt stöd" fylls av radarn (§ 12).
+*2026-11-18 (app az):* insättningar och uttag kan registreras per portfölj (datum, belopp, notering); finns de används de i den tidsviktade avkastningen
+(logg, riskpanel, demojämförelse) i stället för approximationen; demojämförelsen visar verkliga portföljer tidsviktat.
 
 ## 18. Paritet backtest ↔ app (lästa ur koden 2026-11-05)
 
