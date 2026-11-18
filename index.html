@@ -402,7 +402,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-18-bj";
+const APPV="2026-11-18-bk";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -3214,7 +3214,7 @@ function rSignals(){
     sektor:(()=>{const sec={};list.forEach(x=>{const s=S[x.t],k=s&&s.sec;if(!k)return;const o=sec[k]=sec[k]||{sec:k,buy:new Set(),sell:new Set(),t:new Set()};x.buy.forEach(i=>o.buy.add(i));x.sell.forEach(i=>o.sell.add(i));if(x.buy.size)o.t.add(x.t)});return Object.values(sec).sort((a,b)=>(b.buy.size-b.sell.size)-(a.buy.size-a.sell.size))})(),
     per}
 }
-const RSIG=[["nya","Nya köp"],["okade","Ökade innehav"],["konsensus","Konsensus"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"],["flode","Flöde"]];
+const RSIG=[["konsensus","Konsensus"],["flode","Flöde"],["nya","Nya köp"],["okade","Ökade innehav"],["overtygelse","Övertygelse"],["tidiga","Tidiga signaler"],["sektor","Sektorer"],["aktivist","Aktivister"]];
 const RSIGTXT={nya:"Aktier där en förvaltare tagit ny position (13F), ARK köpt in en ny aktie eller någon anmält ägande ≥ 5 %. Senaste först.",
   okade:"Positioner som ökats mest sedan förra rapporten (antal aktier, sedan vikt).",konsensus:"Aktier som minst två investerare köper, rankade efter köpare minus säljare. Tre eller fler markeras.",
   overtygelse:"Aktier som utgör en ovanligt stor del av någons portfölj (≥ 8 %).",tidiga:"Mindre bolag (börsvärde under 50 mdr kr) där minst två investerare köper, eller en köper och flera redan äger – innan den breda marknaden hittat dem.",
