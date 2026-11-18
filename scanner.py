@@ -1832,6 +1832,9 @@ def live():
     except Exception: pass
     try: extra += [t for m in json.load(open("markets_extra.json", encoding="utf-8")).get("markets", []) for t in m.get("tickers", [])]
     except Exception: pass
+    # 2026-11-18: appens portföljinnehav (alla portföljer inkl. demo) – appen skriver live_watch.json när den startar live-jobbet
+    try: extra += [t for t in json.load(open("live_watch.json", encoding="utf-8")).get("tickers", []) if isinstance(t, str)][:150]
+    except Exception: pass
     extra += [t for t, _ in sorted(((t, r.get("sc2") or 0) for t, r in recs.items() if (r.get("sc2") or 0) > 0 and r.get("liqok", True)), key=lambda x: -x[1])[:20]]
     intra_pool = [t for t in dict.fromkeys(pool + extra) if t in recs]
     print(f"Live-uppdatering av {len(pool)} aktier, intradag för {len(intra_pool)}")

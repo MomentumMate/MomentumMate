@@ -398,7 +398,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-18-ba";
+const APPV="2026-11-18-bc";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -591,7 +591,7 @@ async function fillCharts(root){
     el.querySelectorAll("[data-act=cvl]").forEach(c=>{c.classList.toggle("on",!!st.lay[c.dataset.k]);c.classList.toggle("off",!st.lay[c.dataset.k]);c.classList.toggle("dis",intra&&c.dataset.k==="sma");if(intra&&c.dataset.k==="sma")c.title="Dagsbaserat medelvärde – välj 1M eller längre"});
     const box=el.querySelector(".cvin"),head=el.querySelector(".cvhead");
     try{let h=await loadHist(t);if(intra)h=await mergeIntra(t,h);const out=cvSvg(s,h,st.rng,st.lay);
-      if(!out){box.innerHTML=`<div class="mu" style="padding:10px 0">${intra?`Dagens session har bara ${(h&&h[st.rng]&&h[st.rng].t||[]).length} stapel – för lite att rita. ${LIVE_INTRA[t]&&LIVE_INTRA[t].t?`Live-jobbet ${LIVE_INTRA_TS?hhmm(new Date(LIVE_INTRA_TS).toISOString()):""} har ${LIVE_INTRA[t].t.length} staplar för aktien.`:LIVE_INTRA_TS?`Aktien ingår inte i live-jobbets urval (innehav i holdings.txt, bevakning, topp 20, kandidater) – ${Object.keys(LIVE_INTRA).length} aktier ${hhmm(new Date(LIVE_INTRA_TS).toISOString())}.`:"Live-jobbets staplar är inte lästa än."} ${runLink("daytrade.yml","Hämta dagens staplar ›")||"Kommer efter nästa skanning eller live-jobb."}`:"Graf saknas – kurshistoriken byggs av skanningen."}</div>`;continue}
+      if(!out){box.innerHTML=`<div class="mu" style="padding:10px 0">${intra?`Dagens session har bara ${(h&&h[st.rng]&&h[st.rng].t||[]).length} stapel – för lite att rita. ${LIVE_INTRA[t]&&LIVE_INTRA[t].t?`Live-jobbet ${LIVE_INTRA_TS?hhmm(new Date(LIVE_INTRA_TS).toISOString()):""} har ${LIVE_INTRA[t].t.length} staplar för aktien.`:LIVE_INTRA_TS?`Aktien ingår inte i live-jobbets urval (portföljinnehav, holdings.txt, bevakning, topp 20, kandidater – portföljlistan skickas när du startar jobbet härifrån) – ${Object.keys(LIVE_INTRA).length} aktier ${hhmm(new Date(LIVE_INTRA_TS).toISOString())}.`:"Live-jobbets staplar är inte lästa än."} ${runLink("daytrade.yml","Hämta dagens staplar ›")||"Kommer efter nästa skanning eller live-jobb."}`:"Graf saknas – kurshistoriken byggs av skanningen."}</div>`;continue}
       box.innerHTML=out.svg;box.classList.add("cv");
       const r=out.r,n=out.n,a=r.p[0],b=r.p[n-1],ch=(b/a-1)*100;
       head.innerHTML=`<span class="big" style="font-size:22px">${b.toFixed(2)} ${esc(s.cur)}</span><span class="pill ${cls(ch)}">${sg(ch)}</span> <span class="mu">${r.t?histFmt(r.t[n-1],st.rng,t):""}</span>`}
@@ -713,31 +713,39 @@ function holdCard(r,p){
 }
 
 /* ---------- BÖRSDESK ---------- */
-function mstats(k){const r=D.rank[k];if(!r)return null;const L=r.mom.map(t=>S[t]).filter(Boolean),n=L.length||1;return{r,L,av:L.reduce((a,x)=>a+x.sc,0)/n,cg:L.reduce((a,x)=>a+x.chg,0)/n,tr:Math.round(L.filter(x=>x.a200).length/n*100),dc:L.filter(x=>x.dok).length,n:L.length}}
+function mstats(k){const r=D.rank[k];if(!r)return null;const L=r.mom.map(t=>S[t]).filter(Boolean),n=L.length||1;return{r,L,av:L.reduce((a,x)=>a+(typeof x.sc2==="number"?x.sc2:x.sc),0)/n,cg:L.reduce((a,x)=>a+x.chg,0)/n,tr:Math.round(L.filter(x=>x.a200).length/n*100),dc:L.filter(x=>x.dok).length,n:L.length}}
 function vDesk(){
   if(Ui.reorder){reorderView();return}
-  const ms=orderedMkts(),lf=Object.keys((D.stats&&D.stats.list_fallback)||{});
+  const ms=orderedMkts(),lf=Object.keys((D.stats&&D.stats.list_fallback)||{}),dtab=Ui.dtab||"mk";
   view(`${topbar("Börsdesk",true,topBtn(`data-act="deskinfo"`,'<span class="ii">ⓘ</span>',"Info"))}${lf.length?`<div class="stat SELL" style="margin-top:0"><b>⚠ BOLAGSLISTOR</b>Skannern kunde inte hämta aktielistan för ${lf.map(k=>esc(MK(k).n)).join(", ")} och använde en reservlista – nyligen tillagda bolag kan saknas.</div>`:""}${dropdown("ddmk","Alla marknader",[{html:"🌍 Alla marknader",on:true,attrs:`data-go="#/desk"`},{sep:true}].concat(ms.filter(m=>m.k!=="ALL").map(m=>({html:`${m.flag} ${esc(m.n)}`,attrs:`data-go="#/desk/${m.k}"`}))).concat([{sep:true},{html:"＋ Lägg till börs",attrs:`data-act="addx"`},{html:"↕ Ändra ordning",attrs:`data-act="reorder"`}]),{icon:"globe"})}
   <div class="chips" style="margin:0 0 10px"><span class="chip on" data-go="#/daytrade">⚡ Daghandel</span><span class="chip" data-go="#/radar">📡 Radar</span></div>
-  ${ms.map(m=>{const st=mstats(m.k);if(!st)return"";return`<div class="mod" data-go="#/desk/${m.k}"><div class="mh"><div class="ico fg">${m.flag}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div>
-   <div class="mu">${st.r.all.length} aktier · snittpoäng topp 25: <b style="color:var(--tx)">${f(st.av,1)}</b> · över SMA200: ${st.tr}% · ${st.dc} daghandel</div>
+  <div class="tabs"><button class="${dtab==="mk"?"on":""}" data-act="dtab" data-v="mk">Börser</button><button class="${dtab==="mom"?"on":""}" data-act="dtab" data-v="mom">Momentum 25</button><button class="${dtab==="dt"?"on":""}" data-act="dtab" data-v="dt">Daghandel</button></div>
+  ${dtab==="mom"?(()=>{const st=mstats("ALL");return st?`<div class="mu" style="margin:0 2px 8px">Alla marknader · ${mktLine(st)}</div>`+st.L.map((s,i)=>card(s,i+1,{mk:"ALL"})).join(""):'<div class="empty">Ingen data.</div>'})():dtab==="dt"?dtListHTML("ALL"):ms.map(m=>{const st=mstats(m.k);if(!st)return"";return`<div class="mod" data-go="#/desk/${m.k}"><div class="mh"><div class="ico fg">${m.flag}</div><h2>${esc(m.n).toUpperCase()}</h2><span class="go">›</span></div>
+   <div class="mu">${mktLine(st)}</div>
    ${st.L.slice(0,3).map(s=>`<div class="sr"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`}).join("")}
-  <div class="mod" data-act="addx"><div class="mh"><div class="ico">＋</div><h2>LÄGG TILL BÖRS</h2><span class="go">›</span></div><div class="mu">Bevaka fler börser – t.ex. Amsterdam, Helsingfors, Zürich, Madrid, Milano, Krypto – eller egna aktier. <b>Europa</b> samlar alla europeiska börser i en vy.</div></div>`)
+  ${dtab==="mk"?`<div class="mod" data-act="addx"><div class="mh"><div class="ico">＋</div><h2>LÄGG TILL BÖRS</h2><span class="go">›</span></div><div class="mu">Bevaka fler börser – t.ex. Amsterdam, Helsingfors, Zürich, Madrid, Milano, Krypto – eller egna aktier. <b>Europa</b> samlar alla europeiska börser i en vy.</div></div>`:""}`)
 }
+/* Daghandelslistan för en marknad (samma kort som sidan Daghandel, strikthet alla 5): kandidater + nästan kandidater. */
+function dtListHTML(k){const dt=D.rank.DT||{cand:[],near:[]};
+  const C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,k)).slice(0,25),N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,k)).slice(0,Math.max(0,25-C.length)),hint=usHint();
+  return`${hint.t?`<div class="mu" style="margin:0 2px 8px;font-size:12px">${esc(hint.t)}</div>`:""}${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="mu" style="margin:0 2px 10px">Inga aktier klarar alla fem kriterier just nu.</div>'}
+  ${N.length?`<div class="mh" style="margin:16px 2px 4px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">NÄSTAN KANDIDATER</h2></div>${N.map((s,i)=>dcard(s,C.length+i+1,true)).join("")}`:""}
+  <div class="acts" style="margin-top:8px"><button class="btn sm ghost" data-go="#/daytrade">Hela daghandelssidan med strikthet ›</button></div>`}
+function mktLine(st){return`${st.r.all.length} aktier · över SMA200: ${st.tr} % · snittpoäng topp 25: <b style="color:var(--tx)">${f(st.av,1)}</b> · ${st.dc} daghandel`}
 function vMarket(k){
   const m=MK(k),st=mstats(k);if(!st){view(topbar(esc(m.n))+'<div class="empty">Ingen data för den här marknaden.</div>');return}
-  let tab=Ui.mtab||"mom";if(["val","grm","mgf"].includes(tab))tab="mom";const r=st.r,lg=D.stats&&D.stats.light&&D.stats.light[k],lw=D.stats&&D.stats.list_fallback&&D.stats.list_fallback[k],li=D.stats&&D.stats.lists&&D.stats.lists[k],lc=D.stats&&D.stats.list_changes&&D.stats.list_changes[k],dr=((D.stats&&D.stats.dropped)||[]).filter(x=>(x[2]||[]).some(y=>k==="ALL"||mktMembers(k).includes(y)));H={av:st.av,cg:st.cg,tr:st.tr,dc:st.dc,n:st.n,ab:st.L.filter(x=>x.a200).length};
+  let tab=Ui.mtab||"mom";if(!["mom","dt","all"].includes(tab))tab="mom";const r=st.r,lg=D.stats&&D.stats.light&&D.stats.light[k],lw=D.stats&&D.stats.list_fallback&&D.stats.list_fallback[k],li=D.stats&&D.stats.lists&&D.stats.lists[k],lc=D.stats&&D.stats.list_changes&&D.stats.list_changes[k],dr=((D.stats&&D.stats.dropped)||[]).filter(x=>(x[2]||[]).some(y=>k==="ALL"||mktMembers(k).includes(y)));H={av:st.av,cg:st.cg,tr:st.tr,dc:st.dc,n:st.n,ab:st.L.filter(x=>x.a200).length};
   let body="";
-  if(tab==="mom"){let L=st.L;const list=Ui.dt?L.filter(x=>x.dok):L;body=`<div class="chips" style="margin-bottom:8px"><span class="chip${Ui.dt?" on":""}" data-act="dtf">⚡ Endast daghandel</span></div>`+(list.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga daghandelskandidater just nu.</div>')}
+  if(tab==="mom"){const L=st.L;body=L.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga aktier i listan.</div>'}
+  else if(tab==="dt")body=dtListHTML(k);
   else{const A=r.all.map(t=>S[t]).filter(Boolean),n=Ui.shown[k]||40;body=`<div class="mu" style="margin:0 2px 8px">Alla ${A.length} aktier, sorterade efter momentumpoäng.</div>`+A.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true})).join("")+(A.length>n?`<button class="btn ghost wide" data-act="more" data-k="${k}">Visa fler (${A.length-n})</button>`:"")}
   view(`${topbar(m.flag+" "+esc(m.n),true,topBtn(`data-act="deskinfo"`,'<span class="ii">ⓘ</span>',"Info"))}${dropdown("ddmk",esc(m.n),[{html:"🌍 Alla marknader",attrs:`data-go="#/desk"`},{sep:true}].concat(orderedMkts().filter(x=>x.k!=="ALL").map(x=>({html:`${x.flag} ${esc(x.n)}`,on:x.k===k,attrs:`data-go="#/desk/${x.k}"`}))),{icon:"globe"})}
-  <div class="sumx"><div class="sx-l" data-i="score"><div class="mu">Snittpoäng topp 25 · ${esc(m.n)} <span class="ii">ⓘ</span></div><div><span class="big">${f(st.av,1)}</span><span class="pill ${cls(st.cg)}">${sg(st.cg)} idag</span></div><div style="margin-top:8px"><span class="tag" style="margin:0" data-i="dag">${st.dc}</span> <span class="mu">daghandelskandidater</span></div></div>
-   <div class="sx-r" data-i="trend"><div class="ring" style="--p:${st.tr}"><b>${st.tr}%</b></div><div class="mu" style="margin-top:4px">Trendstyrka <span class="ii">ⓘ</span></div></div></div>
+  <div class="mu" style="margin:0 2px 8px">${mktLine(st)}</div>
   ${lw?`<div class="stat SELL"><b>⚠ LISTAN KAN VARA INKOMPLETT</b>Skannern kunde inte hämta bolagslistan för den här marknaden live och använde ${li?esc(li.src):"en reservlista"}. Nyligen tillagda bolag kan saknas. Slå upp saknade aktier eller lägg dem i Min bevakning.</div>`:""}
   ${lc?`<div class="stat WAIT"><b>ÄNDRING I MARKNADSLISTAN ${esc(lc.ts)}</b>${lc.added.length?"Nya: "+lc.added.map(esc).join(", "):""}${lc.added.length&&lc.removed.length?" · ":""}${lc.removed.length?"Borttagna: "+lc.removed.map(esc).join(", "):""}</div>`:""}
   ${li&&!lw?`<div class="mu" style="margin:0 2px 6px;font-size:11.5px">Aktielista: ${esc(li.src)} · ${esc(li.ts)} · ${li.n} aktier</div>`:""}
   ${lg?`<div class="mu" style="margin:0 2px 8px;font-size:11.5px">Lätt läge: ${lg.deep} av ${lg.scanned} aktier har full analys.</div>`:""}
-  <div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum 25</button><button class="${tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="all">Alla</button></div>${body}${dr.length?`<details class="nwd" style="margin-top:10px"><summary>Saknas i analysen (${dr.length})</summary><div class="mu" style="margin:4px 0 8px">Yahoo saknade kursdata för dessa vid senaste skanningen, eller så har de för kort historik. De kan vara avnoterade, ha bytt ticker eller tillfälligt saknas hos Yahoo.</div>${dr.slice(0,80).map(x=>`<div class="k"><b>${esc(x[0])}</b> <span class="mu">– ${esc(x[1])}</span> <span class="lnk" data-act="lookup" data-q="${esc(x[0].replace(/\.[A-Z]{1,3}$/,""))}">Slå upp ›</span></div>`).join("")}</details>`:""}`)
+  <div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum 25</button><button class="${tab==="dt"?"on":""}" data-act="tab" data-k="${k}" data-v="dt">Daghandel</button><button class="${tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="all">Alla</button></div>${body}${dr.length?`<details class="nwd" style="margin-top:10px"><summary>Saknas i analysen (${dr.length})</summary><div class="mu" style="margin:4px 0 8px">Yahoo saknade kursdata för dessa vid senaste skanningen, eller så har de för kort historik. De kan vara avnoterade, ha bytt ticker eller tillfälligt saknas hos Yahoo.</div>${dr.slice(0,80).map(x=>`<div class="k"><b>${esc(x[0])}</b> <span class="mu">– ${esc(x[1])}</span> <span class="lnk" data-act="lookup" data-q="${esc(x[0].replace(/\.[A-Z]{1,3}$/,""))}">Slå upp ›</span></div>`).join("")}</details>`:""}`)
 }
 
 /* ---------- NYHETER / SÖK / AKTIE ---------- */
@@ -770,9 +778,7 @@ function closeSheet(){SH.classList.remove("on");PN.style.transform=""}
 let toastT;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),2200)}
 const F=" <p class='mu'>Modell – inte en prognos eller finansiell rådgivning.</p>";
 const INFO={
-score:()=>["Snittpoäng","<p>Medelvärdet av momentumpoängen (0–100) för de "+H.n+" aktierna i topplistan. Nu: <b>"+f(H.av,1)+"</b>.</p><p>Poängen väger <b>teknik 60 %</b> (avkastning 1 och 3 mån, SMA50/200, MACD, volym), <b>fundamentals 25 %</b> (vinst- och omsättningstillväxt, marginal) och <b>nyheter 15 %</b>.</p><p>Högt tal = starkt momentum brett i toppen. Lågt tal = även de bästa aktierna är svaga.</p><p>Pillen visar medelrörelsen sedan gårdagens stängning: <b>"+sg(H.cg)+"</b>.</p>"+F],
 graf:()=>["Poängkurvan","<p>Grafen är <b>inte en kurs över tid</b>. Varje punkt är en aktie i rankingen, från plats 25 längst till vänster till <b>plats 1 längst till höger</b> (den ljusa punkten).</p><p><b>Brant mot slutet:</b> få aktier sticker ut. <b>Jämn kurva:</b> momentumet är brett och många ligger nära toppen.</p>"],
-trend:()=>["Trendstyrka","<p>Andelen av aktierna på listan som ligger över sitt <b>200-dagars glidande medelvärde (SMA200)</b>: <b>"+H.tr+" %</b> ("+H.ab+" av "+H.n+").</p><p><b>Över 80 %:</b> uppgången vilar på en stabil långsiktig trend. <b>Under 50 %:</b> många rusar kortsiktigt men ligger under sin långa trend – en studs snarare än en etablerad uppgång, högre risk.</p>"+F],
 signaler:()=>["Flaggor","<p>Tre slags flaggor, alla information – ingen styr rankningen:</p><p>📉 <b>Försämring:</b> volymbalansen faller, flera veckor med lägre toppar, snabbt växande avstånd till toppen, eller hög poäng med svag senaste tid. Backtestet visade att försäljning på dessa kostade 3–11 procentenheter – därför är de flaggor, inte regler.</p><p>⟷ <b>Struktur:</b> lägre toppar och bottnar (nedtrend), smalnande intervall (utbrott väntas) eller vidgande svängar.</p><p>〓 <b>Vid nivå:</b> kursen ligger inom tre procent av ett stöd eller motstånd med minst två träffar.</p><p>De tidigare flaggorna för SMA50, RSI och Fibonacci togs bort 2026-10-21 – de hörde till den gamla signalmotorn.</p>"+F],
 dag:()=>["Daghandelsfilter","<p>Aktien är en kandidat bara om <b>alla fem</b> kriterier uppfylls:</p><p>1. Pris över gårdagens high<br>2. Gårdagens stängning över SMA200<br>3. Pris över dagens pre-market high<br>4. Pris över dagens öppningskurs<br>5. Pre-market volym ≥ 50 000</p><p>➖ betyder att kriteriet inte kan bedömas (t.ex. svenska aktier saknar pre-market, eller marknaden har inte öppnat än). Dagens kandidater: <b>"+(H.dc||0)+"</b>.</p>"+F],
 hz:()=>["Placeringshorisont","<p>Varje aktie får en flagga för vilken tidshorisont som passar bäst just nu, enligt fasta regler i skannern:</p><p><b>1–3 mån:</b> starkt kortsiktigt momentum (stark 1–3 mån-avkastning, över SMA50, MACD uppåt).</p><p><b>3–6 mån:</b> etablerad uppåttrend över SMA50 och SMA200.</p><p><b>6–12 mån:</b> trenden håller och vinst/omsättning växer.</p><p><b>1–2 år:</b> långsiktig trend intakt över SMA200.</p><p><b>Avvakta:</b> ingen tydlig setup just nu.</p>"+F],
@@ -881,7 +887,7 @@ function act(a,d){
     case"pmenu":pmenuSheet(d.pid);break;
     case"psel":P.cur=d.id;save();location.hash="#/portfolio/"+d.id;break;
     case"tab":Ui.mtab=d.v;route(true);break;
-    case"dtf":Ui.dt=!Ui.dt;route(true);break;
+    case"dtab":Ui.dtab=d.v;route(true);break;
     case"more":Ui.shown[d.k]=(Ui.shown[d.k]||40)+40;route(true);break;
     case"news":Ui.news=d.v;route(true);break;
     case"dpick":{const on=dayPick()===d.t;setPick(on?null:d.t);toast(on?"Borttagen":"★ Vald som din aktie idag");route(true);break}
@@ -1196,7 +1202,12 @@ const dispatchWf=(wf,inputs)=>ghReq("/actions/workflows/"+wf+"/dispatches",{meth
    kan startas för hand med samma GitHub-token som uppslaget använder. Bara en knapp – jobbets grind avgör om det behövs. */
 const WFL={"scan.yml":"skanningen","daytrade.yml":"live-kurserna","datacheck.yml":"datakontrollen","radar.yml":"radarn"};
 const runLink=(wf,txt)=>ghReady()&&!DEMO?` <span class="lnk" data-act="runwf" data-wf="${wf}">${txt}</span>`:"";
-async function runWf(wf){try{await dispatchWf(wf);toast("Startade "+(WFL[wf]||wf)+" – klart om några minuter, dra ner för att ladda om")}catch(e){toast("Kunde inte starta: "+e.message.slice(0,60))}}
+/* live_watch.json: alla portföljers innehav (inkl. demo) så att live-jobbet hämtar dagens staplar för dem (scanner.live, 2026-11-18). Skrivs bara när listan ändrats. */
+async function syncLiveWatch(){if(!ghReady())return;const tk=[...new Set(P.ps.flatMap(p=>(p.h||[]).map(x=>x.t)))].filter(t=>S[t]).sort();
+  let cur=null;try{cur=await ghGet("live_watch.json")}catch(e){}
+  try{if(cur&&JSON.stringify((JSON.parse(cur.text).tickers||[]).slice().sort())===JSON.stringify(tk))return}catch(e){}
+  await ghPut("live_watch.json",JSON.stringify({updated:new Date().toISOString(),tickers:tk},null,1),cur&&cur.sha,"live_watch: portföljinnehav från appen")}
+async function runWf(wf){try{if(wf==="daytrade.yml")await syncLiveWatch().catch(()=>{});await dispatchWf(wf);toast("Startade "+(WFL[wf]||wf)+" – klart om några minuter, dra ner för att ladda om")}catch(e){toast("Kunde inte starta: "+e.message.slice(0,60))}}
 async function ghGet(path){const j=await ghReq("/contents/"+path+"?ref=main&t="+Date.now());return{sha:j.sha,text:b64d(j.content)}}
 const ghPut=(path,text,sha,msg)=>ghReq("/contents/"+path,{method:"PUT",body:JSON.stringify({message:msg,content:b64e(text),sha:sha||undefined,branch:"main"})});
 const CCYM={SEK:["🇸🇪","kr"],USD:["🇺🇸","$"],EUR:["🇪🇺","€"],DKK:["🇩🇰","kr"],NOK:["🇳🇴","kr"],GBP:["🇬🇧","£"],CHF:["🇨🇭","CHF"],CAD:["🇨🇦","$"]};
