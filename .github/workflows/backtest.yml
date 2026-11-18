@@ -29,9 +29,6 @@ on:
         description: "VIX-test: skyddar volatilitetsfiltret mot momentumkrascher"
         type: boolean
         default: false
-      vixindex:
-        description: "Volatilitetsindex: ^VIX (USA), ^VXN (Nasdaq) eller ^V2TX (Europa)"
-        default: "^VIX"
       entry:
         description: "Entry-test: verkliga kostnader, poststorlek och rekyltajming"
         type: boolean
@@ -58,10 +55,6 @@ on:
         default: false
       score:
         description: "Poängmodell: är appens formel bättre än den validerade?"
-        type: boolean
-        default: false
-      srstop:
-        description: "Stopp vid stöd: nivåbaserat stopp mot fast 15 %"
         type: boolean
         default: false
       momwin:
@@ -101,6 +94,11 @@ on:
         type: choice
         options: ["", "mm2", "parity", "smooth2", "costn", "fulln", "survive"]
         default: ""
+      strat:
+        description: "Strategitester 2026-11-18 (TESTPLAN § 9): gap (gapsäljning), breadth (riskbudget efter bredd), sector (sektortak), invvol (omvänd volatilitet), all"
+        type: choice
+        options: ["", "gap", "breadth", "sector", "invvol", "all"]
+        default: ""
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"
         default: "10000000"
@@ -113,7 +111,7 @@ permissions:
 jobs:
   backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -131,7 +129,7 @@ jobs:
             ${{ github.event.inputs.combo == 'true' && '--combo' || '' }} \
             ${{ github.event.inputs.robust == 'true' && '--robust' || '' }} \
             ${{ github.event.inputs.exits == 'true' && '--exits' || '' }} \
-            ${{ github.event.inputs.vix == 'true' && format('--vix --vixindex {0}', github.event.inputs.vixindex || '^VIX') || '' }} \
+            ${{ github.event.inputs.vix == 'true' && '--vix --vixindex ^VIX' || '' }} \
             ${{ github.event.inputs.entry == 'true' && format('--entry --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.mix == 'true' && format('--mix --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.freq == 'true' && format('--freq --port {0}', github.event.inputs.port || '10000000') || '' }} \
@@ -139,7 +137,6 @@ jobs:
             ${{ github.event.inputs.decay == 'true' && format('--decay --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.tp == 'true' && format('--tp --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.score == 'true' && format('--score --port {0}', github.event.inputs.port || '10000000') || '' }} \
-            ${{ github.event.inputs.srstop == 'true' && format('--srstop --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.momwin == 'true' && format('--momwin --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.core == 'true' && format('--core --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.crash == 'true' && format('--crash --port {0}', github.event.inputs.port || '10000000') || '' }} \
@@ -149,6 +146,7 @@ jobs:
             ${{ github.event.inputs.tie == 'true' && format('--tie --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.rw == 'true' && format('--rw --port {0}', github.event.inputs.port || '10000000') || '' }} \
             ${{ github.event.inputs.test2 != '' && format('--{0} --port {1}', github.event.inputs.test2, github.event.inputs.port || '10000000') || '' }} \
+            ${{ github.event.inputs.strat != '' && format('--strat {0} --port {1}', github.event.inputs.strat, github.event.inputs.port || '10000000') || '' }} \
             --out backtest.json 2>&1 | tee backtest.log
       - name: Publicera resultatet på grenen backtest
         run: |

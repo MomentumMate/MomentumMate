@@ -497,6 +497,45 @@ def run(close, vol, cfg, vix=None):
         raise SystemExit("För kort historik för att backtesta.")
 
     expo = vix_exposure(vix, close.index, cfg)
+    # ---- Strategitester 2026-11-18 (TESTPLAN § 9) ----
+    # T2 riskbudget: bredd = andel av universumet över SMA200 (gårdagens värde, så att ingen framtidsläckage sker)
+    BUYGATE = None
+    if cfg.get("breadth_cut"):
+        s200_ = close.rolling(200, min_periods=160).mean()
+        br = ((close > s200_).sum(axis=1) / close.notna().sum(axis=1).replace(0, np.nan)).shift(1).fillna(1.0)
+        if cfg.get("breadth_expo") is None:
+            BUYGATE = br >= cfg["breadth_cut"]                      # inga nya köp när bredden är under gränsen
+        else:
+            lo_, hi_ = cfg["breadth_cut"], cfg.get("breadth_full", cfg["breadth_cut"])
+            f = []; st_ = 1.0
+            for v in br.values:                                      # hysteres: halv exponering under lo_, full igen över hi_
+                if v < lo_: st_ = cfg["breadth_expo"]
+                elif v >= hi_: st_ = 1.0
+                f.append(st_)
+            expo = expo * pd.Series(f, index=close.index)
+    # T3 sektortak: sektor per aktie från data.json (skannerns Yahoo-sektor); saknas sektor räknas aktien som egen sektor
+    SECTOR = None
+    if cfg.get("sector_cap"):
+        try:
+            _dj = json.load(open("data.json", encoding="utf-8")).get("stocks") or {}
+            SECTOR = {t: (_dj.get(t) or {}).get("sec") or f"?{t}" for t in close.columns}
+        except Exception:
+            SECTOR = {t: f"?{t}" for t in close.columns}
+    def sector_ok(t):
+        if not SECTOR: return True
+        k = SECTOR.get(t); return sum(1 for x in hold if SECTOR.get(x) == k) < cfg["sector_cap"]
+    # T4 omvänd volatilitet: vikt ∝ 1/σ60 (årstakt), normerad mot medianen bland innehav + kandidat, tak 2× och golv 0,5×
+    SIG = close.pct_change().rolling(60, min_periods=40).std() * math.sqrt(252) if cfg.get("inv_vol") else None
+    def ivf(t, i_, among):
+        if SIG is None: return 1.0
+        try:
+            sg = SIG.iat[i_, close.columns.get_loc(t)]
+            ref = [SIG.iat[i_, close.columns.get_loc(x)] for x in among]
+            ref = [x for x in ref if x == x and x > 0]
+            if sg != sg or sg <= 0 or not ref: return 1.0
+            return float(min(2.0, max(0.5, (sorted(ref)[len(ref) // 2]) / sg)))
+        except Exception:
+            return 1.0
     n_eff_now = lambda: n_eff
     cash, hold, hold_days = 1.0, {}, []
     cut_days = 0          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
@@ -737,7 +776,7 @@ def run(close, vol, cfg, vix=None):
             except Exception: pos = n_
             if m: return 2.0 if pos <= m else 1.0
             return 1.0 + k * (0.5 - (pos - 1) / max(1, n_ - 1))
-        if cfg.get("refill") and d not in rebs and len(hold) < n_eff and _due:
+        if cfg.get("refill") and d not in rebs and len(hold) < n_eff and _due and (BUYGATE is None or bool(BUYGATE.iloc[i])):
             row_r = sc.iloc[i].dropna()
             mk_r = cfg.get("mkt", "all")
             if mk_r == "nordic":
@@ -747,11 +786,14 @@ def run(close, vol, cfg, vix=None):
             if len(row_r) >= cfg["n"]:
                 rk = row_r.rank(ascending=False, method="first")
                 free = [t for t in rk[rk <= cfg["n"]].sort_values().index if t not in hold and entry_ok(t)]
-                tot_r = value(i)
-                for t in free[:n_eff - len(hold)]:
+                tot_r = value(i); nb_ = 0
+                for t in free:
+                    if nb_ >= n_eff - len(hold): break
+                    if not sector_ok(t): continue
                     px = p.get(t)
                     if px != px or px <= 0: continue
-                    target = tot_r / max(1, n_eff) * wfac(t, rk)
+                    nb_ += 1
+                    target = tot_r / max(1, n_eff) * wfac(t, rk) * ivf(t, i, list(hold) + [t])
                     if cash < target * 0.2: break
                     amt = min(target, cash); px = fpx(t, i, px)
                     sh = (amt - fee(amt, t, "buy")) / px
@@ -816,6 +858,9 @@ def run(close, vol, cfg, vix=None):
                         if cfg.get("rank_wt") or cfg.get("rank_top"):   # vikt efter styrka: målvikterna normeras över innehaven
                             fs_ = sum(wfac(x, rank) for x in hold) or 1.0
                             target = tot * wfac(t, rank) / fs_ * (len(hold) / cfg["n"])
+                        if SIG is not None:                             # omvänd volatilitet: målvikterna normeras över innehaven
+                            fv_ = sum(ivf(x, i, list(hold)) for x in hold) or 1.0
+                            target = tot * ivf(t, i, list(hold)) / fv_ * (len(hold) / cfg["n"])
                         cur = h["sh"] * px
                         if cur > target * (1 + cfg.get("rw_band", 0.25)):
                             sell = (cur - target) / px; pf = fpx(t, i, px)
@@ -879,12 +924,16 @@ def run(close, vol, cfg, vix=None):
                         rr = RSI.iloc[i]
                         cand_all = [t for t in cand_all
                                     if not (rr.get(t) == rr.get(t) and rr.get(t) > cfg["buy_rsi"])]
-                    picks = cand_all[:room]
+                    if BUYGATE is not None and not bool(BUYGATE.iloc[i]): cand_all = []
+                    picks = []
+                    for t in cand_all:
+                        if len(picks) >= room: break
+                        if sector_ok(t): picks.append(t)
                     tot = value(i)
                     for t in picks:
                         px = p.get(t)
                         if px != px or px <= 0: continue
-                        target = tot / max(1, n_eff) * wfac(t, rank)
+                        target = tot / max(1, n_eff) * wfac(t, rank) * ivf(t, i, list(hold) + [t])
                         if cash < target * 0.2: break
                         amt = min(target, cash); px = fpx(t, i, px)
                         sh = (amt - fee(amt, t, "buy")) / px
@@ -1011,6 +1060,7 @@ def main():
     ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
     ap.add_argument("--survive", action="store_true", help="överlevnadsbias: S&P 500-medlemmar som kandidater först från sitt inträdesdatum (Wikipedia)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
+    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all")
     a = ap.parse_args()
 
     if a.universe:
@@ -1129,6 +1179,86 @@ def main():
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": "krasch",
                "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
                "varning": "Survivorship bias och ingen fundamenta. Kraschfönstren är få – tolka som indikation."}
+        with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
+        print(f"\nSkrev {a.out}"); return
+
+    # ---------- Strategitester under 2.0 (2026-11-18, TESTPLAN § 9) ----------
+    if a.strat:
+        B = dict(voladj=False, n=20, band_out=100000, reweight=True, reb="Q", refill_days="M", m121_cal=True, stop=0,      # P3-basis
+                 w_mom=.80, w_trend=.20, w_vol=0, heat=True, core="month", t1=True, slip=True,
+                 port_sek=a.port, cour_pct=0.0009, fx_pct=0.00266, simple_cost=False)
+        DBL = dict(cour_pct=0.0018, fx_pct=0.00532)
+        M2 = dict(B, mom_measure="clenow", clenow_n=120)              # modell 2.0
+        which = a.strat.lower()
+        VAR = {"A.  Modell 2.0 (referens)": dict(M2)}
+        if which in ("gap", "all"):
+            VAR["--- T1 gapsäljning: sälj dagen efter ett dagsfall ≥ x % ---"] = None
+            for g in (22, 25, 30): VAR[f"T1-{g}. A + gap {g} %"] = dict(M2, gap_sell=g)
+        if which in ("breadth", "all"):
+            VAR["--- T2 riskbudget efter marknadsläge (bredd = andel av universumet över SMA200, dagen före) ---"] = None
+            VAR["T2-a. Inga nya köp när bredd < 40 %"] = dict(M2, breadth_cut=0.40)
+            VAR["T2-b. Inga nya köp när bredd < 30 %"] = dict(M2, breadth_cut=0.30)
+            VAR["T2-c. Halv exponering (10 innehav) när bredd < 40 %, full igen över 40 %"] = dict(M2, breadth_cut=0.40, breadth_expo=0.5, breadth_full=0.40)
+            VAR["T2-d. Halv exponering när bredd < 30 %, full igen först över 50 %"] = dict(M2, breadth_cut=0.30, breadth_expo=0.5, breadth_full=0.50)
+        if which in ("sector", "all"):
+            VAR["--- T3 sektortak: högst k av 20 innehav i samma sektor (Yahoo-sektor ur data.json) ---"] = None
+            for k in (6, 8): VAR[f"T3-{k}. A + högst {k} per sektor"] = dict(M2, sector_cap=k)
+        if which in ("invvol", "all"):
+            VAR["--- T4 omvänd volatilitet: vikt ∝ 1/σ60, tak 2× och golv 0,5× likavikt, även vid kvartalslikaviktning ---"] = None
+            VAR["T4. A + omvänd volatilitet"] = dict(M2, inv_vol=True)
+        yrs = (close.index[-1] - close.index[210]).days / 365.25
+        be, bst = benchmark(close, yrs)
+        idx = close.index; mid = idx[len(idx) // 2]
+        segs = {"Hela": (idx[0], idx[-1]), "Första halvan": (idx[0], mid), "Andra halvan": (mid - pd.Timedelta(days=430), idx[-1])}
+        print(f"\n########## Strategitester under 2.0 ({which})  portfölj {a.port:,.0f} kr  ({close.shape[1]} aktier) ##########")
+        print("   Beslutsregel (TESTPLAN § 9, skriven innan körning): en variant går in bara om Sharpe OCH Calmar slår A på hela perioden,")
+        print("   Sharpe inte är lägre än A i någon halva, det håller med dubbla kostnader och förskjutet kvartal, CAGR faller högst 2 pe")
+        print("   (riskbudget: 4 pe) och nedgången inte är djupare än A. Vinner flera nivåer väljs den mittersta.\n")
+        res = {}
+        def run_cfg(over, sub, subv):
+            cfg = dict(DEF); cfg.update(over)
+            y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
+            e, tr, hd = run(sub, subv, cfg); return stats(e, tr, y2, hd), e
+        for nm, over in VAR.items():
+            if over is None: print(f"\n   {nm}"); continue
+            try:
+                st, e = run_cfg(over, close, vol); st["år"] = yearly(e)
+                for segn, (s0, s1) in segs.items():
+                    if segn == "Hela": continue
+                    sub = close.loc[s0:s1]; subv = vol.loc[s0:s1]
+                    st[segn] = run_cfg(over, sub, subv)[0]
+                st["dubbla kostnader"] = run_cfg(dict(over, **DBL), close, vol)[0]
+                st["kvartal +1 mån"] = run_cfg(dict(over, reb="Q1"), close, vol)[0]
+                res[nm] = st
+                h1, h2, dk, q1 = st["Första halvan"], st["Andra halvan"], st["dubbla kostnader"], st["kvartal +1 mån"]
+                print(f"   {nm:<70}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %  köp/år {st['köp_per_år']:>5}"
+                      f"  | halvor Sharpe {h1.get('Sharpe')} / {h2.get('Sharpe')}  | dubbla {dk.get('CAGR_%')} % {dk.get('Sharpe')} {dk.get('Calmar')}  | Q+1 {q1.get('CAGR_%')} % {q1.get('Sharpe')} {q1.get('Calmar')}"
+                      f"  utgångar {st.get('utgångar')}")
+            except Exception as ex:
+                print(f"   {nm:<70} FEL {str(ex)[:80]}"); res[nm] = {"fel": str(ex)[:120]}
+        # --- prövning mot beslutsregeln ---
+        A = res.get("A.  Modell 2.0 (referens)", {})
+        if A and "Sharpe" in A:
+            print(f"\n   === PRÖVNING MOT BESLUTSREGELN (A: {A['CAGR_%']} %, Sharpe {A['Sharpe']}, Calmar {A['Calmar']}, nedgång {A['max_nedgång_%']} %) ===")
+            for nm, st in res.items():
+                if nm.startswith("A.") or "Sharpe" not in st: continue
+                lim = 4 if nm.startswith("T2") else 2
+                ok = [("Sharpe>", st["Sharpe"] > A["Sharpe"]), ("Calmar>", (st["Calmar"] or 0) > (A["Calmar"] or 0)),
+                      ("halvor", all((st[k].get("Sharpe") or 0) >= (A[k].get("Sharpe") or 0) for k in ("Första halvan", "Andra halvan"))),
+                      ("dubbla", (st["dubbla kostnader"].get("Sharpe") or 0) > (A["dubbla kostnader"].get("Sharpe") or 0) and (st["dubbla kostnader"].get("Calmar") or 0) > (A["dubbla kostnader"].get("Calmar") or 0)),
+                      ("Q+1", (st["kvartal +1 mån"].get("Sharpe") or 0) > (A["kvartal +1 mån"].get("Sharpe") or 0) and (st["kvartal +1 mån"].get("Calmar") or 0) > (A["kvartal +1 mån"].get("Calmar") or 0)),
+                      (f"CAGR −{lim} pe", st["CAGR_%"] >= A["CAGR_%"] - lim), ("nedgång", st["max_nedgång_%"] >= A["max_nedgång_%"])]
+                st["prövning"] = {k: bool(v) for k, v in ok}
+                print(f"   {nm:<70}{'GODKÄND' if all(v for _, v in ok) else 'faller'}  " + "  ".join(f"{k}:{'✓' if v else '✗'}" for k, v in ok))
+        print(f"\n   === ÅR FÖR ÅR ===")
+        names = [n for n in res if "år" in res[n]]
+        short = {n: n.split(".")[0] for n in names}
+        yrsall = sorted({y for n in names for y in res[n]["år"]})
+        print(f"   {'år':<8}" + "".join(f"{short[n]:>8}" for n in names))
+        for y in yrsall: print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>8}" for n in names))
+        out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": f"strat-{which}",
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "varning": "Survivorship bias och ingen fundamenta. Beslutsregel i TESTPLAN § 9."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
 
