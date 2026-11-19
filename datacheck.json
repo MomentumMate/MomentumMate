@@ -1,32 +1,32 @@
 {
-"updated": "2026-11-18T09:40:16Z",
+"updated": "2026-11-19T12:03:43Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-17",
+"senaste": "2026-11-18",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-17",
+"senaste": "2026-11-18",
 "tysta": 8,
-"flaggade": 12
+"flaggade": 13
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-17",
+"senaste": "2026-11-18",
 "tysta": 2,
-"flaggade": 3
+"flaggade": 2
 }
 },
 "n": 2293,
 "silent": 10,
 "flagged": 15,
 "gone": [
-"BKH"
+"NWE"
 ],
 "own_flagged": [],
 "issues": {
@@ -40,7 +40,7 @@
 "tyst sedan 2026-10-05"
 ],
 "EMBJ": [
-"dagsrörelse -76 % den 2026-11-17"
+"dagsrörelse -75 % den 2026-11-13"
 ],
 "INDV": [
 "tyst sedan 2026-11-05"
@@ -50,6 +50,9 @@
 ],
 "LXP": [
 "tyst sedan 2026-10-30"
+],
+"PCRX": [
+"dagsrörelse -99 % den 2026-11-12"
 ],
 "QRVO": [
 "tyst sedan 2026-10-02"
@@ -70,9 +73,6 @@
 "TOELY": [
 "tyst sedan 2026-09-24"
 ],
-"TRN.MI": [
-"ingen kursdata (tom serie)"
-],
 "VCYT": [
 "dagsrörelse -54 % den 2026-11-05"
 ]
@@ -80,22 +80,22 @@
 "xcheck": [],
 "scan": {
 "Norden": {
-"har": 202,
+"har": 201,
 "antal": 203,
-"kalla": "2026-11-17",
-"skanning": "2026-11-17T22:35Z"
+"kalla": "2026-11-18",
+"skanning": "2026-11-18T22:10Z"
 },
 "USA": {
-"har": 1585,
+"har": 1586,
 "antal": 1598,
-"kalla": "2026-11-17",
-"skanning": "2026-11-17T22:35Z"
+"kalla": "2026-11-18",
+"skanning": "2026-11-18T22:10Z"
 },
 "Europa": {
-"har": 493,
-"antal": 496,
-"kalla": "2026-11-17",
-"skanning": "2026-11-17T22:35Z"
+"har": 494,
+"antal": 497,
+"kalla": "2026-11-18",
+"skanning": "2026-11-18T22:10Z"
 }
 },
 "sources": {
@@ -568,6 +568,7 @@
 "CHRW",
 "CHTR",
 "CHWY",
+"CHYM",
 "CI",
 "CIBUS.ST",
 "CIEN",
@@ -1596,7 +1597,6 @@
 "NVST",
 "NVT",
 "NWBI",
-"NWE",
 "NWG",
 "NWG.L",
 "NWL",
