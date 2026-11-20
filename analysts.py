@@ -3,7 +3,7 @@
 analysts.py – riktkurser och analytikerrevideringar (SPEC § 12: information som visas men inte styr; arbetslista 6, 2026-11-16).
 
 Hämtar från Yahoo (fungerar från GitHub Actions men stryper vid hela universumet) för ett urval: egna innehav (holdings.txt),
-bevakning (markets_extra.json), topp 20 i 2.0, daghandelskandidater – ca 60–100 bolag dagligen:
+bevakning (markets_extra.json), topp 20 i 2.0, daghandelskandidater – ca 60–120 bolag dagligen:
   konsensusriktkurs (snitt/hög/låg), antal analytiker, snittrekommendation, uppsida mot senaste kurs,
   upp-/nedgraderingar med datum och analyshus (senaste 60 dagarna).
 Skriver analysts.json. Varje dags konsensus sparas i en historik per aktie så att revideringar (riktkurs upp/ner, fler/färre köp)
@@ -27,6 +27,9 @@ def targets():
     try: sel += [l.split("#")[0].strip() for l in open("holdings.txt", encoding="utf-8") if l.split("#")[0].strip()]
     except Exception: pass
     try: sel += [t for m in jload("markets_extra.json", {}).get("markets", []) for t in m.get("tickers", [])]
+    except Exception: pass
+    # 2026-11-20: appens portföljinnehav (live_watch.json skrivs av appen)
+    try: sel += [t for t in jload("live_watch.json", {}).get("tickers", []) if isinstance(t, str)]
     except Exception: pass
     sel += [t for t, _ in sorted(((t, x.get("sc2") or 0) for t, x in S.items() if (x.get("sc2") or 0) > 0 and x.get("liqok", True)), key=lambda z: -z[1])[:30]]
     rk = (d.get("rank") or {}).get("DT") or {}
