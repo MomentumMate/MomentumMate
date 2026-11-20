@@ -1,33 +1,31 @@
 {
-"updated": "2026-11-19T12:03:43Z",
+"updated": "2026-11-20T08:21:26Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-18",
+"senaste": "2026-11-19",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-18",
-"tysta": 8,
-"flaggade": 13
+"senaste": "2026-11-19",
+"tysta": 9,
+"flaggade": 15
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-18",
+"senaste": "2026-11-19",
 "tysta": 2,
-"flaggade": 2
+"flaggade": 3
 }
 },
 "n": 2293,
-"silent": 10,
-"flagged": 15,
-"gone": [
-"NWE"
-],
+"silent": 11,
+"flagged": 18,
+"gone": [],
 "own_flagged": [],
 "issues": {
 "1COV.DE": [
@@ -40,10 +38,13 @@
 "tyst sedan 2026-10-05"
 ],
 "EMBJ": [
-"dagsrörelse -75 % den 2026-11-13"
+"dagsrörelse -76 % den 2026-11-16"
 ],
 "INDV": [
 "tyst sedan 2026-11-05"
+],
+"ITGR": [
+"tyst sedan 2026-11-16"
 ],
 "LQDA": [
 "dagsrörelse -57 % den 2026-09-30"
@@ -63,6 +64,9 @@
 "SDR.L": [
 "tyst sedan 2026-10-01"
 ],
+"SNDK": [
+"dagsrörelse +678 % den 2026-11-19"
+],
 "SSNLF": [
 "nollvolym 5 dagar",
 "stillastående 10 dagar"
@@ -73,6 +77,9 @@
 "TOELY": [
 "tyst sedan 2026-09-24"
 ],
+"TRN.MI": [
+"ingen kursdata (tom serie)"
+],
 "VCYT": [
 "dagsrörelse -54 % den 2026-11-05"
 ]
@@ -80,22 +87,22 @@
 "xcheck": [],
 "scan": {
 "Norden": {
-"har": 201,
+"har": 202,
 "antal": 203,
-"kalla": "2026-11-18",
-"skanning": "2026-11-18T22:10Z"
+"kalla": "2026-11-19",
+"skanning": "2026-11-19T22:19Z"
 },
 "USA": {
-"har": 1586,
+"har": 1587,
 "antal": 1598,
-"kalla": "2026-11-18",
-"skanning": "2026-11-18T22:10Z"
+"kalla": "2026-11-19",
+"skanning": "2026-11-19T22:19Z"
 },
 "Europa": {
-"har": 494,
+"har": 492,
 "antal": 497,
-"kalla": "2026-11-18",
-"skanning": "2026-11-18T22:10Z"
+"kalla": "2026-11-19",
+"skanning": "2026-11-19T22:19Z"
 }
 },
 "sources": {
