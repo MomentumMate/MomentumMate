@@ -402,7 +402,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-20-g";
+const APPV="2026-11-20-h";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -539,12 +539,15 @@ const coName=s=>(!s.n||s.n===s.t||s.n===s.d)?'<span style="font-style:italic;opa
 /* Ett och samma aktiekort överallt: börsdesk, daghandel och portfölj. I portföljläge (o.hold)
    visas vikt i stället för plats, värde och avkastning till höger, innehavsuppgifter och
    signal överst i utfällt läge – och sedan exakt samma avsnitt som på övriga sidor. */
+/* Sidhuvudets högerdel – lika i portfölj, Momentum 25 och Daghandel (2026-11-20). Ägs aktien i någon portfölj visas värde och avkastning som i portföljen. */
+function hdrRight(s,h){if(!h){const hh=P.ps.filter(p=>!p.demo).flatMap(p=>(p.h||[]).filter(x=>x.t===s.t));if(hh.length&&s.px>0){const q=hh.reduce((a,x)=>a+x.q,0),c=hh.reduce((a,x)=>a+x.q*x.c,0)/q,val=q*s.px*fx(s.ccy||s.cur),ret=(s.px/c-1)*100;h={val,ret,px:s.px}}}
+  return h?`<div class="p"><b>${kr(h.val)} kr</b><div class="${cls(h.ret)}">${sg(h.ret,1)}</div><div class="mu" style="font-size:11.5px;white-space:nowrap">${f(h.px)} ${esc(s.cur)} <span class="${cls(s.chg)}">${sg(s.chg,2)}</span></div></div>`
+          :`<div class="p"><b>${f(s.px)} ${esc(s.cur)}</b><div class="${cls(s.chg)}">${sg(s.chg,2)}</div></div>`}
 function card(s,i,o={}){
   const sc=s.sc,h=o.hold,p=o.p,key=h?"h:"+s.t:s.t;
   const rk0=rankOf(s.t);const sub=`plats ${rk0||"–"} · 12-1 ${typeof s.m121==="number"?sg(s.m121,0):"–"} · ${s.a200?"över":"under"} SMA200`;
   const left=h?`<div class="n w">${f(h.w,0)}%</div>`:`<div class="n">${i}</div>`;
-  const right=h?`<div class="p"><b>${kr(h.val)} kr</b><div class="${cls(h.ret)}">${sg(h.ret,1)}</div><div class="mu" style="font-size:11.5px;white-space:nowrap">${f(h.px)} ${esc(s.cur)} <span class="${cls(s.chg)}">${sg(s.chg,2)}</span></div></div>`
-                :`<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div>`;
+  const right=hdrRight(s,h);
   const chips=h?`<span class="sig ${h.sig.k}">${SIGL[h.sig.k]}</span>${h.hl?`<span class="sig SELL">⚠ ${esc(h.hl.short)}</span>`:""}`:"";
   const holdBlock=null;const _unused=h?`<div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>
    ${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}
@@ -1037,9 +1040,9 @@ function usHint(){
 function dcard(s,i,near){
   const need=CRIT.filter((c,j)=>s.dt[j]===false),wait=CRIT.filter((c,j)=>s.dt[j]==null),x=D.dtx&&D.dtx[s.t],m=MK(s.m[0]);
   return`<div class="c${open.has("d:"+s.t)?" o":""}${i<=3&&!near?" t3":""}" data-t="d:${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div><div class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</div></div>
-  ${spark(intraCloses(s.t)||s.sp)}<div class="p"><b>${s.px} ${s.cur}</b><div class="${cls(s.chg)}">${sg(s.chg)}</div></div></div>
-  <div class="al2"><span class="mu">${m.flag} ${esc(m.n)}</span>${x?`<span class="sig ${STC[x.st.k]}">${STL[x.st.k]}</span>`:""}${need.length?`<span class="ab">Saknar: ${esc(need[0])}${need.length>1?" +"+(need.length-1):""}</span>`:""}${!need.length&&wait.length?`<span class="ab">Ej bedömbart: ${esc(wait[0])}${wait.length>1?" +"+(wait.length-1):""}</span>`:""}</div>
+  <div class="m"><div>${fl(s)}<b>${esc(s.d)}</b>${s.dok?'<span class="tag">DAGHANDEL</span>':`<span class="tag" style="background:#3a2f16;color:var(--gd)">${s.dtn}/5</span>`}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div></div>
+  ${trendArrow(s)}${hdrRight(s)}</div>
+  <div class="al2"><span class="mu">PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}×</span>${x?`<span class="sig ${STC[x.st.k]}">${STL[x.st.k]}</span>`:""}${need.length?`<span class="ab">Saknar: ${esc(need[0])}${need.length>1?" +"+(need.length-1):""}</span>`:""}${!need.length&&wait.length?`<span class="ab">Ej bedömbart: ${esc(wait[0])}${wait.length>1?" +"+(wait.length-1):""}</span>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,s.dts||0)}%"></i></div>${detail(s,s.m[0],`<button class="btn sm" data-go="#/daytrade/${enc(s.t)}">Handla idag ›</button>`)}</div>`
 }
 function vDT(){
