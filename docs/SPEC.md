@@ -215,6 +215,9 @@ andel i strategin och vad en −50 %-nedgång i strategin betyder för hela kapi
   i både backtest (`repair_glitches`) och skanner (`repair_closes`). Bara aktier där felet består tas bort. *(Före 2026-11-05 kastade backtestet 20 aktier helt, bland dem tolv nordiska
   med korrupta EODHD-rader 2019-06-10 och 2019-08-05, medan skannern behöll dem. Nu lagas 10, 10 kastas.)*
 - Avnoterade innehav: backtestet säljer till sista kända kurs; appen visar innehavet med varning tills ägaren registrerar försäljningen.
+- **Aktier utan ny stängning** *(2026-11-23, paritet)*: har en aktie inte fått någon ny stängning på mer än 7 kalenderdagar jämfört med senaste stängningen på samma börs
+  (avnoterad, uppköpt, handelsstopp) får den poäng 0 i skannern och rankas inte – backtestet kan inte köpa en aktie som saknar kurs. Upptäckt i demoportföljen:
+  BLFS (sista kurs 7 okt) rankades nr 9 och köpordern kunde aldrig utföras. Demoportföljens köporder i sådana aktier stryks efter 7 dagar; kassan placeras vid nästa månadsprövning.
 - Signal räknas på stängningen; tidigaste handel är nästa handelsdag.
 
 ## 17. Portföljuppföljning (information)
@@ -248,6 +251,7 @@ MSCI World i SEK (ETF:en URTH × USD/SEK), serier i `data.json` (`idx`). Modellp
 | Lika Clenow-värde | Kolumnordning (alfabetisk ticker) | Alfabetisk ticker, A först – samma sedan 2026-11-11 |
 | Felkurser | Lagar dagen (`repair_glitches`), kastar bara om felet består | Lagar dagen (`repair_closes`) – samma regel sedan 2026-11-05 |
 | Avnotering | Säljs till sista kända kurs | Varning (§ 16) |
+| Aktie utan ny kurs | Saknar kurs → kan inte köpas | Poäng 0 efter 7 dagar utan ny stängning – samma sedan 2026-11-23 |
 | Avknoppning/split | Yahoo `auto_adjust`; EODHD justerad stängning | Samma datakällor – ska verifieras |
 
 Kvar att harmonisera: avknoppningar.

@@ -1666,14 +1666,29 @@ def horizon(s):
 MOM_CAP = 150   # 12-1 i procent som ger full momentumpoäng (var 80; backtest --tie 2026-11-04). Samma tak för Clenow-måttet (2.0).
 CLENOW_N = 120  # fönster i handelsdagar för Clenow lutning × R² (SPEC 2.0 § 3; backtest --smooth2 #76/#79 2026-11-05: 90–180 vann, 120 = mitten)
 
+STALE_DAYS = 7   # kalenderdagar utan ny stängning innan en aktie slutar rankas (2026-11-23)
+
 def finalize(recs, markets):
     keys = [m["k"] for m in markets]
     groups = {}
     for m in markets:
         if m.get("reg"): groups.setdefault(m["reg"], set()).add(m["k"])
     def member(k, r): return (k == "ALL" and any(x != "CRYPTO" for x in r["m"])) or k in r["m"] or (k in groups and bool(groups[k] & set(r["m"])))
+    # 2026-11-23: aktier utan ny stängning på mer än STALE_DAYS kalenderdagar jämfört med senaste stängningen på samma börs
+    # (avnoterade, uppköpta, handelsstopp) får poäng 0 och rankas inte. Backtestet kan inte köpa en aktie som saknar kurs (SPEC § 16/§ 18);
+    # utan detta rankades t.ex. BLFS som nr 9 med en kurs från 7 oktober och demoportföljens köporder kunde aldrig utföras.
+    import datetime as _dt
+    _suf = lambda t: t.rsplit(".", 1)[1] if "." in t else ""
+    _last = {}
+    for t, r in recs.items():
+        if r.get("lt"): _last[_suf(t)] = max(_last.get(_suf(t), ""), r["lt"])
+    for t, r in recs.items():
+        lt, ref = r.get("lt"), _last.get(_suf(t))
+        if lt and ref and (_dt.date.fromisoformat(ref) - _dt.date.fromisoformat(lt)).days > STALE_DAYS:
+            r["stale"] = True; r["sc2"] = 0.0; r["sc"] = 0
     for t, r in recs.items():
         r["h"], r["hr"] = horizon(r)
+        if r.get("stale"): r["hr"] = f"Ingen ny stängning sedan {r['lt']} – avnoterad, uppköpt eller handelsstopp? Rankas inte."
         if r.get("sh"): r["hr"] += f" Kort kurshistorik ({r['nb']} handelsdagar) – SMA200 saknas."
     rank = {}
     for k in keys + list(groups) + ["ALL"]:
