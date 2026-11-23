@@ -1285,7 +1285,9 @@ def intraday_stats(df):
         td = df[df.index.date == day]
         mins = td.index.hour * 60 + td.index.minute
         pre = td[mins < 570]; reg = td[(mins >= 570) & (mins < 960)]
-        return {"day": day, "last": float(td["Close"].iloc[-1]),
+        # efter 16:00 New York: senaste kurs = sista stapeln i ordinarie handel, inte efterhandeln (2026-11-23)
+        last = float(reg["Close"].iloc[-1]) if len(reg) and (mins[-1] >= 960) else float(td["Close"].iloc[-1])
+        return {"day": day, "last": last,
                 "pre_high": float(pre["High"].max()) if len(pre) else None,
                 "pre_vol": int(pre["Volume"].sum()) if len(pre) else 0,
                 "open": float(reg["Open"].iloc[0]) if len(reg) else None}
@@ -1454,7 +1456,16 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     d = repair_closes(d.dropna(subset=["Close"]))
     if len(d) < 61: return None
     us = is_us(t)
-    if intr:
+    # 2026-11-23: finns redan en dagsstängning för intradagsdagen (skanning efter börsens stängning) används den officiella
+    # stängningen – inte senaste 5-minutersstapeln, som med prepost=True är efterhandelns kurs (fel i ~400 USA-aktier, t.ex. ZS +16 %).
+    # SPEC § 2: signaler räknas på stängningen. Förmarknadens high/volym och öppningen behålls för daghandelsfälten.
+    if intr and len(d) and d.index[-1].date() >= intr["day"]:
+        prev = d.iloc[-2]; px = float(d["Close"].iloc[-1]); closes = d["Close"].tolist()
+        cdates = list(d.index)
+        opn = intr["open"] if intr.get("open") else (float(d["Open"].iloc[-1]) if "Open" in d else None)
+        pre_high, pre_vol = intr["pre_high"], intr["pre_vol"]
+        vols = d["Volume"].iloc[:-1]; past = d.iloc[:-1]
+    elif intr:
         past = d[d.index.date < intr["day"]]
         if len(past) < 60: return None
         prev = past.iloc[-1]; px = intr["last"]; closes = past["Close"].tolist() + [px]
