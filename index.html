@@ -402,7 +402,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-23-j";
+const APPV="2026-11-23-k";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1230,6 +1230,17 @@ async function syncLiveWatch(){if(!ghReady())return;const tk=[...new Set(P.ps.fl
   let cur=null;try{cur=await ghGet("live_watch.json")}catch(e){}
   try{if(cur&&JSON.stringify((JSON.parse(cur.text).tickers||[]).slice().sort())===JSON.stringify(tk))return}catch(e){}
   await ghPut("live_watch.json",JSON.stringify({updated:new Date().toISOString(),tickers:tk},null,1),cur&&cur.sha,"live_watch: portföljinnehav från appen")}
+/* AUTOMATISK SKANNING (2026-11-23): GitHub hoppar ibland över schemalagda körningar (hela måndagen 23 nov uteblev).
+   Är senaste skanningen äldre än senaste passet (12:30 / 14:15 / 21:30 UTC, vardagar) med mer än 50 minuters marginal startar appen
+   skanningen själv med GitHub-tokenen – högst en gång per 90 minuter per telefon. Skanningens egen grind hindrar dubbelarbete. */
+async function autoScan(){try{if(DEMO||!ghReady()||!D||!D.updated)return;
+  const now=Date.now(),slots=[[21,30],[14,15],[12,30]];let last=null;
+  for(let back=0;back<5&&!last;back++){const d=new Date();d.setUTCDate(d.getUTCDate()-back);const wd=d.getUTCDay();if(wd===0||wd===6)continue;
+    for(const[h,m]of slots){const t=new Date(d);t.setUTCHours(h,m,0,0);if(t.getTime()<=now-50*60000){last=t;break}}}
+  if(!last||new Date(D.updated.replace(/Z?$/,"Z")).getTime()>=last.getTime())return;
+  const k="mm_autoscan",prev=+(localStorage.getItem(k)||0);if(now-prev<90*60000)return;
+  localStorage.setItem(k,String(now));await dispatchWf("scan.yml");
+  toast("Skanningen hade inte körts efter passet "+hhmm(last.toISOString())+" – startad automatiskt. Dra ner för att ladda om om ca 15 minuter.")}catch(e){}}
 async function runWf(wf){try{if(wf==="daytrade.yml")await syncLiveWatch().catch(()=>{});await dispatchWf(wf);toast("Startade "+(WFL[wf]||wf)+" – klart om några minuter, dra ner för att ladda om")}catch(e){toast("Kunde inte starta: "+e.message.slice(0,60))}}
 async function ghGet(path){const j=await ghReq("/contents/"+path+"?ref=main&t="+Date.now());return{sha:j.sha,text:b64d(j.content)}}
 const ghPut=(path,text,sha,msg)=>ghReq("/contents/"+path,{method:"PUT",body:JSON.stringify({message:msg,content:b64e(text),sha:sha||undefined,branch:"main"})});
@@ -3547,7 +3558,7 @@ async function loadNews(){
 }
 (async()=>{
   const t0=performance.now();introRun(t0);setTimeout(introHide,7000);
-  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();migrateTP();indexData();regimeCheck();await Promise.all([loadLive(),loadNews(),loadRadar(),loadAnalysts()]);snapshot();demoTick();route();startMate();
-  setInterval(async()=>{const h=location.hash,a=await loadLive(),b=await loadNews();if((!h||/#\/(daytrade|home)/.test(h))&&a)route(true);else if((!h||/#\/(home|news)/.test(h))&&b)route(true)},120000)
+  const r=await loadData();D=r.d;DEMO=r.demo;OLD=r.old;mergePending();migrateTP();indexData();regimeCheck();await Promise.all([loadLive(),loadNews(),loadRadar(),loadAnalysts()]);snapshot();demoTick();route();startMate();autoScan();
+  setInterval(async()=>{autoScan();const h=location.hash,a=await loadLive(),b=await loadNews();if((!h||/#\/(daytrade|home)/.test(h))&&a)route(true);else if((!h||/#\/(home|news)/.test(h))&&b)route(true)},120000)
 })();
 </script></body></html>

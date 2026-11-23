@@ -56,7 +56,7 @@ Handelsrytm: **en gång i månaden**, på månadens sista stängning räknas fö
 
 ### 2.3 GitHub Actions (Python 3.13)
 
-GitHub kör schemalagda jobb timmar sent eller inte alls. Därför har de viktiga jobben **många reservtider och en grind** som släpper igenom en körning per pass:
+GitHub kör schemalagda jobb timmar sent eller inte alls. Därför har de viktiga jobben **många reservtider och en grind** som släpper igenom en körning per pass. Uteblir ändå en skanning (hela måndagen 23 nov) startar **appen** den själv när den öppnas – om senaste skanningen är äldre än senaste passet med mer än 50 minuter (kräver GitHub-token, högst var 90:e minut). En skanning kan också startas genom att ändra `.github/scan_request.txt`:
 
 | Workflow | Schema | Grind |
 |---|---|---|
