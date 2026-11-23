@@ -1,0 +1,111 @@
+  OMXS: 110 aktier
+  EODHD: planen omfattar inte fundamentaldata (403) – indexlistor, namn och nyckeltal hämtas från andra källor
+  SP500: 503 aktier
+  Nasdaq-100 hämtad från Nasdaq API
+  NASDAQ: 101 aktier
+  DOW: 30 aktier
+  OMXC: 27 aktier
+  OSE: 31 aktier
+  OMXH: 17 aktier
+  DAX: 48 aktier
+  CAC: 43 aktier
+  FTSE: 68 aktier
+  AEX: 23 aktier
+  SMI: 18 aktier
+  IBEX: 20 aktier
+  MIB: 20 aktier
+  SP400: 400 aktier
+  SP600: 600 aktier
+  STOXX600: 590 tickers med börssuffix
+  STOXX600: 590 aktier
+  ADR: 84 aktier
+  SMSN: 2 aktier
+Universum: 2293 aktier – Europa/övrigt 497, Norden 201, USA 1595
+Hämtar 2293 aktier 2015-10-20 → 2026-11-23 …
+  Datakälla: EODHD (nyckel hittad), Yahoo som reserv
+  EODHD 200/2293
+  EODHD 400/2293
+  EODHD 600/2293
+  EODHD 800/2293
+  EODHD 1000/2293
+  EODHD 1200/2293
+  EODHD 1400/2293
+  EODHD 1600/2293
+  EODHD 1800/2293
+  EODHD 2000/2293
+  EODHD 2200/2293
+  EODHD gav 2250 av 2293 – 43 hämtas från Yahoo
+  1–43 av 43 …
+  FELKURSER LAGADE: 10 aktier (dagar ersatta med föregående stängning):
+    BUFAB.ST       2019-06-10 (3 dagar)
+    HTRO.ST        2019-06-10 (3 dagar)
+    INSTAL.ST      2019-06-10 (3 dagar)
+    KINV-B.ST      2019-06-10 (3 dagar)
+    LAGR-B.ST      2019-06-10 (3 dagar)
+    MYCR.ST        2019-06-10 (3 dagar)
+    NCAB.ST        2019-06-10 (3 dagar)
+    NOLA-B.ST      2019-06-10 (3 dagar)
+    PACT.ST        2019-06-10 (3 dagar)
+    TROAX.ST       2019-06-10 (2 dagar)
+  FELKURSFILTER: 11 aktier bortfiltrerade (felet består):
+    ABVX.PA        2025-07-23 +510 %, kommer inte tillbaka inom 5 dagar
+    ATO.PA         2024-11-12 +8528 %, kommer inte tillbaka inom 5 dagar
+    CHRD           2020-11-20 +25717 %, kommer inte tillbaka inom 5 dagar
+    CLSK           2015-05-13 +1088 %, kommer inte tillbaka inom 5 dagar
+    IVT            2021-08-06 -90 %, kommer inte tillbaka inom 5 dagar
+    KNTK           2018-11-13 +9092 %, kommer inte tillbaka inom 5 dagar
+    PCRX           2026-11-12 -99 %, kommer inte tillbaka inom 5 dagar
+    QLINEA.ST      2025-02-21 -82 %, kommer inte tillbaka inom 5 dagar
+    SEZL           2023-09-14 -81 %, kommer inte tillbaka inom 5 dagar
+    SUPN           2014-12-29 +1980475 %, kommer inte tillbaka inom 5 dagar
+    TALO           2016-06-13 +9011 %, kommer inte tillbaka inom 5 dagar
+  2282 aktier med data, 3114 handelsdagar
+Nedladdat: Europa/övrigt 495, Norden 200, USA 1587
+
+=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===
+   slutkapital       6.442
+   CAGR_%            18.1
+   volatilitet_%     17.5
+   Sharpe            1.04
+   max_nedgång_%     -39.2
+   Calmar            0.46
+   affärer           0
+   köp               0
+   köp_per_år        0.0
+   innehavstid_dagar None
+   längsta_innehav_dagarNone
+   utgångar          {}
+
+########## Strategitester under 2.0 (steady)  portfölj 10,000,000 kr  (2282 aktier) ##########
+   Beslutsregel (TESTPLAN § 9, skriven innan körning): en variant går in bara om Sharpe OCH Calmar slår A på hela perioden,
+   Sharpe inte är lägre än A i någon halva, det håller med dubbla kostnader och förskjutet kvartal, CAGR faller högst 2 pe
+   (riskbudget: 4 pe) och nedgången inte är djupare än A. Vinner flera nivåer väljs den mittersta.
+
+   A.  Modell 2.0 (referens)                                               42.75 %  Sharpe 1.23  Calmar 1.02  nedgång -42.0 %  köp/år  23.8  | halvor Sharpe 1.48 / 1.06  | dubbla 41.75 % 1.2 0.99  | Q+1 42.2 % 1.33 1.04  utgångar {'12-1 negativt': 10, 'under SMA200': 236}  vol vid köp 60.7 %
+
+   --- T10 jämna trender: avgörare bland aktier med (nästan) lika poäng ---
+   T10-a. Jämnast trend (R² 120 d) först i stället för brantast            25.73 %  Sharpe 1.13  Calmar 0.62  nedgång -41.8 %  köp/år  23.3  | halvor Sharpe 1.23 / 1.07  | dubbla 24.97 % 1.1 0.59  | Q+1 26.63 % 1.2 0.74  utgångar {'12-1 negativt': 13, 'under SMA200': 228}  vol vid köp 37.9 %
+   T10-b. Lägst volatilitet först i stället för brantast                   24.27 %  Sharpe 1.22  Calmar 0.69  nedgång -35.4 %  köp/år  22.7  | halvor Sharpe 1.24 / 1.04  | dubbla 23.08 % 1.16 0.63  | Q+1 19.81 % 1.0 0.53  utgångar {'12-1 negativt': 12, 'under SMA200': 222}  vol vid köp 29.4 %
+   T10-c. Tak 100 i stället för 150 + jämnast trend först                  22.31 %  Sharpe 1.14  Calmar 0.63  nedgång -35.2 %  köp/år  22.4  | halvor Sharpe 1.13 / 1.18  | dubbla 21.46 % 1.1 0.61  | Q+1 18.34 % 0.95 0.51  utgångar {'12-1 negativt': 7, 'under SMA200': 224}  vol vid köp 30.0 %
+
+   === PRÖVNING MOT BESLUTSREGELN (A: 42.75 %, Sharpe 1.23, Calmar 1.02, nedgång -42.0 %) ===
+   T10-a. Jämnast trend (R² 120 d) först i stället för brantast          faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −2 pe:✗  nedgång:✓
+   T10-b. Lägst volatilitet först i stället för brantast                 faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −2 pe:✗  nedgång:✓
+   T10-c. Tak 100 i stället för 150 + jämnast trend först                faller  Sharpe>:✗  Calmar>:✗  halvor:✗  dubbla:✗  Q+1:✗  CAGR −2 pe:✗  nedgång:✓
+
+   === ÅR FÖR ÅR ===
+   år             A   T10-a   T10-b   T10-c
+   2015        -0.6    -0.6    -0.6     0.0
+   2016        47.2    37.0    28.9    30.4
+   2017        34.1    52.5    31.9    39.2
+   2018         0.8   -14.8    -3.6    -8.0
+   2019        44.2    18.7    25.3    30.7
+   2020       148.1   134.2   112.7    65.7
+   2021        77.5    26.2    18.8    37.7
+   2022       -10.3   -26.0   -20.0   -21.0
+   2023        44.1    41.9    41.6    31.6
+   2024        56.8    36.0    30.7    39.8
+   2025        67.5    31.6    50.4    25.3
+   2026        21.9     8.9    -0.9     3.8
+
+Skrev bt-steady.json

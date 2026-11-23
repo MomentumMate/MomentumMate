@@ -1,0 +1,468 @@
+{
+ "skapad": "2026-11-23T15:49:44Z",
+ "läge": "strat-steady",
+ "år": 11.2,
+ "aktier": 2282,
+ "jämförelseindex": {
+  "slutkapital": 6.442,
+  "CAGR_%": 18.1,
+  "volatilitet_%": 17.5,
+  "Sharpe": 1.04,
+  "max_nedgång_%": -39.2,
+  "Calmar": 0.46,
+  "affärer": 0,
+  "köp": 0,
+  "köp_per_år": 0.0,
+  "innehavstid_dagar": null,
+  "längsta_innehav_dagar": null,
+  "utgångar": {}
+ },
+ "varianter": {
+  "A.  Modell 2.0 (referens)": {
+   "slutkapital": 53.827,
+   "CAGR_%": 42.75,
+   "volatilitet_%": 34.7,
+   "Sharpe": 1.23,
+   "max_nedgång_%": -42.0,
+   "Calmar": 1.02,
+   "affärer": 690,
+   "köp": 266,
+   "köp_per_år": 23.8,
+   "innehavstid_dagar": 210,
+   "längsta_innehav_dagar": 2059,
+   "utgångar": {
+    "12-1 negativt": 10,
+    "under SMA200": 236
+   },
+   "median_vol_vid_köp_%": 60.7,
+   "år": {
+    "2015": -0.6,
+    "2016": 47.2,
+    "2017": 34.1,
+    "2018": 0.8,
+    "2019": 44.2,
+    "2020": 148.1,
+    "2021": 77.5,
+    "2022": -10.3,
+    "2023": 44.1,
+    "2024": 56.8,
+    "2025": 67.5,
+    "2026": 21.9
+   },
+   "Första halvan": {
+    "slutkapital": 5.518,
+    "CAGR_%": 39.08,
+    "volatilitet_%": 26.3,
+    "Sharpe": 1.48,
+    "max_nedgång_%": -39.3,
+    "Calmar": 0.99,
+    "affärer": 302,
+    "köp": 127,
+    "köp_per_år": 24.5,
+    "innehavstid_dagar": 183,
+    "längsta_innehav_dagar": 1061,
+    "utgångar": {
+     "12-1 negativt": 10,
+     "under SMA200": 97
+    },
+    "median_vol_vid_köp_%": 54.1
+   },
+   "Andra halvan": {
+    "slutkapital": 6.565,
+    "CAGR_%": 34.23,
+    "volatilitet_%": 32.4,
+    "Sharpe": 1.06,
+    "max_nedgång_%": -39.8,
+    "Calmar": 0.86,
+    "affärer": 421,
+    "köp": 166,
+    "köp_per_år": 26.0,
+    "innehavstid_dagar": 214,
+    "längsta_innehav_dagar": 1386,
+    "utgångar": {
+     "12-1 negativt": 4,
+     "under SMA200": 142
+    },
+    "median_vol_vid_köp_%": 69.5
+   },
+   "dubbla kostnader": {
+    "slutkapital": 49.743,
+    "CAGR_%": 41.75,
+    "volatilitet_%": 34.7,
+    "Sharpe": 1.2,
+    "max_nedgång_%": -42.0,
+    "Calmar": 0.99,
+    "affärer": 694,
+    "köp": 266,
+    "köp_per_år": 23.8,
+    "innehavstid_dagar": 210,
+    "längsta_innehav_dagar": 2059,
+    "utgångar": {
+     "12-1 negativt": 10,
+     "under SMA200": 236
+    },
+    "median_vol_vid_köp_%": 60.7
+   },
+   "kvartal +1 mån": {
+    "slutkapital": 51.52,
+    "CAGR_%": 42.2,
+    "volatilitet_%": 31.7,
+    "Sharpe": 1.33,
+    "max_nedgång_%": -40.7,
+    "Calmar": 1.04,
+    "affärer": 743,
+    "köp": 278,
+    "köp_per_år": 24.8,
+    "innehavstid_dagar": 210,
+    "längsta_innehav_dagar": 2031,
+    "utgångar": {
+     "12-1 negativt": 15,
+     "under SMA200": 243
+    },
+    "median_vol_vid_köp_%": 58.5
+   }
+  },
+  "T10-a. Jämnast trend (R² 120 d) först i stället för brantast": {
+   "slutkapital": 12.985,
+   "CAGR_%": 25.73,
+   "volatilitet_%": 22.7,
+   "Sharpe": 1.13,
+   "max_nedgång_%": -41.8,
+   "Calmar": 0.62,
+   "affärer": 646,
+   "köp": 261,
+   "köp_per_år": 23.3,
+   "innehavstid_dagar": 216,
+   "längsta_innehav_dagar": 2059,
+   "utgångar": {
+    "12-1 negativt": 13,
+    "under SMA200": 228
+   },
+   "median_vol_vid_köp_%": 37.9,
+   "år": {
+    "2015": -0.6,
+    "2016": 37.0,
+    "2017": 52.5,
+    "2018": -14.8,
+    "2019": 18.7,
+    "2020": 134.2,
+    "2021": 26.2,
+    "2022": -26.0,
+    "2023": 41.9,
+    "2024": 36.0,
+    "2025": 31.6,
+    "2026": 8.9
+   },
+   "Första halvan": {
+    "slutkapital": 3.879,
+    "CAGR_%": 29.93,
+    "volatilitet_%": 24.3,
+    "Sharpe": 1.23,
+    "max_nedgång_%": -35.3,
+    "Calmar": 0.85,
+    "affärer": 285,
+    "köp": 121,
+    "köp_per_år": 23.4,
+    "innehavstid_dagar": 183,
+    "längsta_innehav_dagar": 1061,
+    "utgångar": {
+     "12-1 negativt": 8,
+     "under SMA200": 93
+    },
+    "median_vol_vid_köp_%": 40.4
+   },
+   "Andra halvan": {
+    "slutkapital": 3.585,
+    "CAGR_%": 22.11,
+    "volatilitet_%": 20.7,
+    "Sharpe": 1.07,
+    "max_nedgång_%": -41.4,
+    "Calmar": 0.53,
+    "affärer": 360,
+    "köp": 155,
+    "köp_per_år": 24.2,
+    "innehavstid_dagar": 242,
+    "längsta_innehav_dagar": 1386,
+    "utgångar": {
+     "12-1 negativt": 6,
+     "under SMA200": 129
+    },
+    "median_vol_vid_köp_%": 38.7
+   },
+   "dubbla kostnader": {
+    "slutkapital": 12.134,
+    "CAGR_%": 24.97,
+    "volatilitet_%": 22.7,
+    "Sharpe": 1.1,
+    "max_nedgång_%": -42.4,
+    "Calmar": 0.59,
+    "affärer": 649,
+    "köp": 261,
+    "köp_per_år": 23.3,
+    "innehavstid_dagar": 216,
+    "längsta_innehav_dagar": 2059,
+    "utgångar": {
+     "12-1 negativt": 13,
+     "under SMA200": 228
+    },
+    "median_vol_vid_köp_%": 37.9
+   },
+   "kvartal +1 mån": {
+    "slutkapital": 14.063,
+    "CAGR_%": 26.63,
+    "volatilitet_%": 22.2,
+    "Sharpe": 1.2,
+    "max_nedgång_%": -35.8,
+    "Calmar": 0.74,
+    "affärer": 649,
+    "köp": 265,
+    "köp_per_år": 23.7,
+    "innehavstid_dagar": 213,
+    "längsta_innehav_dagar": 2031,
+    "utgångar": {
+     "12-1 negativt": 10,
+     "under SMA200": 235
+    },
+    "median_vol_vid_köp_%": 36.9
+   },
+   "prövning": {
+    "Sharpe>": false,
+    "Calmar>": false,
+    "halvor": false,
+    "dubbla": false,
+    "Q+1": false,
+    "CAGR −2 pe": false,
+    "nedgång": true
+   }
+  },
+  "T10-b. Lägst volatilitet först i stället för brantast": {
+   "slutkapital": 11.394,
+   "CAGR_%": 24.27,
+   "volatilitet_%": 20.0,
+   "Sharpe": 1.22,
+   "max_nedgång_%": -35.4,
+   "Calmar": 0.69,
+   "affärer": 609,
+   "köp": 254,
+   "köp_per_år": 22.7,
+   "innehavstid_dagar": 237,
+   "längsta_innehav_dagar": 2059,
+   "utgångar": {
+    "12-1 negativt": 12,
+    "under SMA200": 222
+   },
+   "median_vol_vid_köp_%": 29.4,
+   "år": {
+    "2015": -0.6,
+    "2016": 28.9,
+    "2017": 31.9,
+    "2018": -3.6,
+    "2019": 25.3,
+    "2020": 112.7,
+    "2021": 18.8,
+    "2022": -20.0,
+    "2023": 41.6,
+    "2024": 30.7,
+    "2025": 50.4,
+    "2026": -0.9
+   },
+   "Första halvan": {
+    "slutkapital": 3.41,
+    "CAGR_%": 26.74,
+    "volatilitet_%": 21.5,
+    "Sharpe": 1.24,
+    "max_nedgång_%": -31.2,
+    "Calmar": 0.86,
+    "affärer": 278,
+    "köp": 121,
+    "köp_per_år": 23.4,
+    "innehavstid_dagar": 211,
+    "längsta_innehav_dagar": 1061,
+    "utgångar": {
+     "12-1 negativt": 6,
+     "under SMA200": 95
+    },
+    "median_vol_vid_köp_%": 30.8
+   },
+   "Andra halvan": {
+    "slutkapital": 2.894,
+    "CAGR_%": 18.08,
+    "volatilitet_%": 17.4,
+    "Sharpe": 1.04,
+    "max_nedgång_%": -34.9,
+    "Calmar": 0.52,
+    "affärer": 340,
+    "köp": 152,
+    "köp_per_år": 23.8,
+    "innehavstid_dagar": 243,
+    "längsta_innehav_dagar": 1238,
+    "utgångar": {
+     "12-1 negativt": 8,
+     "under SMA200": 124
+    },
+    "median_vol_vid_köp_%": 28.3
+   },
+   "dubbla kostnader": {
+    "slutkapital": 10.233,
+    "CAGR_%": 23.08,
+    "volatilitet_%": 20.0,
+    "Sharpe": 1.16,
+    "max_nedgång_%": -36.7,
+    "Calmar": 0.63,
+    "affärer": 613,
+    "köp": 255,
+    "köp_per_år": 22.8,
+    "innehavstid_dagar": 234,
+    "längsta_innehav_dagar": 2059,
+    "utgångar": {
+     "12-1 negativt": 12,
+     "under SMA200": 223
+    },
+    "median_vol_vid_köp_%": 29.5
+   },
+   "kvartal +1 mån": {
+    "slutkapital": 7.565,
+    "CAGR_%": 19.81,
+    "volatilitet_%": 19.9,
+    "Sharpe": 1.0,
+    "max_nedgång_%": -37.5,
+    "Calmar": 0.53,
+    "affärer": 642,
+    "köp": 270,
+    "köp_per_år": 24.1,
+    "innehavstid_dagar": 239,
+    "längsta_innehav_dagar": 2031,
+    "utgångar": {
+     "12-1 negativt": 15,
+     "under SMA200": 235
+    },
+    "median_vol_vid_köp_%": 28.7
+   },
+   "prövning": {
+    "Sharpe>": false,
+    "Calmar>": false,
+    "halvor": false,
+    "dubbla": false,
+    "Q+1": false,
+    "CAGR −2 pe": false,
+    "nedgång": true
+   }
+  },
+  "T10-c. Tak 100 i stället för 150 + jämnast trend först": {
+   "slutkapital": 9.532,
+   "CAGR_%": 22.31,
+   "volatilitet_%": 19.5,
+   "Sharpe": 1.14,
+   "max_nedgång_%": -35.2,
+   "Calmar": 0.63,
+   "affärer": 604,
+   "köp": 251,
+   "köp_per_år": 22.4,
+   "innehavstid_dagar": 242,
+   "längsta_innehav_dagar": 2059,
+   "utgångar": {
+    "12-1 negativt": 7,
+    "under SMA200": 224
+   },
+   "median_vol_vid_köp_%": 30.0,
+   "år": {
+    "2015": 0.0,
+    "2016": 30.4,
+    "2017": 39.2,
+    "2018": -8.0,
+    "2019": 30.7,
+    "2020": 65.7,
+    "2021": 37.7,
+    "2022": -21.0,
+    "2023": 31.6,
+    "2024": 39.8,
+    "2025": 25.3,
+    "2026": 3.8
+   },
+   "Första halvan": {
+    "slutkapital": 3.043,
+    "CAGR_%": 23.98,
+    "volatilitet_%": 21.2,
+    "Sharpe": 1.13,
+    "max_nedgång_%": -35.2,
+    "Calmar": 0.68,
+    "affärer": 289,
+    "köp": 127,
+    "köp_per_år": 24.5,
+    "innehavstid_dagar": 214,
+    "längsta_innehav_dagar": 1061,
+    "utgångar": {
+     "12-1 negativt": 6,
+     "under SMA200": 101
+    },
+    "median_vol_vid_köp_%": 30.8
+   },
+   "Andra halvan": {
+    "slutkapital": 3.373,
+    "CAGR_%": 20.94,
+    "volatilitet_%": 17.7,
+    "Sharpe": 1.18,
+    "max_nedgång_%": -31.0,
+    "Calmar": 0.68,
+    "affärer": 315,
+    "köp": 140,
+    "köp_per_år": 21.9,
+    "innehavstid_dagar": 272,
+    "längsta_innehav_dagar": 1173,
+    "utgångar": {
+     "12-1 negativt": 3,
+     "under SMA200": 117
+    },
+    "median_vol_vid_köp_%": 29.9
+   },
+   "dubbla kostnader": {
+    "slutkapital": 8.816,
+    "CAGR_%": 21.46,
+    "volatilitet_%": 19.5,
+    "Sharpe": 1.1,
+    "max_nedgång_%": -35.4,
+    "Calmar": 0.61,
+    "affärer": 605,
+    "köp": 251,
+    "köp_per_år": 22.4,
+    "innehavstid_dagar": 242,
+    "längsta_innehav_dagar": 2059,
+    "utgångar": {
+     "12-1 negativt": 7,
+     "under SMA200": 224
+    },
+    "median_vol_vid_köp_%": 30.0
+   },
+   "kvartal +1 mån": {
+    "slutkapital": 6.593,
+    "CAGR_%": 18.34,
+    "volatilitet_%": 19.4,
+    "Sharpe": 0.95,
+    "max_nedgång_%": -36.2,
+    "Calmar": 0.51,
+    "affärer": 635,
+    "köp": 272,
+    "köp_per_år": 24.3,
+    "innehavstid_dagar": 213,
+    "längsta_innehav_dagar": 2031,
+    "utgångar": {
+     "12-1 negativt": 10,
+     "under SMA200": 242
+    },
+    "median_vol_vid_köp_%": 31.3
+   },
+   "prövning": {
+    "Sharpe>": false,
+    "Calmar>": false,
+    "halvor": false,
+    "dubbla": false,
+    "Q+1": false,
+    "CAGR −2 pe": false,
+    "nedgång": true
+   }
+  }
+ },
+ "T5": null,
+ "T8": null,
+ "varning": "Survivorship bias och ingen fundamenta. Beslutsregel i TESTPLAN § 9."
+}
