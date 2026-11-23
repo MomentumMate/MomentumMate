@@ -1,0 +1,64 @@
+name: Riktkurser
+
+# Riktkurser och analytikerrevideringar för HELA universumet (SPEC § 12, information som inte styr; 2026-11-23).
+# Prioriterade bolag (innehav, bevakning, topp 30, kandidater) varje dag + 400 roterande, äldst hämtade först → hela universumet ca en gång i veckan.
+# Flera reservtider – grinden släpper igenom en körning per dygn; manuell start går alltid.
+on:
+  push:
+    paths: [".github/analysts_request.txt"]
+  schedule:
+    - cron: "47 6 * * 2-6"
+    - cron: "33 8 * * 2-6"
+    - cron: "11 10 * * 2-6"
+    - cron: "52 11 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      rot_n:
+        description: "Antal roterande bolag (utöver de prioriterade)"
+        default: "400"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: analysts
+  cancel-in-progress: false
+
+jobs:
+  analysts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Grind – en körning per dygn
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
+          import json, datetime as dt
+          try: done = json.load(open("analysts.json"))["updated"][:10] == dt.datetime.utcnow().strftime("%Y-%m-%d")
+          except Exception: done = False
+          print("run=" + ("false" if done else "true"))
+          PY
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.13"
+          cache: pip
+      - if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements.txt
+      - name: Hämta riktkurser
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ANALYSTS_ROT_N: ${{ github.event.inputs.rot_n || '400' }}
+          ANALYSTS_ROT_MIN: "30"
+        run: python analysts.py
+      - name: Publicera analysts.json och analysts_hist.json
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add analysts.json analysts_hist.json
+          git diff --cached --quiet && exit 0
+          git commit -qm "riktkurser $(date -u +%F) [skip ci]"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && break || sleep 20; done

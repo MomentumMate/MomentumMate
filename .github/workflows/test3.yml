@@ -1,0 +1,48 @@
+name: Tester 3.0
+
+# Strategitester 3.0 (TESTPLAN_3.0, 2026-11-23). Startas genom ändring av .github/test3_request.txt (eller manuellt).
+# Tre jobb parallellt; varje jobb publicerar logg och JSON på grenen test3-<namn>.
+on:
+  push:
+    paths: [".github/test3_request.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        strat: [after, pullback, sectorsale]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Kör ${{ matrix.strat }}
+        env:
+          EODHD_KEY: ${{ secrets.EODHD_KEY }}
+        run: |
+          set -o pipefail
+          python backtest.py --years 10 --strat ${{ matrix.strat }} --port 10000000 --out bt-${{ matrix.strat }}.json 2>&1 | tee bt-${{ matrix.strat }}.log
+      - name: Publicera på grenen test3-${{ matrix.strat }}
+        if: always()
+        run: |
+          mkdir /tmp/bt && cp bt-* /tmp/bt/ 2>/dev/null; cd /tmp/bt
+          git init -q -b test3-${{ matrix.strat }}
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A && git commit -qm "test3 ${{ matrix.strat }} $(date -u +%F)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin test3-${{ matrix.strat }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test3-${{ matrix.strat }}
+          path: bt-*

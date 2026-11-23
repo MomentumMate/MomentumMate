@@ -536,6 +536,22 @@ def run(close, vol, cfg, vix=None):
             return float(min(2.0, max(0.5, (sorted(ref)[len(ref) // 2]) / sg)))
         except Exception:
             return 1.0
+    # ---- Tester 3.0 (2026-11-23, TESTPLAN_3.0 T7): förtur för rekyl i upptrend ----
+    # En kandidat "rekylerar" när 1-månadsavkastningen ligger mellan pb_lo och pb_hi (t.ex. −25 till −10 %).
+    # pb_pref="pool": rekylaktier inom topp pb_pool sorteras först; "bonus": rekylaktier får pb_bonus poäng.
+    R1M = (close / close.shift(21) - 1) if cfg.get("pb_pref") else None
+    def pb_adj(row, i_):
+        if R1M is None or not len(row): return row
+        r_ = R1M.iloc[i_].reindex(row.index)
+        m_ = (r_ >= cfg.get("pb_lo", -0.25)) & (r_ <= cfg.get("pb_hi", -0.10))
+        row = row.copy()
+        if cfg["pb_pref"] == "pool":
+            rk0 = row.rank(ascending=False, method="first")
+            m_ = m_ & (rk0 <= cfg.get("pb_pool", 30))
+            row[m_] = row[m_] + 1000.0
+        else:
+            row[m_] = row[m_] + cfg.get("pb_bonus", 5.0)
+        return row
     n_eff_now = lambda: n_eff
     cash, hold, hold_days = 1.0, {}, []
     cut_days = 0          # hold: ticker -> {"sh": andel av kapitalet, "px": inköpskurs, "peak": högsta}
@@ -668,7 +684,15 @@ def run(close, vol, cfg, vix=None):
                 use_m, use_s = not cfg.get("hold_no_mom"), not cfg.get("hold_no_sma")   # krasch-testet stänger av villkor
                 bad = "12-1 negativt" if (use_m and m121 <= 0) else ("under SMA200" if (use_s and s200 == s200 and px < s200 * buf) else None)
                 if core_mode == "month":
-                    if month_end and bad: why = bad
+                    if month_end and cfg.get("sma_two"):
+                        # T6 (2026-11-23): SMA200-brott måste gälla två månadsskiften i rad; 12-1-villkoret säljer direkt som förut
+                        if bad == "under SMA200":
+                            if h.get("sbad"): why = bad
+                            else: h["sbad"] = True
+                        else:
+                            h["sbad"] = False
+                            if bad: why = bad
+                    elif month_end and bad: why = bad
                     # Trötta innehav (test 2026-11-04): sälj det som legat utanför topp stale_rank i stale_days dagar
                     # i rad (prövat vid månadsskifte), även om hållregeln gäller. Diagnostik samlas i LAST_DIAG.
                     if month_end and (cfg.get("stale_rank") or cfg.get("diag")):
@@ -784,6 +808,7 @@ def run(close, vol, cfg, vix=None):
             elif mk_r == "us":
                 row_r = row_r[[t for t in row_r.index if "." not in t]]
             if len(row_r) >= cfg["n"]:
+                row_r = pb_adj(row_r, i)
                 rk = row_r.rank(ascending=False, method="first")
                 free = [t for t in rk[rk <= cfg["n"]].sort_values().index if t not in hold and entry_ok(t)]
                 tot_r = value(i); nb_ = 0
@@ -810,6 +835,7 @@ def run(close, vol, cfg, vix=None):
             elif mk_sel == "us":
                 row = row[[t for t in row.index if "." not in t]]
             if len(row) >= cfg["n"]:
+                row = pb_adj(row, i)
                 rank = row.rank(ascending=False, method="first")
                 top = set(rank[rank <= cfg["n"]].index)
                 if cfg.get("core"):
@@ -1021,6 +1047,193 @@ DEF = dict(mom_cap=150, tie_m121=True,   # vald 2026-11-04 (--tie, X4): tak 150 
            tp=0, tp_sell=50,
            w_mom=0.65, w_trend=0.35, w_vol=0.0, heat=False, pos_cap=0, buy_rsi=0)
 
+# ----------------------------------------------------------------------------- tester 3.0 (2026-11-23)
+def after_sale(close, vol, cfg_a):
+    """T5 (TESTPLAN_3.0): vad hände med aktierna vi sålde på hållregeln, jämfört med dem som köptes i stället?
+    Kör A med diagnostik, mäter avkastning 1/3/6/12 mån efter försäljningen (fyllnad T+1) för den sålda aktien,
+    ersättarna (köp samma dag eller inom fem handelsdagar) och universumets likaviktade snitt."""
+    cfg = dict(DEF); cfg.update(cfg_a); cfg["diag"] = True
+    e, tr, hd = run(close, vol, cfg)
+    exits = list(LAST_DIAG["exits"])
+    idx = close.index; pos = {d: i for i, d in enumerate(idx)}; pxf = close.ffill()
+    col = {t: k for k, t in enumerate(close.columns)}
+    buys = {}
+    for k_, t_, d_ in tr:
+        if k_ == "buy": buys.setdefault(pos[d_], []).append(t_)
+    buy_pos = {}
+    for i_, ts in buys.items():
+        for t_ in ts: buy_pos.setdefault(t_, []).append(i_)
+    s200 = close.rolling(200, min_periods=160).mean()
+    br = ((close > s200).sum(axis=1) / close.notna().sum(axis=1).replace(0, np.nan))
+    H = (21, 63, 126, 252)
+    U = {}
+    for h in H:
+        f = pxf.shift(-(h + 1)) / pxf.shift(-1) - 1
+        U[h] = f.where((f > -0.95) & (f < 10)).mean(axis=1)
+    def fwd(t, i, h):
+        j, k = i + 1, i + 1 + h
+        if k >= len(idx): return None
+        a, b = pxf.iat[j, col[t]], pxf.iat[k, col[t]]
+        return (b / a - 1) if (a == a and b == b and a > 0) else None
+    rows = []
+    for d_, t_, why, held, ret in exits:
+        i = pos[d_]
+        rep, dsel = [], 0
+        for di in range(0, 6):
+            rep = buys.get(i + di, [])
+            if rep: dsel = di; break
+        r = {"datum": str(d_.date()), "ticker": t_, "orsak": why, "hållen_d": int(held), "bredd": round(float(br.iat[i]), 2),
+             "återköpt_3m": any(0 < q - i <= 63 for q in buy_pos.get(t_, []))}
+        for h in H:
+            sv = fwd(t_, i, h)
+            rv = [x for x in (fwd(b, i + dsel, h) for b in rep) if x is not None]
+            r[f"s{h}"] = sv; r[f"r{h}"] = (sum(rv) / len(rv)) if rv else None
+            u = U[h].iat[i]; r[f"u{h}"] = float(u) if u == u else None
+        rows.append(r)
+    def summ(rs, lab):
+        print(f"\n   {lab}: {len(rs)} försäljningar · återköpta inom 3 mån {sum(r['återköpt_3m'] for r in rs) / max(1, len(rs)) * 100:.0f} %"
+              f" · vid bredd < 30 %: {sum(1 for r in rs if r['bredd'] < 0.30) / max(1, len(rs)) * 100:.0f} %")
+        out = {"n": len(rs), "återköpt_3m_%": round(sum(r['återköpt_3m'] for r in rs) / max(1, len(rs)) * 100, 1)}
+        print(f"   {'horisont':<10}{'såld median':>12}{'ersättare':>12}{'såld−ers. median':>18}{'andel såld>ers.':>17}{'såld−univ. median':>19}")
+        for h in H:
+            pr = [(r[f"s{h}"], r[f"r{h}"]) for r in rs if r[f"s{h}"] is not None and r[f"r{h}"] is not None]
+            pu = [r[f"s{h}"] - r[f"u{h}"] for r in rs if r[f"s{h}"] is not None and r[f"u{h}"] is not None]
+            if not pr: continue
+            diff = sorted(a - b for a, b in pr); sv = sorted(a for a, _ in pr); rv = sorted(b for _, b in pr)
+            med = lambda v: v[len(v) // 2]
+            win = sum(1 for a, b in pr if a > b) / len(pr)
+            out[f"{h}d"] = {"n": len(pr), "såld_median_%": round(med(sv) * 100, 1), "ersättare_median_%": round(med(rv) * 100, 1),
+                            "diff_median_pe": round(med(diff) * 100, 1), "diff_medel_pe": round(sum(diff) / len(diff) * 100, 1),
+                            "andel_såld_bättre_%": round(win * 100, 1), "mot_univ_median_pe": round(med(sorted(pu)) * 100, 1) if pu else None}
+            o = out[f"{h}d"]
+            print(f"   {h:>3} d     {o['såld_median_%']:>10} %{o['ersättare_median_%']:>10} %{o['diff_median_pe']:>15} pe{o['andel_såld_bättre_%']:>15} %{str(o['mot_univ_median_pe']):>16} pe")
+        return out
+    print(f"\n########## T5 Efterförsäljningsanalys (A = modell 2.0) ##########")
+    print("   Tolkningsregel (skriven före körning): T6 körs om sålda aktier i median slår ersättaren över 3 OCH 6 mån")
+    print("   OCH mer än 25 % av dem köps tillbaka inom 3 mån. Annars stryks T6.")
+    res = {"alla": summ(rows, "Alla försäljningar på hållregeln"),
+           "SMA200": summ([r for r in rows if r["orsak"] == "under SMA200"], "Orsak: under SMA200"),
+           "12-1": summ([r for r in rows if r["orsak"] == "12-1 negativt"], "Orsak: 12-1 negativt")}
+    per_year = {}
+    for r in rows: per_year[r["datum"][:4]] = per_year.get(r["datum"][:4], 0) + 1
+    print(f"   Försäljningar per år: {per_year}")
+    a_ = res["alla"]
+    trig = bool(a_.get("63d") and a_.get("126d") and a_["63d"]["diff_median_pe"] > 0 and a_["126d"]["diff_median_pe"] > 0 and a_["återköpt_3m_%"] > 25)
+    print(f"   => T6 {'KÖRS' if trig else 'STRYKS'} (3 mån {a_.get('63d', {}).get('diff_median_pe')} pe, 6 mån {a_.get('126d', {}).get('diff_median_pe')} pe, återköpta {a_['återköpt_3m_%']} %)")
+    res["per_år"] = per_year; res["t6_körs"] = trig; res["rader"] = rows
+    return res, trig, e
+
+def sector_sale(close, vol, eqA, thr_list=(0.20, 0.25, 0.30), holds=(126, 252), stops=(None, 0.25), modes=("abs", "rel")):
+    """T8 (TESTPLAN_3.0): sektor-rea. Vid månadsskifte: sektorns medianaktie ≥ thr under 52-veckorshögsta medan universumets median
+    är högst 10 % under → köp de 5 som fallit mest bland sektorns 15 mest omsatta (20-dagars omsättning i kronor, känd den dagen),
+    lika vikt, fyllnad T+1, håll H dagar, 0,2 % kostnad per sida. Ingen ny signal i samma sektor förrän innehavet avslutats.
+    Jämförs över exakt samma fönster med universumets likaviktade snitt, sektorns likaviktade snitt och modell 2.0 (A)."""
+    try:
+        _dj = json.load(open("data.json", encoding="utf-8")).get("stocks") or {}
+        SEC = {t: (_dj.get(t) or {}).get("sec") for t in close.columns}
+    except Exception:
+        SEC = {}
+    pxf = close.ffill(); idx = close.index
+    hi = close.rolling(252, min_periods=200).max(); dd = close / hi - 1
+    turn = (close * vol).rolling(20, min_periods=12).mean()
+    liq = turn >= 3e6
+    adv_sek = turn * pd.Series({t: fx_sek(t) for t in close.columns})
+    ends = [idx.get_loc(d) for d in period_ends(idx, "M")]
+    ends = [i for i in ends if i >= 260]
+    eqA = eqA.reindex(idx).ffill()
+    res = {}
+    print(f"\n########## T8 Sektor-rea (fristående, priskomponenten av reafickan) ##########")
+    print("   Tolkningsregel (skriven före körning): aktuell som regelstyrd reaficka bara om avkastningen 12 mån efter signal slår universumet")
+    print("   i minst två tredjedelar av signalerna OCH snittet slår modell 2.0 över samma fönster. Mittvarianten (25 %, 12 mån, ingen stopp) avgör.")
+    print("   Har den färre än 8 avslutade signaler är utfallet 'för få signaler'; då redovisas den relativa varianten (sektorns median minst x pe")
+    print("   sämre än universumets, inget krav på universumet) som indikation, med samma regel.")
+    print("   OBS: universumet är dagens indexmedlemmar – överlevnadsbias gynnar just rea-köp (de som föll och aldrig återhämtade sig saknas).")
+    um_all = [float(dd.iloc[i][liq.iloc[i]].median()) for i in ends]
+    um_all = [x for x in um_all if x == x]
+    print(f"   Universumets median under 52v-högsta vid månadsskiften: median {sorted(um_all)[len(um_all) // 2] * 100:.1f} %,"
+          f" andel månader med högst 10 % under: {sum(1 for x in um_all if x >= -0.10) / max(1, len(um_all)) * 100:.0f} %")
+    for mode in modes:
+      for thr in thr_list:
+        for H in holds:
+            for stp in stops:
+                if mode == "rel" and stp: continue
+                key = f"T8 fall {int(thr*100)} %, håll {H // 21} mån" + (f", stopp −{int(stp*100)} %" if stp else "") + (", relativt" if mode == "rel" else "")
+                cool = {}; ev = []
+                for i in ends:
+                    j, k = i + 1, i + 1 + H
+                    if j >= len(idx): continue
+                    lq = liq.iloc[i]; ddi = dd.iloc[i]
+                    um = ddi[lq].median()
+                    if not (um == um) or (mode == "abs" and um < -0.10): continue
+                    bysec = {}
+                    for t in ddi.index[lq.values & ddi.notna().values]:
+                        sct = SEC.get(t)
+                        if sct: bysec.setdefault(sct, []).append(t)
+                    for sct, ts in bysec.items():
+                        if len(ts) < 15 or cool.get(sct, -1) >= i: continue
+                        sm = float(ddi[ts].median())
+                        if (mode == "abs" and sm > -thr) or (mode == "rel" and sm - um > -thr): continue
+                        big = adv_sek.iloc[i][ts].sort_values(ascending=False).index[:15]
+                        pick = list(ddi[big].sort_values().index[:5])
+                        done = k < len(idx); kk = min(k, len(idx) - 1)
+                        cool[sct] = kk
+                        def ret(t):
+                            c_ = close.columns.get_loc(t)
+                            a = pxf.iat[j, c_]
+                            if not (a == a and a > 0): return None
+                            path = pxf.iloc[j:kk + 1, c_]
+                            if stp:
+                                hit = path[path <= a * (1 - stp)]
+                                if len(hit):
+                                    q = path.index.get_loc(hit.index[0])
+                                    b = path.iat[min(q + 1, len(path) - 1)]
+                                    return b / a - 1 - 0.004
+                            b = path.iat[-1]
+                            return (b / a - 1 - 0.004) if b == b else None
+                        pr = [x for x in (ret(t) for t in pick) if x is not None]
+                        if not pr: continue
+                        def ew(ts_):
+                            a = pxf.iloc[j][ts_]; b = pxf.iloc[kk][ts_]; r_ = (b / a - 1).replace([np.inf, -np.inf], np.nan)
+                            r_ = r_[(r_ > -0.95) & (r_ < 10)]; return float(r_.mean())
+                        uni = ew(list(ddi.index[lq.values]))
+                        secr = ew(ts)
+                        ar = float(eqA.iat[kk] / eqA.iat[j] - 1) if (eqA.iat[j] == eqA.iat[j] and eqA.iat[j] > 0) else None
+                        ev.append({"datum": str(idx[i].date()), "sektor": sct, "sektor_median_fall_%": round(sm * 100, 1),
+                                   "univ_median_fall_%": round(float(um) * 100, 1), "aktier": pick, "klar": done,
+                                   "rea_%": round(sum(pr) / len(pr) * 100, 1), "univ_%": round(uni * 100, 1), "sektor_%": round(secr * 100, 1),
+                                   "A_%": round(ar * 100, 1) if ar is not None else None})
+                fin = [x for x in ev if x["klar"]]
+                if fin:
+                    m = lambda k_: round(sum(x[k_] for x in fin if x[k_] is not None) / max(1, sum(1 for x in fin if x[k_] is not None)), 1)
+                    hu = sum(1 for x in fin if x["rea_%"] > x["univ_%"]) / len(fin)
+                    ha = sum(1 for x in fin if x["A_%"] is not None and x["rea_%"] > x["A_%"]) / len(fin)
+                    st = {"signaler": len(ev), "avslutade": len(fin), "rea_medel_%": m("rea_%"), "univ_medel_%": m("univ_%"),
+                          "sektor_medel_%": m("sektor_%"), "A_medel_%": m("A_%"), "slår_univ_%": round(hu * 100), "slår_A_%": round(ha * 100),
+                          "rea_median_%": sorted(x["rea_%"] for x in fin)[len(fin) // 2], "händelser": ev}
+                    print(f"   {key:<38} signaler {len(ev):>3} (avslutade {len(fin):>3})  rea {st['rea_medel_%']:>6} % (median {st['rea_median_%']})  univ {st['univ_medel_%']:>6} %"
+                          f"  sektor {st['sektor_medel_%']:>6} %  2.0 {st['A_medel_%']:>6} %  slår univ {st['slår_univ_%']:>3} %  slår 2.0 {st['slår_A_%']:>3} %")
+                else:
+                    st = {"signaler": len(ev), "avslutade": 0, "händelser": ev}
+                    print(f"   {key:<38} signaler {len(ev)} – inga avslutade")
+                res[key] = st
+    mid = res.get("T8 fall 25 %, håll 12 mån", {})
+    if (mid.get("avslutade") or 0) < 8:
+        print(f"\n   => Mittvarianten har {mid.get('avslutade') or 0} avslutade signaler – för få. Indikation från relativa varianten:")
+        mid = res.get("T8 fall 25 %, håll 12 mån, relativt", {})
+    if (mid.get("avslutade") or 0) < 8:
+        print(f"   => För få signaler ({mid.get('avslutade') or 0} avslutade) – inget utfall; T8 kan inte avgöras på tio års data.")
+        res["_utfall"] = None
+    elif mid.get("avslutade"):
+        ok = mid["slår_univ_%"] >= 66.7 and (mid["rea_medel_%"] or -99) > (mid["A_medel_%"] or 99)
+        print(f"\n   => Mittvarianten {'KLARAR' if ok else 'KLARAR INTE'} tolkningsregeln (slår universum i {mid['slår_univ_%']} % av fallen, snitt {mid['rea_medel_%']} % mot 2.0 {mid['A_medel_%']} %)")
+        res["_utfall"] = bool(ok)
+    for kname in ("T8 fall 25 %, håll 12 mån", "T8 fall 25 %, håll 12 mån, relativt"):
+        print(f"   Händelser ({kname}):")
+        for x in res.get(kname, {}).get("händelser", []):
+            print(f"     {x['datum']}  {x['sektor']:<24} sektor {x['sektor_median_fall_%']:>6} %  univ {x['univ_median_fall_%']:>6} %  {', '.join(x['aktier'])}"
+                  f"  → rea {x['rea_%']} %  univ {x['univ_%']} %  sektor {x['sektor_%']} %  2.0 {x['A_%']} %{'' if x['klar'] else '  (pågår)'}")
+    return res
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=float, default=10)
@@ -1060,7 +1273,7 @@ def main():
     ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
     ap.add_argument("--survive", action="store_true", help="överlevnadsbias: S&P 500-medlemmar som kandidater först från sitt inträdesdatum (Wikipedia)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
-    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all")
+    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3")
     a = ap.parse_args()
 
     if a.universe:
@@ -1206,6 +1419,21 @@ def main():
         if which in ("invvol", "all"):
             VAR["--- T4 omvänd volatilitet: vikt ∝ 1/σ60, tak 2× och golv 0,5× likavikt, även vid kvartalslikaviktning ---"] = None
             VAR["T4. A + omvänd volatilitet"] = dict(M2, inv_vol=True)
+        # ---- Tester 3.0 (2026-11-23, TESTPLAN_3.0): T5 efterförsäljning, T6 SMA200-buffert (villkorad), T7 rekyl i upptrend, T8 sektor-rea ----
+        T5 = None
+        T6V = {"--- T6 buffert på SMA200 ---": None,
+               "T6-a. Sälj först under 0,97 × SMA200": dict(M2, sma_buf=3),
+               "T6-b. Sälj först under 0,95 × SMA200": dict(M2, sma_buf=5),
+               "T6-c. SMA200-brott två månadsskiften i rad": dict(M2, sma_two=True)}
+        if which in ("after", "t3"):
+            T5, trig, _ = after_sale(close, vol, M2)
+            if trig: VAR.update(T6V)
+        if which == "smabuf": VAR.update(T6V)
+        if which in ("pullback", "t3"):
+            VAR["--- T7 rekyl i upptrend: 1-månadsavkastning −25 till −10 % ger förtur ---"] = None
+            VAR["T7-a. Rekylaktier inom topp 30 först"] = dict(M2, pb_pref="pool", pb_pool=30)
+            VAR["T7-b. Rekyl ger +5 poäng"] = dict(M2, pb_pref="bonus", pb_bonus=5.0)
+            VAR["T7-c. Rekyl ger +10 poäng"] = dict(M2, pb_pref="bonus", pb_bonus=10.0)
         yrs = (close.index[-1] - close.index[210]).days / 365.25
         be, bst = benchmark(close, yrs)
         idx = close.index; mid = idx[len(idx) // 2]
@@ -1250,6 +1478,10 @@ def main():
                       (f"CAGR −{lim} pe", st["CAGR_%"] >= A["CAGR_%"] - lim), ("nedgång", st["max_nedgång_%"] >= A["max_nedgång_%"])]
                 st["prövning"] = {k: bool(v) for k, v in ok}
                 print(f"   {nm:<70}{'GODKÄND' if all(v for _, v in ok) else 'faller'}  " + "  ".join(f"{k}:{'✓' if v else '✗'}" for k, v in ok))
+        T8 = None
+        if which in ("sectorsale", "t3"):
+            cfgA = dict(DEF); cfgA.update(M2); eA, _, _ = run(close, vol, cfgA)
+            T8 = sector_sale(close, vol, eA)
         print(f"\n   === ÅR FÖR ÅR ===")
         names = [n for n in res if "år" in res[n]]
         short = {n: n.split(".")[0] for n in names}
@@ -1257,7 +1489,7 @@ def main():
         print(f"   {'år':<8}" + "".join(f"{short[n]:>8}" for n in names))
         for y in yrsall: print(f"   {y:<8}" + "".join(f"{res[n]['år'].get(y, '–'):>8}" for n in names))
         out = {"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "läge": f"strat-{which}",
-               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res,
+               "år": round(yrs, 1), "aktier": int(close.shape[1]), "jämförelseindex": bst, "varianter": res, "T5": T5, "T8": T8,
                "varning": "Survivorship bias och ingen fundamenta. Beslutsregel i TESTPLAN § 9."}
         with open(a.out, "w", encoding="utf-8") as f: json.dump(out, f, ensure_ascii=False, indent=1)
         print(f"\nSkrev {a.out}"); return
