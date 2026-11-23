@@ -402,7 +402,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-23-i";
+const APPV="2026-11-23-j";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -577,8 +577,8 @@ function detail(s,mk,extra="",pre=""){
    <div class="cvin"><div class="empty" style="padding:30px 0">Laddar graf…</div></div>
    <div class="lay" style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 10px">${[["candle","Ljusstakar"],["vol","Volym"],["sma","SMA 50/200"],["sr","Stöd/motstånd"],["fz","Rekylzon"],["plan","Handelsplan"],["swing","Svängpunkter"]].map(([k,n])=>`<span class="chip off" style="font-size:10.5px;padding:4px 8px" data-act="cvl" data-t="${esc(s.t)}" data-k="${k}">${n}</span>`).join("")}</div></div>
   <div class="g3 sm">${tp?box("Upplägg",tp.setup==="breakout"?"Breakout":tp.setup==="studs"?"Studs":"Avvakta",tp.setup==="avvakta"?"":"up")+box("Köpzon",`${f(tp.eLo,1)}–${f(tp.eHi,1)}`,"up")+box("Entry",f(tp.entry,2),"up")+box("Mål",f(tp.t1,2),"up")+box("Stopp",f(tp.stop,2),"dn"):""}
-   ${box("12-1",typeof s.m121==="number"?sg(s.m121,0):"–",cls(s.m121))}${box("SMA200",s.sh?"–":s.a200?"över":"under",s.a200?"up":"dn")}${box("SMA50",s.a50?"över":"under",s.a50?"up":"dn")}${box("Plats",rk||"–",rk&&rk<=10?"up":"")}
-   ${box("52L",f52(s,"lo"))}${box("52H",f52(s,"hi"))}${box("Poäng",s.sc)}</div>
+   ${box("12-1",typeof s.m121==="number"?sg(s.m121,0):"–",cls(s.m121))}${box("SMA200",s.sh?"–":s.a200?"över":"under",s.a200?"up":"dn")}${box("SMA50",s.a50?"över":"under",s.a50?"up":"dn")}${box("Poäng",SC(s)>0?f(SC(s),0):"–",rk&&rk<=20?"up":"")}
+   ${box("52L",f52(s,"lo"))}${box("52H",f52(s,"hi"))}${box("Från 52H",s.hi>0&&s.px>0?sg((s.px/s.hi-1)*100,1):"–",s.hi>0&&s.px>=s.hi*0.97?"up":"dn")}</div>
   <div class="acts" style="margin:4px 0 10px"><button class="btn sm" data-act="plansheet" data-t="${esc(s.t)}">Handelsplan</button></div>
   ${erHTML(s)}${fzHTML(s)}${anHTML(s.t,P.ps.some(p=>(p.h||[]).some(x=>x.t===s.t))?"own":true)}
   ${sigk?`<h4 style="display:flex;align-items:center;gap:8px">Signal <span class="sigw ${sigk.k}">${SIGL[sigk.k]}</span></h4>${sigk.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}${pre.rule?urgHTML(pre.rule.k):""}`:""}
@@ -2156,7 +2156,9 @@ function cvSvg(s,h,rng,lay,R){
   // stöd/motstånd-zoner
   lv.forEach(z=>{if(z.lvl<mn||z.lvl>mx)return;const y1=Y(Math.min(mx,z.hi)),y2=Y(Math.max(mn,z.lo)),col=z.role==="stöd"?"#3fb67a":"#e86b5c";
     g+=`<rect class="cfade" x="6" y="${y1}" width="${W-12}" height="${Math.max(3,y2-y1)}" fill="${col}" opacity="${Math.min(.5,.12+z.str*.09)}"/><line class="cfade" x1="6" x2="${W-6}" y1="${Y(z.lvl)}" y2="${Y(z.lvl)}" stroke="${col}" stroke-width="1.2" stroke-dasharray="2 3" opacity=".9"/><text class="cfade" x="9" y="${Y(z.lvl)-3}" fill="${col}" font-size="8.5" font-weight="600">${z.role==="stöd"?"S":"M"} ${z.lvl}${z.n>=2?` ×${z.n}`:""}${z.both?" ⇅":""}</text>`});
-  // rekylzon (Fibonacci 61,8–78,6 %), information
+  // rekylzon (Fibonacci 61,8–78,6 %), information. Ligger zonen utanför grafens kursintervall eller saknas den sägs det under grafen.
+  let fzNote="";if(lay.fz&&!s.fz)fzNote="Rekylzon saknas – kräver en uppgång på minst 30 % senaste året (räknas av skanningen).";
+  else if(FZ&&(FZ.z786>mx||FZ.z618<mn))fzNote=`Rekylzonen ${f(FZ.z618,2)}–${f(FZ.z786,2)} ligger ${FZ.z618<mn?"under":"över"} grafens kursintervall${FZ.z618<mn?` (${f((1-FZ.z618/mn)*100,1)} % under grafens lägsta punkt) – välj ett längre intervall`:""}.`;
   if(FZ){const a=Math.min(mx,FZ.z618),b=Math.max(mn,FZ.z786);if(a>b){g+=`<rect class="cfade" x="6" y="${Y(a)}" width="${W-12}" height="${Math.max(2,Y(b)-Y(a))}" fill="#2b8fa3" opacity=".28"/><text class="cfade" x="${W-9}" y="${Y(a)+10}" fill="#6fd0e0" font-size="8.5" text-anchor="end" font-weight="600">Rekylzon ${f(FZ.z618,0)}–${f(FZ.z786,0)}</text>`;
     if(FZ.z786>=mn)g+=`<line class="cfade" x1="6" x2="${W-6}" y1="${Y(FZ.z786)}" y2="${Y(FZ.z786)}" stroke="#6fd0e0" stroke-width="1" stroke-dasharray="4 3"/><text class="cfade" x="9" y="${Y(FZ.z786)+10}" fill="#6fd0e0" font-size="8">ogiltig under</text>`}}
   // handelsplan
@@ -2183,7 +2185,7 @@ function cvSvg(s,h,rng,lay,R){
     for(let i=0;i<n;i++){const hgt=V[i]/vm*(Hv-6),up=i?r.p[i]>=r.p[i-1]:true;g+=`<rect class="cfade" x="${X(i)-Math.max(1,(W-12)/slots*0.35)}" y="${y0-hgt}" width="${Math.max(1.5,(W-12)/slots*0.7)}" height="${hgt}" fill="${up?"#3fb67a":"#e86b5c"}" opacity=".5"/>`}}
   // hårkors
   g+=`<line id="cvcl" x1="0" x2="0" y1="${pt}" y2="${Hp}" stroke="#d4b86a" stroke-width="1" stroke-dasharray="2 2" style="display:none"/><circle id="cvdot" r="3.5" fill="#d4b86a" style="display:none"/>`;
-  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${sw?histFmt(sw.open,rng,s.t):r.t?histFmt(r.t[0],rng,s.t):""}</span>${sw?`<span>${histFmt(r.t[n-1],rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"senast $1")}</span>`:""}<span>${sw?histFmt(sw.close,rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"stängning $1"):r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>${(rng==="1d"||rng==="1w")?`<div class="mu" style="font-size:11.5px;margin:2px 2px 6px">${intraNote(r,rng,s.t)}</div>`:""}`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
+  return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg>${fzNote?`<div class="mu" style="font-size:11px;margin:3px 2px;color:#6fd0e0">${esc(fzNote)}</div>`:""}<div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${sw?histFmt(sw.open,rng,s.t):r.t?histFmt(r.t[0],rng,s.t):""}</span>${sw?`<span>${histFmt(r.t[n-1],rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"senast $1")}</span>`:""}<span>${sw?histFmt(sw.close,rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"stängning $1"):r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>${(rng==="1d"||rng==="1w")?`<div class="mu" style="font-size:11.5px;margin:2px 2px 6px">${intraNote(r,rng,s.t)}</div>`:""}`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
 }
 /* Förändring i 1D/1V räknas mot föregående dags stängning (som i sidhuvudet), inte mot sessionens första stapel (2026-11-18). */
 function chgLabel(s,h,r,rng,n){const a=r.p[0],b=r.p[n-1],intra=rng==="1d"||rng==="1w";

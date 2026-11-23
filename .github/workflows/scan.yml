@@ -17,6 +17,8 @@ on:
     - cron: "43 2 * * 2-6"
     - cron: "11 4 * * 2-6"
     - cron: "37 5 * * 2-6"
+  push:                        # 2026-11-23: ändring av .github/scan_request.txt startar en skanning (som manuell start)
+    paths: [".github/scan_request.txt"]
   workflow_dispatch:           # kör manuellt via "Run workflow" (appen startar den också när du lägger till en aktie/börs)
 
 permissions:
@@ -40,7 +42,7 @@ jobs:
           python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
           import json, datetime as dt, os
           now = dt.datetime.utcnow()
-          manual = os.environ.get("EVENT") == "workflow_dispatch"
+          manual = os.environ.get("EVENT") in ("workflow_dispatch", "push")
           try:
               d = json.load(open("data.json")); upd = dt.datetime.strptime(d["updated"], "%Y-%m-%dT%H:%MZ"); S = d.get("stocks") or {}
           except Exception as e:

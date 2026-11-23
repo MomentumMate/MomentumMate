@@ -146,6 +146,8 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 | Buffert på SMA200 (0,97/0,95 × SMA200, två månadsskiften) | T5/T6 2026-11-23 | ej körd: T5 visar att sålda aktier slår ersättaren i bara 43 % (6 mån) och 38 % (12 mån), median −9 resp. −22 pe; 1 % återköps inom 3 mån – försäljningarna är inte onödiga |
 | Förtur för rekyl i upptrend (1 mån −25 till −10 %) | T7 2026-11-23 | Sharpe 1,30–1,33 men CAGR −2,5 till −7 pe, lägre Calmar, faller vid förskjutet kvartal |
 | Sektor-rea som fristående ficka (sektor ≥ 20–30 % under 52v-högsta, marknaden inte) | T8 2026-11-23 | 1 signal på tio år vid 25 % – inget utfall; vid 20 % slog den 2.0 i 0 av 5 fall |
+| Volatilitetstak vid köp (σ60 > 80/100/120 %) | T9 2026-11-23 | CAGR 30,6–38,6 mot 42,8 %, lägre Calmar, faller på halvor och förskjutet kvartal |
+| Jämna/lugna trender som avgörare (R², lägst volatilitet, tak 100 + R²) | T10 2026-11-23 | CAGR 22–26 mot 42,8 %, Sharpe inte högre – branta trender är avkastningskällan |
 
 ## 12. Information som visas men inte styr
 

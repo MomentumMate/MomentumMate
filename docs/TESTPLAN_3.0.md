@@ -64,6 +64,23 @@ förskjutet kvartal; CAGR faller högst 2 pe; nedgång inte djupare. Vinner fler
 Förväntan i förväg: T9 ger lägre volatilitet och grundare nedgång men troligen lägre CAGR (som omvänd volatilitet T4); T10 oklart – avgörare har tidigare
 spelat liten roll (#74), men under 2.0 delar ovanligt många toppen.
 
+### Utfall T9/T10 – körda 2026-11-23 (`test3.yml`, grenarna `test3-volcap`, `test3-steady`)
+
+A i körningarna: **42,8 % / Sharpe 1,23 / Calmar 1,02 / −42,0 %**, median volatilitet vid köp 61 %.
+
+| Variant | CAGR | Sharpe | Calmar | Nedgång | Halvor | Dubbla | Q+1 | Vol vid köp | Utfall |
+|---|---|---|---|---|---|---|---|---|---|
+| T9-80 | 30,6 | 1,15 | 0,81 | −37,6 | 1,34 / 0,97 | 30,3 / 1,14 / 0,80 | 31,5 / 1,19 / 0,85 | 53 % | faller på allt utom nedgång |
+| T9-100 | 36,1 | 1,24 | 0,86 | −41,9 | 1,44 / 1,04 | 34,8 / 1,20 / 0,82 | 32,7 / 1,16 / 0,78 | 57 % | faller: Calmar, halvor, dubbla, Q+1, CAGR −6,6 |
+| T9-120 | 38,6 | 1,28 | 0,95 | −40,5 | 1,47 / 1,01 | 36,0 / 1,21 / 0,89 | 36,9 / 1,32 / 0,90 | 60 % | faller: Calmar, halvor, dubbla, Q+1, CAGR −4,1 |
+| T10-a jämnast först (R²) | 25,7 | 1,13 | 0,62 | −41,8 | 1,23 / 1,07 | 25,0 / 1,10 / 0,59 | 26,6 / 1,20 / 0,74 | 38 % | faller på allt utom nedgång |
+| T10-b lugnast först | 24,3 | 1,22 | 0,69 | −35,4 | 1,24 / 1,04 | 23,1 / 1,16 / 0,63 | 19,8 / 1,00 / 0,53 | 29 % | faller på allt utom nedgång |
+| T10-c tak 100 + jämnast | 22,3 | 1,14 | 0,63 | −35,2 | 1,13 / 1,18 | 21,5 / 1,10 / 0,61 | 18,3 / 0,95 / 0,51 | 30 % | faller på allt utom nedgång |
+
+**Slutsats: ingen ändring.** Att välja jämna eller lugna trender framför branta halverar tillväxten (22–26 % mot 43 %) utan bättre Sharpe – nedgången blir bara något grundare.
+Ett volatilitetstak kostar 4–12 pe och håller inte i halvorna eller vid förskjutet kvartal. Modellens avkastning kommer från just de branta, volatila trenderna;
+de enskilda bakslagen (MRNA, FRO) är priset, och likavikt över 20 innehav är skyddet. Stabilitet hör hemma i kapitalfördelningen (allokeringsvyn), inte i urvalet.
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.
