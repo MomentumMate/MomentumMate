@@ -7,7 +7,7 @@ analysts.py – riktkurser och analytikerrevideringar (SPEC § 12: information s
   1. Prioriterade – innehav (holdings.txt, live_watch.json), bevakning (markets_extra.json), topp 30 i 2.0, daghandelskandidater:
      hämtas varje dag som förut.
   2. Resten av universumet – roterar: de bolag vars uppgifter är äldst hämtas först, ROT_N per körning (tidsgräns ROT_MIN minuter).
-     Med 400 per dag täcks hela universumet ungefär en gång i veckan. Varje rad har "asof" = hämtdatum.
+     Med 600 per dag täcks hela universumet ungefär var fjärde handelsdag (första körningen 2026-11-23: 461 bolag på 4 min, inga fel). Varje rad har "asof" = hämtdatum.
   Bolag som inte hämtas i dag behåller sina senaste uppgifter.
 
 Per bolag: konsensusriktkurs (snitt/hög/låg/median), antal analytiker, snittrekommendation, uppsida mot senaste kurs,
@@ -24,7 +24,7 @@ import yfinance as yf
 OUT = "analysts.json"
 HIST = "analysts_hist.json"
 TODAY = dt.date.today().isoformat()
-ROT_N = int(os.environ.get("ANALYSTS_ROT_N", "400"))       # roterande bolag per körning
+ROT_N = int(os.environ.get("ANALYSTS_ROT_N", "600"))       # roterande bolag per körning
 ROT_MIN = float(os.environ.get("ANALYSTS_ROT_MIN", "30"))  # tidsgräns för hela körningen, minuter (rotationen stannar där)
 KEEP_DAYS = 45                                             # graderingar som sparas
 KEEP_CH = 12                                               # högst så många graderingar per bolag

@@ -1,7 +1,8 @@
 name: Riktkurser
 
 # Riktkurser och analytikerrevideringar för HELA universumet (SPEC § 12, information som inte styr; 2026-11-23).
-# Prioriterade bolag (innehav, bevakning, topp 30, kandidater) varje dag + 400 roterande, äldst hämtade först → hela universumet ca en gång i veckan.
+# Prioriterade bolag (innehav, bevakning, topp 30, kandidater) varje dag + 600 roterande, äldst hämtade först → hela universumet ca var fjärde handelsdag.
+# Ändring av .github/analysts_request.txt startar en fyllnadskörning av hela universumet (2 400 bolag, tidsgräns 30 min).
 # Flera reservtider – grinden släpper igenom en körning per dygn; manuell start går alltid.
 on:
   push:
@@ -15,7 +16,7 @@ on:
     inputs:
       rot_n:
         description: "Antal roterande bolag (utöver de prioriterade)"
-        default: "400"
+        default: "600"
 
 permissions:
   contents: write
@@ -33,7 +34,7 @@ jobs:
       - name: Grind – en körning per dygn
         id: gate
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
           import json, datetime as dt
           try: done = json.load(open("analysts.json"))["updated"][:10] == dt.datetime.utcnow().strftime("%Y-%m-%d")
@@ -50,7 +51,7 @@ jobs:
       - name: Hämta riktkurser
         if: steps.gate.outputs.run == 'true'
         env:
-          ANALYSTS_ROT_N: ${{ github.event.inputs.rot_n || '400' }}
+          ANALYSTS_ROT_N: ${{ github.event_name == 'push' && '2400' || github.event.inputs.rot_n || '600' }}
           ANALYSTS_ROT_MIN: "30"
         run: python analysts.py
       - name: Publicera analysts.json och analysts_hist.json
