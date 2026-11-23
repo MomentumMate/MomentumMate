@@ -143,6 +143,9 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 | Riskbudget efter bredd (inga köp / halv exponering under 30–40 % över SMA200) | strat 2026-11-18 | 31–40 % mot 43 %, Sharpe 0,98–1,15 – modellens kassaeffekt gör jobbet |
 | Sektortak 6 eller 8 av 20 | strat 2026-11-18 | 6: −5 pe CAGR; 8: inom bruset, faller på halvor och nedgång |
 | Vikter i omvänd proportion till volatilitet | strat 2026-11-18 | Sharpe 1,38, nedgång −34 %, men CAGR 38,3 mot 43,2 – faller på CAGR-gränsen (§ 1 prioriterar tillväxt) |
+| Buffert på SMA200 (0,97/0,95 × SMA200, två månadsskiften) | T5/T6 2026-11-23 | ej körd: T5 visar att sålda aktier slår ersättaren i bara 43 % (6 mån) och 38 % (12 mån), median −9 resp. −22 pe; 1 % återköps inom 3 mån – försäljningarna är inte onödiga |
+| Förtur för rekyl i upptrend (1 mån −25 till −10 %) | T7 2026-11-23 | Sharpe 1,30–1,33 men CAGR −2,5 till −7 pe, lägre Calmar, faller vid förskjutet kvartal |
+| Sektor-rea som fristående ficka (sektor ≥ 20–30 % under 52v-högsta, marknaden inte) | T8 2026-11-23 | 1 signal på tio år vid 25 % – inget utfall; vid 20 % slog den 2.0 i 0 av 5 fall |
 
 ## 12. Information som visas men inte styr
 

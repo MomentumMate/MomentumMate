@@ -48,5 +48,35 @@ data samlas från 2026-11-23 för hela universumet (`analysts.yml`, `pt30`) och 
 ## Inte nu
 Marknadsutgång efter fall eller bredd (förkastad, T2 2026-11-18). Gapsäljning, omvänd volatilitet, radar/analytikerrevideringar som avgörare: 2027 på loggens data.
 
-## Utfall
-*(fylls i efter körning)*
+## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
+
+**Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.
+
+**T5 Efterförsäljning** (A: 44,2 % / Sharpe 1,28 / Calmar 1,05 / −42,0 %; 241 försäljningar på tio år, 232 på SMA200, 9 på 12-1):
+
+| Horisont | Såld aktie (median) | Ersättaren (median) | Såld − ersättare (median) | Andel där sålda slog ersättaren | Såld − universum (median) |
+|---|---|---|---|---|---|
+| 1 mån | +2,8 % | 0,0 % | +0,6 pe | 51 % | +0,7 pe |
+| 3 mån | +9,0 % | +6,5 % | −0,2 pe | 50 % | +4,5 pe |
+| 6 mån | +8,4 % | +17,6 % | −8,9 pe | 43 % | +4,4 pe |
+| 12 mån | +23,3 % | +37,2 % | −21,7 pe | 38 % | +2,9 pe |
+
+Återköpta inom 3 mån: 1 %. Försäljningar vid bredd under 30 %: 8 %. Per år 12–32 st (flest 2018, 2022, 2026).
+Tolkning: de sålda aktierna går inte dåligt – de slår universumet något – men ersättarna går klart bättre, och skillnaden växer med tiden.
+Försäljningarna är alltså inte onödiga: de flyttar kapital till starkare aktier. Tolkningsregeln utlöses inte → **T6 stryks**.
+
+**T7 Rekyl i upptrend** (A i samma körning: 42,8 % / 1,23 / 1,02 / −42,0 %):
+
+| Variant | CAGR | Sharpe | Calmar | Nedgång | Halvor | Dubbla | Q+1 | Utfall |
+|---|---|---|---|---|---|---|---|---|
+| T7-a rekyl inom topp 30 först | 40,3 | 1,30 | 0,99 | −40,6 | 1,64 / 0,88 | 38,6 / 1,26 / 0,94 | 42,3 / 1,33 / 1,03 | faller: Calmar, halva 2, dubbla, Q+1, CAGR −2,5 |
+| T7-b rekyl +5 p | 35,4 | 1,22 | 0,89 | −39,9 | 1,55 / 0,92 | 34,4 / 1,19 / 0,86 | 34,3 / 1,24 / 0,85 | faller på allt utom nedgång |
+| T7-c rekyl +10 p | 39,5 | 1,33 | 0,99 | −39,8 | 1,62 / 1,25 | 38,4 / 1,29 / 0,98 | 34,2 / 1,23 / 0,88 | faller: Calmar, dubbla, Q+1, CAGR −3,3 |
+
+Rekylförtur ger något högre Sharpe och grundare nedgång men lägre tillväxt och håller inte vid förskjutet kvartal. Förkastad (SPEC § 11).
+
+**T8 Sektor-rea:** universumets median låg högst 10 % under 52-veckorshögsta i 46 % av månaderna. Mittvarianten (25 %, 12 mån) gav **en** signal på tio år
+(energi 2020-12-31: rea +51 %, universum +29 %, sektor +65 %, 2.0 +77 %); den relativa varianten också en. **För få signaler – inget utfall.**
+Vid 20 % kom 5 signaler (energi 2015, 2019, 2020 ×2; teknik 2026-02): rea-köpet slog universumet i 2 av 5 på 6 mån, **slog 2.0 i 0 av 5** på både 6 och 12 mån
+(snitt 6 mån: rea +2,7 %, universum +5,9 %, 2.0 +30,4 %). Stopp −25 % gjorde det sämre. Underlaget är litet och överlevnadsbias gynnar rea-köp,
+så T8 talar snarast **emot** en reaficka – men avgör inget. Analytikerfiltret prövas 2027 på data som nu samlas för hela universumet.

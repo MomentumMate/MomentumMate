@@ -33,7 +33,7 @@ Handelsrytm: **en gång i månaden**, på månadens sista stängning räknas fö
 | `backtest.py` | Backtestet (10 år, EODHD, P3-basis). Strategitester via `--strat`, paritetstest mot appen via `--tie`/`--parity`. |
 | `datacheck.py` | Daglig datakontroll → `datacheck.json`/`.md`. Rött = spärr i appen. |
 | `radar.py` | Institutionell radar (13F, 13D/G, ARK, FI-insyn, SEC Form 4) → `radar.json`, `cusip_map.json`. |
-| `analysts.py` | Riktkurser och upp-/nedgraderingar (Yahoo) → `analysts.json` med historik. |
+| `analysts.py` | Riktkurser och upp-/nedgraderingar (Yahoo) för hela universumet → `analysts.json`, historik i `analysts_hist.json`. |
 | `parity_test.js` | Kör appens förslagsmotor och en oberoende referens skriven från SPEC på samma data; röd körning = appen avviker från SPEC. |
 | `SPEC.md`, `TESTPLAN_2.0.md`, `STATUS.md`, `docs/HANDBOK.md` | Dokumentationen (se avsnitt 0). |
 | `holdings.txt` | Aktier som ska finnas i universumet även om de inte fångas av någon indexlista. |
@@ -50,7 +50,8 @@ Handelsrytm: **en gång i månaden**, på månadens sista stängning räknas fö
 | `h/<ticker>.json` (hist) | Kurshistorik per aktie: 2 år dagligen (OHLCV), 5 år, dagens 5-minutersstaplar (`1d`), senaste veckan (`1w`). | Skanning |
 | `daytrade.json` (live) | Live-kurser (`quotes`), dagens 5-minutersstaplar (`intra`) för portföljinnehav + bevakning + topp 20 + kandidater, daghandelskandidater. | Live-jobbet (startas från appen; GitHub kör schemat sporadiskt) |
 | `datacheck.json` (main) | Datakontrollens utfall per aktie och marknad. | Varje natt efter handelsdag |
-| `radar.json`, `analysts.json` (main) | Radar och analytiker. | Varje morgon |
+| `radar.json` (main) | Radar. | Varje morgon |
+| `analysts.json`, `analysts_hist.json` (main) | Riktkurser för hela universumet (prioriterade dagligen, resten roterande, `asof`), riktkursändring per analyshus 30 d (`pt30`); historik i `_hist`. | Varje morgon (`analysts.yml`) |
 | `news.json` (news) | Nyhetsflöde (RSS + Google News) för marknad och innehav. | Var 15:e minut |
 
 ### 2.3 GitHub Actions (Python 3.13)
@@ -61,7 +62,9 @@ GitHub kör schemalagda jobb timmar sent eller inte alls. Därför har de viktig
 |---|---|---|
 | `scan.yml` | 12 körtider | En körning per pass: 12:30, 14:15, 21:30 UTC (Norden-stängning, USA-öppning, USA-stängning) + ikapp-körning nattetid när < 80 % av en marknad har senaste stängningen. Konfliktsäker commit. Startar datakontrollen om den blir röd. |
 | `datacheck.yml` | 6 körtider | En per dygn, natten efter handelsdag. |
-| `radar.yml` | 4 körtider | En per dygn. Kör `radar.py` och därefter `analysts.py`. Kräver hemligheten `RADAR_CONTACT` (SEC kräver kontakt i User-Agent). |
+| `radar.yml` | 4 körtider | En per dygn. Kör `radar.py`. Kräver hemligheten `RADAR_CONTACT` (SEC kräver kontakt i User-Agent). |
+| `analysts.yml` | 4 körtider | En per dygn (2026-11-23). `analysts.py`: prioriterade + 600 roterande; ändring av `.github/analysts_request.txt` ger fyllnadskörning av hela universumet. |
+| `test3.yml` | vid ändring av `.github/test3_request.txt` | Strategitester 3.0 parallellt; resultat på grenarna `test3-<namn>`. |
 | `daytrade.yml` | var 5:e min 12–21 UTC (i praktiken 1–2 ggr/dag) | Startas från appen ("Hämta dagens staplar"). |
 | `news.yml` | var 15:e min | – |
 | `backtest.yml` | manuell | Val `strat` (gap/breadth/sector/invvol/all), parametrar; timeout 300 min. Resultat i loggen (facit) och `backtest.json` på gren `backtest`. |
@@ -204,6 +207,7 @@ Avgifter, Finnhub-nyckel, GitHub-token (kopplar appen till repot), intro av/på,
 | 2026-11-05 | #81 | Överlevnadsbias (inträdesdatum) | 44 → 36 %; bara S&P 500 32 → 17,5 % |
 | 2026-11-05 | #82 | Kraschfönster, förskjuten prövning | 2.0 bättre i snabba, sämre i utdragna; inom bruset |
 | 2026-11-18 | strat ×4 | Gapsäljning 22/25/30, riskbudget efter bredd, sektortak 6/8, omvänd volatilitet | **Ingen klarar beslutsregeln (TESTPLAN § 9)** |
+| 2026-11-23 | test3 | T5 efterförsäljning, T6 SMA200-buffert, T7 rekyl i upptrend, T8 sektor-rea | Försäljningarna är inte onödiga (T6 stryks); T7 faller; T8 för få signaler. **Ingen ändring (TESTPLAN_3.0)** |
 
 Beslutsregel (gäller varje test): Sharpe och Calmar högre än A på hela perioden; Sharpe inte lägre i båda halvorna; håller med dubbla kostnader och förskjutet kvartal; CAGR faller högst 2 pe (4 för riskbudget); nedgång inte djupare. Regeln skrivs före körningen och ändras inte efteråt.
 

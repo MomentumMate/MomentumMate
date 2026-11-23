@@ -1,4 +1,4 @@
-# MomentumMate – läge 2026-11-23
+# MomentumMate – läge 2026-11-23 (eftermiddag)
 
 Regelverket står i `SPEC.md` (modell 2.0); handboken i `docs/HANDBOK.md` beskriver verktyget, arkitekturen och alla funktioner; testplanen i `TESTPLAN_2.0.md`. Detta dokument säger var saker står. Alla fyra finns i repots rot/`docs/` och i claude.ai-projektet (`claude/`).
 
@@ -6,11 +6,13 @@ Regelverket står i `SPEC.md` (modell 2.0); handboken i `docs/HANDBOK.md` beskri
 
 Modell 2.0 (Clenow 120 d) är validerad, specificerad och körs i appen sedan 5 nov. 18 nov kördes fyra strategitester (gapsäljning, riskbudget efter bredd, sektortak, omvänd volatilitet) med regel skriven i förväg – ingen klarade regeln, 2.0 står oförändrad (TESTPLAN § 9, SPEC § 11). Utvecklingslistan från 9 och 16 nov är genomförd. 18–20 nov: gränssnittet städat och likriktat (aktiekortens sidhuvud lika överallt, Börsdesken med flikarna Momentum 25 / Daghandel / Alla, radarn med nya flikar Mest ägda och Ackumulering, utfällbara sektorer, inga emojis), 1D-grafen över hela handelsdagen, riktkurser i det utfällda kortet, portföljinnehaven med i live- och analytikerurvalet. 23 nov: handbok skriven som utgångspunkt för 3.0.
 
+**23 nov eftermiddag (3.0, steg 1):** riktkurser för hela universumet (`analysts.yml`, eget jobb: prioriterade dagligen + 600 roterande, fyllnadskörning av alla ~2 300 i dag; varje analyshus riktkursändring sparas → `pt30` = höjda/sänkta och medianändring senaste 30 dagarna, från första dagen). Historiken flyttad till `analysts_hist.json`. Fyra tester körda enligt `TESTPLAN_3.0.md` (regler committade före körning): T5 efterförsäljning visar att försäljningarna på hållregeln inte är onödiga (ersättarna slår de sålda med median 9 pe på 6 mån, 22 pe på 12 mån) → T6 SMA200-buffert stryks; T7 rekyl i upptrend faller; T8 sektor-rea har för få signaler (1 på tio år vid 25 %; vid 20 % slog den 2.0 i 0 av 5). **2.0 oförändrad.**
+
 Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 och första som loggas. Radar/analytikerrevideringar som avgörare testas tidigast 2027. Överlevnadsbias med Börsdata avvaktar.
 
 ## Gällande versioner (repo MomentumMate/MomentumMate)
 
-- `index.html` **2026-11-20-l**. Sedan 18 nov: insättningar/uttag (az), allokeringsvy (az), 1D över hela sessionen med svenska klockslag (bd), grafhuvud = sidhuvudets kurs (be, j), gamla poängmodulen bort och flikar per marknad (bc, g), live_watch.json (bc), sidhuvud bara bolagsnamn och radbrutet (bf, bg), radar: hela texten, inga emojis/ikoner, knappordning, tickern → aktiesidan, gul trekant, Mest ägda, Ackumulering, sektorer utfällbara (bh–f), analytiker i kortet (a), kortens högerblock lika (h), daghandelskort som Momentum 25 (i, k, l).
+- `index.html` **2026-11-23-b** (analytiker: hela universumet, hämtdatum, riktkursändringar per analyshus 30 d). Före det 2026-11-20-l. Sedan 18 nov: insättningar/uttag (az), allokeringsvy (az), 1D över hela sessionen med svenska klockslag (bd), grafhuvud = sidhuvudets kurs (be, j), gamla poängmodulen bort och flikar per marknad (bc, g), live_watch.json (bc), sidhuvud bara bolagsnamn och radbrutet (bf, bg), radar: hela texten, inga emojis/ikoner, knappordning, tickern → aktiesidan, gul trekant, Mest ägda, Ackumulering, sektorer utfällbara (bh–f), analytiker i kortet (a), kortens högerblock lika (h), daghandelskort som Momentum 25 (i, k, l).
 - `scanner.py` – live-urvalet läser `live_watch.json` (appens portföljinnehav). `analysts.py` – samma urval. `backtest.py` – `--strat`. `radar.py`, `datacheck.py`, `parity_test.js` oförändrade sedan 16 nov.
 - Workflows (Python 3.13): scan (12 körtider, grind), datacheck (6), radar (4; radar + analytiker), daytrade (från appen), news (15 min), parity, backtest (`strat`), diagnos, lookup.
 - Hemligheten `RADAR_CONTACT` finns. Ägarens app har GitHub-token och Finnhub-nyckel.
@@ -36,6 +38,7 @@ Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 
 | #81 | Överlevnadsbias nedre gräns: 44,0 → 36,4 %; bara S&P 500 31,7 → 17,5 |
 | #82 | 2.0 faller mindre i snabba nedgångar, mer i utdragna |
 | strat 2026-11-18 | A = 43,2 / 1,25 / 1,03 / −42,0. Gap, bredd, sektortak, omvänd volatilitet – alla faller på regeln. Ingen ändring. |
+| test3 2026-11-23 | T5: sålda slår ersättaren i 43 % (6 mån), median −8,9 pe; återköp 1 % → T6 stryks. T7 rekyl: 35–40 % mot 42,8, faller. T8 sektor-rea: för få signaler. Ingen ändring. |
 
 **Förväntan (SPEC § 14): 20–25 % per år, nedgång −50 %.**
 
@@ -49,7 +52,8 @@ Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 
 - Live-jobbet kör sporadiskt på schema; källa och tid visas; startlänk i appen.
 - ARK: tre av sex fondfiler uppdateras inte på ark-funds.com.
 - Dagsserien i graferna får dagens punkt först efter kvällens skanning (grafhuvudet visar livekursen med notering).
-- Parallella backtest-körningar skriver över varandras `backtest.json` – loggarna är facit.
+- Parallella backtest-körningar skriver över varandras `backtest.json` – loggarna är facit. `test3.yml` publicerar per jobb på egna grenar.
+- Commit 37814e8 fick av misstag med wheel-filer (borttagna i nästa commit, finns kvar i historiken).
 
 ## Handel
 
@@ -64,7 +68,7 @@ Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 
 
 **Utveckling (3.0 – inget beslutat; kandidater i HANDBOK § 8)**
 3. Överlevnadsbias vidare och lönsamhetsfilter (Börsdata) – avvaktar.
-4. Strategitest 2027 på loggens egna data: gapsäljning, omvänd volatilitet, radar/revideringar som avgörare.
+4. Strategitest 2027 på loggens egna data: gapsäljning, omvänd volatilitet, radar/revideringar som avgörare, analytikerfiltret i en eventuell reaficka (pt30 samlas nu för hela universumet).
 5. Avknoppningar i paritetstabellen; notiser.
 
 ## Arbetssätt
