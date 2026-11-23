@@ -402,7 +402,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-23-g";
+const APPV="2026-11-23-i";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2094,7 +2094,7 @@ const SESSH={"America/New_York":[570,960],"Europe/Stockholm":[540,1050],"Europe/
 function sessionWin(ts,t){const tz=tzOf(t);if(!tz||!SESSH[tz])return null;try{const p=new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ts*1000)).reduce((a,x)=>(a[x.type]=x.value,a),{});
   const m=+p.hour*60+ +p.minute,[o,c]=SESSH[tz];return{open:ts-(m-o)*60,close:ts+(c-m)*60}}catch(e){return null}}
 function tzOf(t){if(/-USD$/.test(t))return undefined;for(const k in TZS)if(t.endsWith(k))return TZS[k];return"America/New_York"}
-function histFmt(ts,rng,t){if(!ts)return"";const d=new Date(ts*1000),tz=(rng==="1d"||rng==="1w")?"Europe/Stockholm":tzOf(t||HCUR.t||"");
+function histFmt(ts,rng,t){if(!ts)return"";const d=new Date(ts*1000),tz=(rng==="1d"||rng==="1w")?"Europe/Stockholm":"UTC";   // dagspunkter är stämplade 00:00 UTC – i New York-tid blev de föregående dag (2026-11-23)
   try{return(rng==="1d"||rng==="1w")?d.toLocaleString("sv-SE",{timeZone:tz,month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):d.toLocaleDateString("sv-SE",{timeZone:tz,year:"numeric",month:"short",day:"numeric"})}catch(e){return""}}
 /* ====== HELSIDESGRAF ======
    Ljusstakar (när OHLC finns i historiken, annars linje), volym, SMA50/200, stöd- och
@@ -2186,16 +2186,17 @@ function cvSvg(s,h,rng,lay,R){
   return{svg:`<svg viewBox="0 0 ${W} ${H}">${g}</svg><div class="mu" style="display:flex;justify-content:space-between;font-size:10.5px;margin:3px 2px"><span>${sw?histFmt(sw.open,rng,s.t):r.t?histFmt(r.t[0],rng,s.t):""}</span>${sw?`<span>${histFmt(r.t[n-1],rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"senast $1")}</span>`:""}<span>${sw?histFmt(sw.close,rng,s.t).replace(/^.*?(\d\d:\d\d)$/,"stängning $1"):r.t?histFmt(r.t[n-1],rng,s.t):"nu"}</span></div>${(rng==="1d"||rng==="1w")?`<div class="mu" style="font-size:11.5px;margin:2px 2px 6px">${intraNote(r,rng,s.t)}</div>`:""}`,r,n,W,X,Y,O,HI,LO,candle,tp,daily};
 }
 /* Förändring i 1D/1V räknas mot föregående dags stängning (som i sidhuvudet), inte mot sessionens första stapel (2026-11-18). */
-function chgLabel(s,h,r,rng,n){const a=r.p[0],b=r.p[n-1];
-  if(!(rng==="1d"||rng==="1w")||!r.t){ // dagsserier slutar på senaste stängning – sidhuvudets kurs kan vara nyare (live). Visa samma kurs som sidhuvudet.
-    if(s.px>0&&typeof s.chg==="number"&&Math.abs(s.px/b-1)>0.0005)return{ch:s.chg,px:s.px,txt:` i dag · grafen t.o.m. ${r.t?histFmt(r.t[n-1],rng,s.t):"senaste stängning"} (${b.toFixed(2)})`,live:true};
-    return{ch:(b/a-1)*100,txt:` under perioden`}}
-  // 2026-11-23: finns en livekurs som är nyare än senaste stapeln (t.ex. dagens öppning innan live-jobbet hämtat staplar) visas den,
-  // med samma förändring som sidhuvudet och övriga intervall – inte fredagens sista 5-minutersstapel.
-  if(s.px>0&&s.qt&&typeof s.chg==="number"&&s.qt>r.t[n-1]*1000+6e5&&Math.abs(s.px/b-1)>0.0005)return{ch:s.chg,px:s.px,txt:` live ${hhmm(new Date(s.qt).toISOString())} · staplarna slutar ${histFmt(r.t[n-1],rng,s.t)} (${b.toFixed(2)}) – dagens staplar hämtas av live-jobbet`,live:true};
-  let pc=null;const d=isoDay(r.t[n-1],s.t),y=h&&h["2y"];if(y&&y.t&&y.t.length){for(let i=y.t.length-1;i>=0;i--){if(isoDay(y.t[i],s.t)<d){pc=y.p[i];break}}}
-  if(!(pc>0)&&s.px>0&&typeof s.chg==="number")pc=s.px/(1+s.chg/100);
-  return pc>0?{ch:(b/pc-1)*100,txt:" sedan föreg. stängning"}:{ch:(b/a-1)*100,txt:" i dag"}}
+function chgLabel(s,h,r,rng,n){const a=r.p[0],b=r.p[n-1],intra=rng==="1d"||rng==="1w";
+  // 2026-11-23: varje intervall visar SIN förändring – 1D mot föregående stängning, 1V/1M/3M/… över perioden.
+  // Finns en livekurs som är nyare än grafens sista punkt används den som slutkurs (samma kurs i alla intervall).
+  const newer=s.px>0&&typeof s.chg==="number"&&Math.abs(s.px/b-1)>0.0005&&(!intra||!r.t||(s.qt&&s.qt>r.t[n-1]*1000+6e5));
+  const px=newer?s.px:b,lv=newer?` · ${s.qt?"livekurs "+hhmm(new Date(s.qt).toISOString()):"senaste kurs"}, grafen slutar ${r.t?histFmt(r.t[n-1],rng,s.t):"vid senaste stängning"} (${b.toFixed(2)})`:"";
+  if(rng==="1d"&&r.t){
+    if(newer)return{ch:s.chg,px,txt:" i dag"+lv,live:true};
+    let pc=null;const d=isoDay(r.t[n-1],s.t),y=h&&h["2y"];if(y&&y.t&&y.t.length){for(let i=y.t.length-1;i>=0;i--){if(new Date(y.t[i]*1000).toISOString().slice(0,10)<d){pc=y.p[i];break}}}
+    if(!(pc>0)&&s.px>0&&typeof s.chg==="number")pc=s.px/(1+s.chg/100);
+    return pc>0?{ch:(b/pc-1)*100,txt:" sedan föreg. stängning"}:{ch:(b/a-1)*100,txt:" i dag"}}
+  return{ch:(px/a-1)*100,px:newer?px:undefined,txt:` under perioden${lv}`,live:newer}}
 function nearestI(X,n,x){let b=0,bd=1e9;for(let i=0;i<n;i++){const d=Math.abs(X(i)-x);if(d<bd){bd=d;b=i}}return b}
 async function drawCV(){
   const t=CV.t,s=S[t];let h=await loadHist(t);if(CV.rng==="1d"||CV.rng==="1w")h=await mergeIntra(t,h);if(CV.t!==t||!$("#cvbody"))return;
