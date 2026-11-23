@@ -1542,7 +1542,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
         if eds: er = earn_react(cd, eds)
         # långsiktig stabilitet (Börsdeskens flik Value, 2026-11-23): 3 år – årstakt, jämnhet (R² på veckokurser), största ras, antal positiva år
         if len(cd) >= 700:
-            w = cd.iloc[-756:].dropna(); yrs = len(w) / 252
+            w = cd.iloc[-757:].dropna(); yrs = (len(w) - 1) / 252   # 757 punkter = tre hela år (positiva år räknas på alla tre)
             if len(w) >= 700 and w.iloc[0] > 0:
                 cagr = (w.iloc[-1] / w.iloc[0]) ** (1 / yrs) - 1
                 wk = np.log(w.iloc[::5].values); xx = np.arange(len(wk)); r2 = float(np.corrcoef(xx, wk)[0, 1] ** 2) if len(wk) > 10 else None
