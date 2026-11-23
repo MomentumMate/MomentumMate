@@ -48,6 +48,22 @@ data samlas från 2026-11-23 för hela universumet (`analysts.yml`, `pt30`) och 
 ## Inte nu
 Marknadsutgång efter fall eller bredd (förkastad, T2 2026-11-18). Gapsäljning, omvänd volatilitet, radar/analytikerrevideringar som avgörare: 2027 på loggens data.
 
+## T9 och T10 – volatila rusare mot jämna trender (ägarbeslut 2026-11-23, regler skrivna före körning)
+
+Bakgrund: topplistan domineras av aktier som rusat (MRNA: Clenow 4 460, volatilitet 266 %) medan stabila uppgångar (MA, V: Clenow 58–66,
+volatilitet ~22 %) aldrig når topp 20. 52 aktier delar nästan maxpoängen; ordningen mellan dem avgörs i dag av rått Clenow-mått = brantast först.
+Ägarens fråga: är jämnare trender en styrka? Blankningsgrad kan inte testas – historik saknas (visas som information).
+
+| Test | Varianter | Mekanism |
+|---|---|---|
+| **T9 Volatilitetstak vid köp** | årsvolatilitet (60 d) över 80 / 100 / 120 % får inte köpas | `vol_cap` – påverkar bara köp, inte hållregeln |
+| **T10 Jämna trender först** | a) avgörare R² (120 d) – jämnast först; b) avgörare lägst volatilitet; c) tak 100 i stället för 150 + R² som avgörare (fler delar toppen, jämnast väljs) | `tie_mode`, `mom_cap` |
+
+**Beslutsregel (samma som TESTPLAN_2.0 § 9):** Sharpe **och** Calmar högre än A på hela perioden; Sharpe inte lägre i någon halva; håller med dubbla kostnader och
+förskjutet kvartal; CAGR faller högst 2 pe; nedgång inte djupare. Vinner flera nivåer väljs den mittersta. Rapporteras även: median volatilitet vid köp.
+Förväntan i förväg: T9 ger lägre volatilitet och grundare nedgång men troligen lägre CAGR (som omvänd volatilitet T4); T10 oklart – avgörare har tidigare
+spelat liten roll (#74), men under 2.0 delar ovanligt många toppen.
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.

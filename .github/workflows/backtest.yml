@@ -97,7 +97,7 @@ on:
       strat:
         description: "Strategitester 2026-11-18 (TESTPLAN § 9): gap (gapsäljning), breadth (riskbudget efter bredd), sector (sektortak), invvol (omvänd volatilitet), all"
         type: choice
-        options: ["", "gap", "breadth", "sector", "invvol", "all", "after", "smabuf", "pullback", "sectorsale", "t3"]
+        options: ["", "gap", "breadth", "sector", "invvol", "all", "after", "smabuf", "pullback", "sectorsale", "t3", "volcap", "steady"]
         default: ""
       port:
         description: "Portföljstorlek i kronor (styr poststorlek och därmed minimicourtaget)"

@@ -203,6 +203,22 @@ def clenow_panel(close, n=90):
         out[n - 1:, j] = val
     return pd.DataFrame(out, index=close.index, columns=close.columns)
 
+def r2_panel(close, n=120):
+    """R² i regressionen av ln(kurs) mot tid över n dagar – hur jämn trenden är (0–1). Test T10 2026-11-23."""
+    y = np.log(close.ffill()).values; T, N = y.shape
+    k = np.arange(n, dtype=float); kbar = k.mean(); sxx = ((k - kbar) ** 2).sum()
+    out = np.full((T, N), np.nan); w1 = np.ones(n); wk = (k - kbar)[::-1]
+    for j in range(N):
+        c = y[:, j]
+        if np.isnan(c).all(): continue
+        cc = np.where(np.isnan(c), 0.0, c); ok = (~np.isnan(c)).astype(float)
+        cnt = np.convolve(ok, w1, "valid"); sy = np.convolve(cc, w1, "valid"); syy = np.convolve(cc * cc, w1, "valid"); sxy = np.convolve(cc, wk, "valid")
+        syy_c = syy - n * (sy / n) ** 2
+        with np.errstate(divide="ignore", invalid="ignore"):
+            r2 = np.where(syy_c > 0, (sxy ** 2) / (sxx * syy_c), 0.0)
+        r2[cnt < n] = np.nan; out[n - 1:, j] = r2
+    return pd.DataFrame(out, index=close.index, columns=close.columns)
+
 def score_panel(close, vol, cfg):
     """Poäng per aktie och dag, räknad BARA på data till och med dagen i fråga.
 
@@ -462,6 +478,15 @@ def run(close, vol, cfg, vix=None):
     LAST_DIAG["snap"] = []; LAST_DIAG["exits"] = []
     """Simulerar strategin. Returnerar kapitalkurva och nyckeltal."""
     sc, _ = score_panel(close, vol, cfg)
+    # ---- Tester 2026-11-23 (TESTPLAN_3.0 T9/T10) ----
+    SIG60 = close.pct_change().rolling(60, min_periods=40).std() * math.sqrt(252)
+    if cfg.get("vol_cap"):          # T9: aktier med årsvolatilitet (60 d) över taket får inte köpas
+        sc = sc.where(~(SIG60 > cfg["vol_cap"]))
+    if cfg.get("tie_mode"):         # T10: avgörare vid (nästan) lika poäng – jämnaste eller lugnaste först i stället för brantaste
+        if cfg["tie_mode"] == "r2":
+            sc = sc + r2_panel(close, cfg.get("clenow_n", 120)).fillna(0) * 1e-3
+        elif cfg["tie_mode"] == "lowvol":
+            sc = sc + (1.0 / SIG60.replace(0, np.nan)).clip(upper=20).fillna(0) * 1e-4
     EX = exit_panels(close, cfg)
     DK = decay_panels(close, vol, cfg)
     RSI = None
@@ -560,7 +585,7 @@ def run(close, vol, cfg, vix=None):
     # Dagsomsättning (20 d) i kronor per aktie – för slippage och rapport. Räknas bara när den behövs.
     ADV = ((close * vol).rolling(20, min_periods=12).mean() * pd.Series({t: fx_sek(t) for t in close.columns})
            if (cfg.get("slip") or cfg.get("report_adv")) and vol is not None else None)
-    X = LAST_DIAG["x"] = {"cost": 0.0, "slip": 0.0, "traded": 0.0, "adv_buy": []}   # enheter: andel av startkapital
+    X = LAST_DIAG["x"] = {"cost": 0.0, "slip": 0.0, "traded": 0.0, "adv_buy": [], "vol_buy": []}   # enheter: andel av startkapital
     cur_i = [0]
     def fee(val_units, t, side):
         """val_units är positionens andel av kapitalet (1.0 = hela). Returnerar samma enhet.
@@ -824,6 +849,7 @@ def run(close, vol, cfg, vix=None):
                     sh = (amt - fee(amt, t, "buy")) / px
                     cash -= amt
                     if ADV is not None: X["adv_buy"].append(float(ADV.iat[i, close.columns.get_loc(t)]))
+                    _v = SIG60.iat[i, close.columns.get_loc(t)]; X["vol_buy"].append(float(_v)) if _v == _v else None
                     hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
 
         # --- ombalansering ---
@@ -965,6 +991,7 @@ def run(close, vol, cfg, vix=None):
                         sh = (amt - fee(amt, t, "buy")) / px
                         cash -= amt
                         if ADV is not None: X["adv_buy"].append(float(ADV.iat[i, close.columns.get_loc(t)]))
+                        _v = SIG60.iat[i, close.columns.get_loc(t)]; X["vol_buy"].append(float(_v)) if _v == _v else None
                         hold[t] = {"sh": sh, "px": px, "peak": px, "i": i}; trades.append(("buy", t, d))
                 # Extra platser (test 2026-11-04): kassa som blivit över när eftersläntrare INTE fylls på
                 # får köpa nya topp-N-aktier utöver målantalet, högst rw_extra stycken.
@@ -1429,6 +1456,14 @@ def main():
             T5, trig, _ = after_sale(close, vol, M2)
             if trig: VAR.update(T6V)
         if which == "smabuf": VAR.update(T6V)
+        if which in ("volcap", "t9"):
+            VAR["--- T9 volatilitetstak vid köp: årsvolatilitet (60 d) över taket får inte köpas ---"] = None
+            for vc in (0.80, 1.00, 1.20): VAR[f"T9-{int(vc*100)}. A + inga köp över {int(vc*100)} % volatilitet"] = dict(M2, vol_cap=vc)
+        if which in ("steady", "t10"):
+            VAR["--- T10 jämna trender: avgörare bland aktier med (nästan) lika poäng ---"] = None
+            VAR["T10-a. Jämnast trend (R² 120 d) först i stället för brantast"] = dict(M2, tie_m121=False, tie_mode="r2")
+            VAR["T10-b. Lägst volatilitet först i stället för brantast"] = dict(M2, tie_m121=False, tie_mode="lowvol")
+            VAR["T10-c. Tak 100 i stället för 150 + jämnast trend först"] = dict(M2, tie_m121=False, tie_mode="r2", mom_cap=100)
         if which in ("pullback", "t3"):
             VAR["--- T7 rekyl i upptrend: 1-månadsavkastning −25 till −10 % ger förtur ---"] = None
             VAR["T7-a. Rekylaktier inom topp 30 först"] = dict(M2, pb_pref="pool", pb_pool=30)
@@ -1446,7 +1481,10 @@ def main():
         def run_cfg(over, sub, subv):
             cfg = dict(DEF); cfg.update(over)
             y2 = (sub.index[-1] - sub.index[min(210, len(sub) - 1)]).days / 365.25
-            e, tr, hd = run(sub, subv, cfg); return stats(e, tr, y2, hd), e
+            e, tr, hd = run(sub, subv, cfg); st_ = stats(e, tr, y2, hd)
+            vb = LAST_DIAG["x"].get("vol_buy") or []
+            if vb: st_["median_vol_vid_köp_%"] = round(float(np.nanmedian(vb)) * 100, 1)
+            return st_, e
         for nm, over in VAR.items():
             if over is None: print(f"\n   {nm}"); continue
             try:
@@ -1461,7 +1499,7 @@ def main():
                 h1, h2, dk, q1 = st["Första halvan"], st["Andra halvan"], st["dubbla kostnader"], st["kvartal +1 mån"]
                 print(f"   {nm:<70}{st['CAGR_%']:>7} %  Sharpe {st['Sharpe']}  Calmar {st['Calmar']}  nedgång {st['max_nedgång_%']} %  köp/år {st['köp_per_år']:>5}"
                       f"  | halvor Sharpe {h1.get('Sharpe')} / {h2.get('Sharpe')}  | dubbla {dk.get('CAGR_%')} % {dk.get('Sharpe')} {dk.get('Calmar')}  | Q+1 {q1.get('CAGR_%')} % {q1.get('Sharpe')} {q1.get('Calmar')}"
-                      f"  utgångar {st.get('utgångar')}")
+                      f"  utgångar {st.get('utgångar')}  vol vid köp {st.get('median_vol_vid_köp_%')} %")
             except Exception as ex:
                 print(f"   {nm:<70} FEL {str(ex)[:80]}"); res[nm] = {"fel": str(ex)[:120]}
         # --- prövning mot beslutsregeln ---
