@@ -151,7 +151,7 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 
 RSI, MACD, stöd/motstånd, volym, OBV, ATH-avstånd, fundamenta, blankning, nyheter, sektor, daghandelslistan,
 rankningsplats för befintliga innehav, ⏳ mellan prövningarna, 1.0-rankningen (visas bredvid 2.0 under övergången),
-omsättning relativt börsens median, **institutionella radarn** (nedan). Allt detta får visas; inget av det får ändra en rad i förslaget.
+omsättning relativt börsens median, **rekylzonen** (Fibonacci 61,8–78,6 % av senaste stora uppgången, fält `fz`, startsidans modul REKYLZONER – 2026-11-23), **institutionella radarn** (nedan). Allt detta får visas; inget av det får ändra en rad i förslaget.
 
 **Institutionell radar** *(2026-11-11, `radar.py`/`radar.yml`, fliken Radar):* fyra källor, samlade varje morgon till `radar.json`.
 13F – kvartalsrapporter till SEC från förvaltarna i `radar_watch.json` (standardlista i `radar.py`; CIK verifieras mot SEC:s namn eller slås upp),

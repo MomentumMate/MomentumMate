@@ -735,6 +735,28 @@ def dl(tickers, **kw):
         print(f"  nedladdat {min(i + CHUNK, len(tickers))}/{len(tickers)}", flush=True)
     return out
 
+def fib_zone(close, px, min_move=0.30):
+    """Rekylzon (information, 2026-11-23): Fibonacci-rekyl av senaste stora uppgången inom ett år.
+    Toppen = högsta stängning senaste 252 dagarna; botten = lägsta stängning FÖRE toppen i samma fönster.
+    Kräver en uppgång på minst min_move (30 %). Zonen är 61,8–78,6 % rekyl; 50 % visas som början på rekylen,
+    under 78,6 % räknas zonen som ogiltig (uppgången är i stort sett utraderad). Styr inga signaler (SPEC § 12)."""
+    try:
+        c = close.dropna()
+        if len(c) < 60 or not px: return None
+        ih = int(c.values.argmax())
+        if ih < 10: return None
+        hi = float(c.iloc[ih]); pre = c.iloc[:ih]
+        il = int(pre.values.argmin()); lo = float(pre.iloc[il])
+        if lo <= 0 or hi / lo - 1 < min_move: return None
+        rng = hi - lo
+        z50, z618, z786 = hi - .5 * rng, hi - .618 * rng, hi - .786 * rng
+        st = "över" if px > z618 else ("i zonen" if px >= z786 else "under")
+        return {"lo": round(lo, 2), "lod": str(pre.index[il].date()), "hi": round(hi, 2), "hid": str(c.index[ih].date()),
+                "z50": round(z50, 2), "z618": round(z618, 2), "z786": round(z786, 2), "st": st,
+                "dist": round((z618 / px - 1) * 100, 1), "ret": round((hi - px) / rng * 100, 1)}
+    except Exception:
+        return None
+
 def sr_levels(close, px, win=5, tol=0.02, max_lv=7):
     """Stöd/motståndszoner ur lokala extrempunkter.
 
@@ -1473,6 +1495,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # Lokala toppar/bottnar de senaste 6 månaderna, klustrade till zoner, viktade efter
     # antal träffar och närhet i tid. Rollbyte: en bruten topp räknas som stöd.
     sr = sr_levels(c.iloc[-250:], px)        # 12 månader; nyare träffar väger tyngre
+    fz = fib_zone(c.iloc[-252:], px)         # rekylzon 61,8–78,6 % av senaste stora uppgången (2026-11-23, information)
     strc = structure(c.iloc[-70:])
 
     # --- försämringsmått (visas som information i appen, styr inga signaler) ---
@@ -1629,7 +1652,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     m = mk0
     return {"t": t, "d": t.replace(".ST", ""), "n": info.get("shortName") or info.get("longName") or NAMES.get(t) or NAMES.get(t.replace(".IL", ".L")) or t,
             "m": [m["k"]], "cur": m["cur"], "ccy": m["ccy"],
-            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq, "sc2": score2, "cl": (round(cl_, 1) if cl_ is not None else None), "tq": round(trend), "heat": round(heat, 1), "d200": num((px / sma200 - 1) * 100, 1) if sma200 else None,   # förklaring per rad (2026-11-16)
+            "px": round(px, 2), "chg": round(chg, 2), "sc": score, "rsi": round(rs), "r1m": num(r1), "r3m": num(r3), "r6m": num(r6), "m121": num(m121), "vol": num(vol), "obv": num(obvs), "athg": num(ath_gap), "athc": num(ath_chg), "ltop": ltops, "sr": sr, "fz": fz, "strc": strc, "adv": (round(adv) if adv else None), "liqok": liq, "sc2": score2, "cl": (round(cl_, 1) if cl_ is not None else None), "tq": round(trend), "heat": round(heat, 1), "d200": num((px / sma200 - 1) * 100, 1) if sma200 else None,   # förklaring per rad (2026-11-16)
             "vx": num(volx), "a50": bool(px > sma50), "a200": bool(px > sma200), "macd": 1 if ema12 > ema26 else -1,
             "pe": num(pe), "pb": num(pb, 2), "eg": num(eg, 0), "rg": num(rg, 0), "pm": num(pm, 0), "dy": num(dy),
             "roe": num((roe or 0) * 100, 0) if roe is not None else None,

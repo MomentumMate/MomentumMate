@@ -155,7 +155,7 @@ Avgiftsinställning: courtageplan (Avanza-nivåer m.fl.), växlingspåslag 0,266
 ## 5. Funktioner i appen, vy för vy
 
 ### Hem
-Modulerna: Portfölj (summa, dagens förändring), Förslag (antal rader, status), Börsdesk, Daghandel, Radar, Nyheter, datastatus (senaste skanning per marknad, datakontroll, live-jobb – med startlänkar), versionskontroll.
+Modulerna: Portfölj (summa, dagens förändring), Rekylzoner (ägda/bevakade aktier i eller högst 5 % ovanför sin rekylzon – larm i appen, information), Förslag (antal rader, status), Börsdesk, Daghandel, Radar, Nyheter, datastatus (senaste skanning per marknad, datakontroll, live-jobb – med startlänkar), versionskontroll.
 
 ### Portfölj
 - **Rullista** över portföljer + "Alla portföljer" + "Ny demoportfölj". Översikten visar varje portfölj som kort (värde, dagens, sedan start) och längst ner **ALLOKERING**: kapital i strategin mot kapital utanför (redigerbart), andel och vad en −50 %-nedgång i strategin betyder för hela kapitalet.
@@ -169,7 +169,7 @@ Modulerna: Portfölj (summa, dagens förändring), Förslag (antal rader, status
 - **Rullista**: Alla marknader, varje börs (Stockholm, Köpenhamn, Oslo, Helsingfors, USA, Europa, egna), Lägg till börs, Ändra ordning.
 - Rad: antal aktier · andel över SMA200 · snittpoäng topp 25 · antal daghandelskandidater.
 - **Flikar Momentum 25 / Daghandel / Alla** – samma på Alla marknader och per marknad. Momentum 25 = topplistan (2.0), Daghandel = kandidater och nästan-kandidater för marknaden, Alla = alla aktier sorterade efter poäng, 40 i taget.
-- **Aktiekortet** (samma överallt): sidhuvud som i portföljen; utfällt: graf med intervall **1D / 1V / 1M / 3M / 1Y / 2Y / 5Y**, ljusstakar/linje, volym, SMA50/200, stöd/motstånd, handelsplan (entry, stopp, mål ur ATR), hårkors; 1D ritas över hela handelsdagen (öppning–stängning i marknadens tid, svenska klockslag) och fylls på när staplar kommer; grafhuvudet visar samma kurs som sidhuvudet. Därunder Analytiker (konsensusriktkurs, hög/låg, antal, rekommendation, uppsida, riktkurs mot 30 dagar, upp-/nedgraderingar 60 d), signal och hållvillkor, poängdelar, nivåer, nyheter, radar, "+ Portfölj"/"Handla idag".
+- **Aktiekortet** (samma överallt): sidhuvud som i portföljen; utfällt: graf med intervall **1D / 1V / 1M / 3M / 1Y / 2Y / 5Y**, ljusstakar/linje, volym, SMA50/200, stöd/motstånd, handelsplan (entry, stopp, mål ur ATR), hårkors; 1D ritas över hela handelsdagen (öppning–stängning i marknadens tid, svenska klockslag) och fylls på när staplar kommer; grafhuvudet visar samma kurs som sidhuvudet. Därunder Rekylzon (Fibonacci 61,8–78,6 % av senaste stora uppgången, ogiltig under 78,6 %; även som lager i grafen), Analytiker (konsensusriktkurs, hög/låg, antal, rekommendation, uppsida, riktkurs mot 30 dagar, upp-/nedgraderingar 60 d), signal och hållvillkor, poängdelar, nivåer, nyheter, radar, "+ Portfölj"/"Handla idag".
 - Ny aktie: sök → "Slå upp" (Yahoo via Actions) → "Skicka till skannern".
 
 ### Daghandel (egen sida)
