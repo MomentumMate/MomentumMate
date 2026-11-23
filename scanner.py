@@ -1535,11 +1535,20 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     sr = sr_levels(c.iloc[-250:], px)        # 12 månader; nyare träffar väger tyngre
     # rekylzon, rapportkalender, sektorrotation och 13F-inköpskurs (2026-11-23, information) – kräver datumindex
     ed_an, eds = an_dates(t)
-    fz = er = qavg = r3ly = None
+    fz = er = qavg = r3ly = lt3 = None
     try:
         cd = pd.Series(closes, index=pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) if getattr(pd.Timestamp(x), "tzinfo", None) else pd.Timestamp(x) for x in cdates]).normalize(), dtype="float64")
         fz = fib_zone(cd.iloc[-252:], px)    # rekylzon 61,8–78,6 % av senaste stora uppgången
         if eds: er = earn_react(cd, eds)
+        # långsiktig stabilitet (Börsdeskens flik Value, 2026-11-23): 3 år – årstakt, jämnhet (R² på veckokurser), största ras, antal positiva år
+        if len(cd) >= 700:
+            w = cd.iloc[-756:].dropna(); yrs = len(w) / 252
+            if len(w) >= 700 and w.iloc[0] > 0:
+                cagr = (w.iloc[-1] / w.iloc[0]) ** (1 / yrs) - 1
+                wk = np.log(w.iloc[::5].values); xx = np.arange(len(wk)); r2 = float(np.corrcoef(xx, wk)[0, 1] ** 2) if len(wk) > 10 else None
+                mdd = float((w / w.cummax() - 1).min())
+                yp = int(sum(1 for k in range(3) if len(w) > 252 * (k + 1) and w.iloc[-1 - 252 * k] > w.iloc[-1 - 252 * (k + 1)]))
+                lt3 = {"cagr": round(cagr * 100, 1), "r2": round(r2, 2) if r2 is not None else None, "mdd": round(mdd * 100, 1), "yp": yp}
         q = cd.iloc[-400:].groupby(cd.index[-400:].to_period("Q")).mean().iloc[-5:]
         qavg = {str(k.end_time.date()): round(float(v), 2) for k, v in q.items()}
     except Exception:
@@ -1717,7 +1726,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
-            "abx": bool(info.get("longBusinessSummary")), "ed": (ed_an or (earn_date(info) if info else None)), "er": er, "r3ly": r3ly, "qavg": qavg,
+            "abx": bool(info.get("longBusinessSummary")), "ed": (ed_an or (earn_date(info) if info else None)), "er": er, "r3ly": r3ly, "qavg": qavg, "lt3": lt3,
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
             "inf": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}
