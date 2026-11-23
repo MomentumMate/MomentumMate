@@ -10,7 +10,7 @@ analysts.py – riktkurser och analytikerrevideringar (SPEC § 12: information s
      Med 600 per dag täcks hela universumet ungefär var fjärde handelsdag (första körningen 2026-11-23: 461 bolag på 4 min, inga fel). Varje rad har "asof" = hämtdatum.
   Bolag som inte hämtas i dag behåller sina senaste uppgifter.
 
-Per bolag: konsensusriktkurs (snitt/hög/låg/median), antal analytiker, snittrekommendation, uppsida mot senaste kurs,
+Per bolag: rapportdatum (nästa + åtta tidigare, 2026-11-23), konsensusriktkurs (snitt/hög/låg/median), antal analytiker, snittrekommendation, uppsida mot senaste kurs,
 upp-/nedgraderingar med datum och analyshus senaste 45 dagarna – nu även varje analyshus tidigare och nya riktkurs ("ppt" → "pt").
 Ur dem räknas "pt30": hur många analyshus som höjt respektive sänkt sin riktkurs senaste 30 dagarna och medianändringen i procent.
 Det ger en riktig 30-dagarsrevidering från första dagen, för alla bolag, utan att vänta på egen historik.
@@ -66,6 +66,16 @@ def fetch(t):
         if inf.get("recommendationKey"): out["key"] = inf["recommendationKey"]
     except Exception as e:
         out["err"] = f"info: {str(e)[:50]}"
+    # rapportdatum (2026-11-23): nästa och de senaste åtta – skannern räknar kursreaktionen ur sin kurshistorik
+    try:
+        ed = tk.get_earnings_dates(limit=12)
+        if ed is not None and len(ed):
+            ds = sorted({str(x)[:10] for x in ed.index})
+            fut = [x for x in ds if x >= TODAY]; past = [x for x in ds if x < TODAY]
+            if fut: out["ed"] = fut[0]
+            if past: out["eds"] = past[-8:]
+    except Exception as e:
+        out["err3"] = f"earnings: {str(e)[:40]}"
     try:
         ud = tk.upgrades_downgrades
         ch = []

@@ -1422,6 +1422,33 @@ def repair_closes(d, up=3.0, dn=-0.8, back_days=5):
         pass
     return d
 
+_AN_CACHE = None
+def an_dates(t):
+    """Rapportdatum ur analysts.json (analysts.yml hämtar dem från Yahoo, 2026-11-23): (nästa, [tidigare])."""
+    global _AN_CACHE
+    if _AN_CACHE is None:
+        try: _AN_CACHE = json.load(open("analysts.json", encoding="utf-8")).get("stocks") or {}
+        except Exception: _AN_CACHE = {}
+    a = _AN_CACHE.get(t) or {}
+    return a.get("ed"), list(a.get("eds") or [])
+
+def earn_react(cd, eds, n=8):
+    """Kursreaktion på de senaste n rapporterna: stängning sista dagen före rapportdagen → första stängningen efter den.
+    Fångar både rapporter före börsens öppning och efter stängning. Information (rapportkalendern, 2026-11-23)."""
+    out = []
+    try:
+        for d in sorted(eds, reverse=True):
+            ts = pd.Timestamp(d)
+            b, a = cd[cd.index < ts], cd[cd.index > ts]
+            if len(b) and len(a) and b.iloc[-1] > 0 and (a.index[0] - ts).days <= 5:
+                out.append([d, round((a.iloc[0] / b.iloc[-1] - 1) * 100, 1)])
+            if len(out) >= n: break
+    except Exception:
+        pass
+    if not out: return None
+    mv = [x[1] for x in out]
+    return {"mv": out, "avg": round(sum(abs(x) for x in mv) / len(mv), 1), "up": sum(1 for x in mv if x > 0), "max": max(mv, key=abs)}
+
 def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     """Räknar fram en aktiepost. Ren funktion – inget nätverk."""
     d = repair_closes(d.dropna(subset=["Close"]))
@@ -1495,7 +1522,21 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
     # Lokala toppar/bottnar de senaste 6 månaderna, klustrade till zoner, viktade efter
     # antal träffar och närhet i tid. Rollbyte: en bruten topp räknas som stöd.
     sr = sr_levels(c.iloc[-250:], px)        # 12 månader; nyare träffar väger tyngre
-    fz = fib_zone(c.iloc[-252:], px)         # rekylzon 61,8–78,6 % av senaste stora uppgången (2026-11-23, information)
+    # rekylzon, rapportkalender, sektorrotation och 13F-inköpskurs (2026-11-23, information) – kräver datumindex
+    ed_an, eds = an_dates(t)
+    fz = er = qavg = r3ly = None
+    try:
+        cd = pd.Series(closes, index=pd.DatetimeIndex([pd.Timestamp(x).tz_localize(None) if getattr(pd.Timestamp(x), "tzinfo", None) else pd.Timestamp(x) for x in cdates]).normalize(), dtype="float64")
+        fz = fib_zone(cd.iloc[-252:], px)    # rekylzon 61,8–78,6 % av senaste stora uppgången
+        if eds: er = earn_react(cd, eds)
+        q = cd.iloc[-400:].groupby(cd.index[-400:].to_period("Q")).mean().iloc[-5:]
+        qavg = {str(k.end_time.date()): round(float(v), 2) for k, v in q.items()}
+    except Exception:
+        pass
+    try:
+        if len(c) >= 253 and c.iloc[-253] > 0: r3ly = num((c.iloc[-190] / c.iloc[-253] - 1) * 100)   # 3-mån-avkastning för ett år sedan
+    except Exception:
+        r3ly = None
     strc = structure(c.iloc[-70:])
 
     # --- försämringsmått (visas som information i appen, styr inga signaler) ---
@@ -1665,7 +1706,7 @@ def build(t, d, intr, info, news, mk0, sent=None, nf=None):
             "al": al, "dt": dtl, "dok": all(x is True for x in dtl), "hit": hit, "sent": sent,
             "sp": [round(x, 2) for x in closes[-45:]],
             "ab": short_about(info.get("longBusinessSummary")), "sec": info.get("sector"), "ind": info.get("industry"), "ct": info.get("country"),
-            "abx": bool(info.get("longBusinessSummary")), "ed": (earn_date(info) if info else None),
+            "abx": bool(info.get("longBusinessSummary")), "ed": (ed_an or (earn_date(info) if info else None)), "er": er, "r3ly": r3ly, "qavg": qavg,
             "emp": info.get("fullTimeEmployees"), "mc": info.get("marketCap"),
             "inf": bool(info), "sh": bool(len(d) < 201), "nb": int(len(d)), "lt": str(d.index[-1].date()), "bo": bo, "stag": stag, "rng": num(rng20), "atr": round(atr, 2), "pdh": round(pdh, 2), "pdl": round(pdl, 2), "pdc": round(pc, 2),
             "pmv": int(pre_vol or 0), "pmh": round(pre_high, 2) if pre_high else None, "nf": bool(nf), "dts": dts, "dtn": dtn, "dte": dte}

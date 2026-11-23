@@ -155,7 +155,7 @@ Avgiftsinställning: courtageplan (Avanza-nivåer m.fl.), växlingspåslag 0,266
 ## 5. Funktioner i appen, vy för vy
 
 ### Hem
-Modulerna: Portfölj (summa, dagens förändring), Rekylzoner (ägda/bevakade aktier i eller högst 5 % ovanför sin rekylzon – larm i appen, information), Förslag (antal rader, status), Börsdesk, Daghandel, Radar, Nyheter, datastatus (senaste skanning per marknad, datakontroll, live-jobb – med startlänkar), versionskontroll.
+Modulerna: påminnelse inför månadsprövningen (de fem sista dagarna i månaden), Portfölj (summa, dagens förändring), Rapporter 14 dagar (ägda aktier med rapport inom två veckor och deras snittrörelse vid rapport), Rekylzoner (ägda/bevakade aktier i eller högst 5 % ovanför sin rekylzon – larm i appen, information), Förslag (antal rader, status), Börsdesk, Daghandel, Radar, Nyheter, datastatus (senaste skanning per marknad, datakontroll, live-jobb – med startlänkar), versionskontroll.
 
 ### Portfölj
 - **Rullista** över portföljer + "Alla portföljer" + "Ny demoportfölj". Översikten visar varje portfölj som kort (värde, dagens, sedan start) och längst ner **ALLOKERING**: kapital i strategin mot kapital utanför (redigerbart), andel och vad en −50 %-nedgång i strategin betyder för hela kapitalet.
@@ -168,8 +168,8 @@ Modulerna: Portfölj (summa, dagens förändring), Rekylzoner (ägda/bevakade ak
 ### Börsdesk
 - **Rullista**: Alla marknader, varje börs (Stockholm, Köpenhamn, Oslo, Helsingfors, USA, Europa, egna), Lägg till börs, Ändra ordning.
 - Rad: antal aktier · andel över SMA200 · snittpoäng topp 25 · antal daghandelskandidater.
-- **Flikar Momentum 25 / Daghandel / Alla** – samma på Alla marknader och per marknad. Momentum 25 = topplistan (2.0), Daghandel = kandidater och nästan-kandidater för marknaden, Alla = alla aktier sorterade efter poäng, 40 i taget.
-- **Aktiekortet** (samma överallt): sidhuvud som i portföljen; utfällt: graf med intervall **1D / 1V / 1M / 3M / 1Y / 2Y / 5Y**, ljusstakar/linje, volym, SMA50/200, stöd/motstånd, handelsplan (entry, stopp, mål ur ATR), hårkors; 1D ritas över hela handelsdagen (öppning–stängning i marknadens tid, svenska klockslag) och fylls på när staplar kommer; grafhuvudet visar samma kurs som sidhuvudet. Därunder Rekylzon (Fibonacci 61,8–78,6 % av senaste stora uppgången, ogiltig under 78,6 %; även som lager i grafen), Analytiker (konsensusriktkurs, hög/låg, antal, rekommendation, uppsida, riktkurs mot 30 dagar, upp-/nedgraderingar 60 d), signal och hållvillkor, poängdelar, nivåer, nyheter, radar, "+ Portfölj"/"Handla idag".
+- **Flikar Momentum 25 / Daghandel / Alla / Sektorer** – samma på Alla marknader och per marknad. Sektorer (2026-11-23): median 1/3/6 mån och 12-1, andel över SMA200, antal i topp 20, relativ styrka nu och för ett år sedan med markering när den vänt; utfällbar med sektorns högst rankade. Momentum 25 = topplistan (2.0), Daghandel = kandidater och nästan-kandidater för marknaden, Alla = alla aktier sorterade efter poäng, 40 i taget.
+- **Aktiekortet** (samma överallt): sidhuvud som i portföljen; utfällt: graf med intervall **1D / 1V / 1M / 3M / 1Y / 2Y / 5Y**, ljusstakar/linje, volym, SMA50/200, stöd/motstånd, handelsplan (entry, stopp, mål ur ATR), hårkors; 1D ritas över hela handelsdagen (öppning–stängning i marknadens tid, svenska klockslag) och fylls på när staplar kommer; grafhuvudet visar samma kurs som sidhuvudet. Därunder Rapport (nästa datum, kursreaktion på de senaste åtta rapporterna), Rekylzon (Fibonacci 61,8–78,6 % av senaste stora uppgången, ogiltig under 78,6 %; även som lager i grafen), Analytiker (konsensusriktkurs, hög/låg, antal, rekommendation, uppsida, riktkurs mot 30 dagar, upp-/nedgraderingar 60 d), signal och hållvillkor, poängdelar, nivåer, nyheter, radar, "+ Portfölj"/"Handla idag".
 - Ny aktie: sök → "Slå upp" (Yahoo via Actions) → "Skicka till skannern".
 
 ### Daghandel (egen sida)
@@ -177,7 +177,7 @@ Kandidater över alla marknader med strikthet (antal kriterier av 5: över gård
 
 ### Radar (institutionell radar, SPEC § 12)
 - **Rullista**: Alla investerare + varje förvaltare/fond i bokstavsordning. Investerarsida: senaste rapport, innehav med vikter, händelser (ny/ökat/minskat/ut), 13F-NT-notering, "lämnar inte längre"-flagga.
-- **Flikar** (Alla investerare): **Konsensus** (flera köpt samma aktie), **Flöde** (ARK dagligen, 13D/G), **Mest ägda** (antal ägare), **Ackumulering** (ägs av ≥ 3, ≥ 2 ökar/ny, ingen minskar), **Nya köp**, **Ökade innehav**, **Övertygelse** (vikt ≥ 8 %), **Tidiga signaler** (börsvärde < 50 mdr SEK hos flera), **Sektorer** (utfällbara: aktier med köpare/säljare, investerare med sina affärer), **Aktivister**. Rader fälls ut med gul trekant; tickern öppnar aktiens huvudsida. Insyn (FI + Form 4) räknas separat.
+- **Flikar** (Alla investerare): **Konsensus** (flera köpt samma aktie), **Flöde** (ARK dagligen, 13D/G), **Mest ägda** (antal ägare), **Ackumulering** (ägs av ≥ 3, ≥ 2 ökar/ny, ingen minskar; märkt LÅG BEVAKNING vid ≤ 5 analytiker och ≤ 3 nyheter; detaljerna visar uppskattad inköpskurs = kvartalssnitt), **Nya köp**, **Ökade innehav**, **Övertygelse** (vikt ≥ 8 %), **Tidiga signaler** (börsvärde < 50 mdr SEK hos flera), **Sektorer** (utfällbara: aktier med köpare/säljare, investerare med sina affärer), **Aktivister**, **Stora insiderköp** (≥ 5 Mkr eller ledningen, märkt ÄGS/TOPP 20/LEDNING). Rader fälls ut med gul trekant; tickern öppnar aktiens huvudsida. Insyn (FI + Form 4) räknas separat.
 - **Förvaltare att skugga**: redigerbar lista (`radar_watch.json`), "Kör radarn nu". Info-ark förklarar källor och eftersläpning.
 - Radarn är information. Som avgörare inom topp 20 testas den tidigast 2027 (kräver ett års egen logg).
 
