@@ -353,8 +353,7 @@ function decayAlerts(s){
   const nz=srNear(s,3)[0];
   if(nz)out.push({k:"level",s:`${nz.role==="stöd"?"Vid stöd":"Vid motstånd"} ${f(nz.lvl,0)}`,
     t:`Kursen ligger ${sg(nz.dist,1)} från ${nz.role}et vid ${f(nz.lvl,2)} (${nz.n} träffar${nz.both?", både tak och golv":""}). ${nz.role==="stöd"?"Håller stödet är det ett läge att köpa strax ovanför. Bryts det på hög volym är det ett tecken på svaghet.":"Här har aktien vänt ned förut. Ett utbrott på hög volym gör nivån till nytt stöd."}`});
-  if(typeof s.r1m==="number"&&typeof s.r3m==="number"&&s.sc>=70&&s.r1m<0&&s.r3m<5)
-    out.push({k:"decay",s:"Svag senaste tiden",t:`Hög poäng men svag senaste tiden: ${f(s.r1m,1)} % på en månad, ${f(s.r3m,1)} % på tre. Poängen vilar på tidigare uppgång.`});
+  /* SVAG (hög poäng men svag senaste tiden) borttagen 2026-11-24 – överlappar LÄGRE TOPPAR (28 av 39 aktier). */
   return out}
 function scrubLegacy(s){
   if(!s)return s;
@@ -427,7 +426,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-p";
+const APPV="2026-11-24-q";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
