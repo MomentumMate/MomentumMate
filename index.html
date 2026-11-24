@@ -423,7 +423,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-g";
+const APPV="2026-11-24-h";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -779,7 +779,7 @@ function ptHTML(k,st){const ok=new Set(st.r.all);const L=[];if(AN&&AN.stocks)for
   L.sort((x,y)=>y.up-x.up);
   const pk="pt:"+k,n=Ui.shown[pk]||50;
   return`<div class="mu" style="margin:0 2px 8px;font-size:12px">${L.length} aktier med riktkurs, sorterade efter uppsida mot analytikernas konsensusriktkurs (minst 5 analytiker). Uppsidan räknas mot appens senaste kurs, så den ändras under dagen. Riktkursens nivå är svag information och släpar efter kursen – titta på revideringen (höjt/sänkt senaste 30 dagarna). Information – styr inget.</div>
-  ${L.length?L.slice(0,n).map((x,i)=>card(x.s,i+1,{mk:k,compact:true,sub:[`Riktkurs ${f(x.a.tgt,2)}`,`<b class="up">uppsida ${sg(x.up,0)}</b>`,`${x.a.n} analytiker`,x.a.rec!=null?anRec(x.a.rec):"",x.a.pt30?`30 d: <b class="up">${x.a.pt30.up} höjt</b>/<b class="dn">${x.a.pt30.dn} sänkt</b>`:"",x.a.asof?esc(x.a.asof):""].filter(Boolean).map(z=>`<span style="white-space:nowrap">${z}</span>`).join(" · ")})).join("")+(L.length>n?`<button class="btn ghost wide" data-act="more" data-k="${pk}">Visa fler (${L.length-n})</button>`:""):'<div class="empty">Ingen riktkursdata för marknaden ännu.</div>'}`}
+  ${L.length?L.slice(0,n).map((x,i)=>card(x.s,i+1,{mk:k,compact:true,sub:[x.a.rec!=null?(()=>{const r=anRec(x.a.rec),c=x.a.rec<=2.5?"#3fb67a":x.a.rec<=3.5?"#e8b64a":"#e86b5c";return`<b style="color:${c}">${r.toUpperCase()}</b>`})():"",`Riktkurs ${f(x.a.tgt,2)}`,`<b class="up">uppsida ${sg(x.up,0)}</b>`,`${x.a.n} analytiker`,x.a.pt30?`30 d: <b class="up">${x.a.pt30.up} höjt</b>/<b class="dn">${x.a.pt30.dn} sänkt</b>`:"",x.a.asof?esc(x.a.asof):""].filter(Boolean).map(z=>`<span style="white-space:nowrap">${z}</span>`).join(" · ")})).join("")+(L.length>n?`<button class="btn ghost wide" data-act="more" data-k="${pk}">Visa fler (${L.length-n})</button>`:""):'<div class="empty">Ingen riktkursdata för marknaden ännu.</div>'}`}
 function mktTabs(k,st){let tab=Ui.mtab||"mom";if(!["mom","val","pt","dt","all"].includes(tab))tab="mom";const r=st.r;let body="";
   if(tab==="mom"){const L=st.L;body=(L.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga aktier i listan.</div>')+`<div class="acts" style="margin-top:8px"><button class="btn sm ghost" data-act="tab" data-k="${k}" data-v="all">Hela rankningen (${r.all.length}) ›</button></div>`}
   else if(tab==="val")body=valueHTML(k,st);
