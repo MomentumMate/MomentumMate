@@ -425,7 +425,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-m";
+const APPV="2026-11-24-n";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1992,7 +1992,7 @@ const newList=s=>{if(!s)return null;const nb=+s.nb||0;if(!nb)return null;const s
   return{nb,dSma,dM,shortSma,why}};
 const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="sig WATCH" title="${esc(ny.why)}">Nynoterad · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}</span>`};
 const shortChip=s=>{if(!(s&&typeof s.shp==="number"&&s.shp>=SHORT_LO))return"";const hi=s.shp>=SHORT_HI;
-  return`<span class="sig ${hi?"TRIM":"WATCH"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">${hi?"Hög blankning":"Blankning"} ${f(s.shp,1)} %</span>`};
+  return`<span class="fc${hi?" dn":""}" style="${hi?"":"color:#e8b64a;border-color:#7a5f22;background:#2a2210"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">BLANKNING ${f(s.shp,!hi&&s.shp>=9.5?1:0)}%</span>`};
 /* ---------- Ändra ordning (dra och släpp) ---------- */
 Ui.reorder=false;
 function reorderView(){
