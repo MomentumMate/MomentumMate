@@ -1785,17 +1785,48 @@ def finalize(recs, markets):
         by_sc = sorted(members, key=lambda t: (-_sc(recs[t]), -_tie(recs[t])))
         mom = by_sc[:25]          # poängordning, 12-1 bryter lika – samma ordning som fliken Alla
         rank[k] = {"mom": mom, "all": by_sc}
+    dt_quality(recs)
     rank["DT"] = rank_dt(recs)
     return rank
+
+def dt_quality(recs, today=None):
+    """Sammanvägt daghandelsmått 0–100 (2026-11-24, information – styr inget). Ersätter dts som ordning för daghandeln.
+    Relativ volym 35 · katalysator 20 (rapport i dag/i går 20, nyhet 10) · egen rörelse 20 (dagens rörelse minus börsens median, 0–6 pe)
+    · rörlighet 15 (ATR i % av kursen, 1,5–4 %) · likviditet 10 (20-dagars omsättning, 3 M–300 M i handelsvalutan, log)."""
+    today = today or dt.date.today().isoformat()
+    yday = (dt.date.fromisoformat(today) - dt.timedelta(days=4)).isoformat()   # "i går" = senaste handelsdagen, max fyra dagar bakåt
+    suf = lambda t: t.rsplit(".", 1)[1] if "." in t else ""
+    grp = {}
+    for t, r in recs.items():
+        if isinstance(r.get("chg"), (int, float)): grp.setdefault(suf(t), []).append(r["chg"])
+    med = {k: sorted(v)[len(v) // 2] for k, v in grp.items() if v}
+    for t, r in recs.items():
+        try:
+            px = r.get("px") or 0
+            rv = min(max(float(r.get("vx") or 0), 0), 5) / 5 * 35
+            ed, eds = an_dates(t)
+            rep_ = (ed == today) or any(yday <= x < today for x in (eds or []))
+            cat = 20 if rep_ else (10 if r.get("nf") else 0)
+            own = min(max((r.get("chg") or 0) - med.get(suf(t), 0), 0), 6) / 6 * 20
+            atrp = (r.get("atr") or 0) / px * 100 if px else 0
+            mob = min(max((atrp - 1.5) / 2.5, 0), 1) * 15
+            adv = r.get("adv") or 0
+            liq = min(max(math.log10(adv / 3e6) / 2, 0), 1) * 10 if adv > 0 else 0
+            r["dtq"] = round(rv + cat + own + mob + liq, 1)
+            r["dtqc"] = [round(rv, 1), cat, round(own, 1), round(mob, 1), round(liq, 1)]
+        except Exception:
+            r["dtq"] = r.get("dts") or 0
+    return recs
 
 def rank_dt(recs, ids=None):
     ids = list(ids if ids is not None else recs)
     ids = [t for t in ids if not is_crypto(t)]
-    cand = sorted([t for t in ids if recs[t]["dok"]], key=lambda t: -recs[t]["dts"])[:300]
+    key = lambda t: (-(recs[t].get("dtq") if recs[t].get("dtq") is not None else recs[t]["dts"]), -recs[t]["dts"])   # 2026-11-24: sammanvägt mått först
+    cand = sorted([t for t in ids if recs[t]["dok"]], key=key)[:300]
     def near_ok(r):
         miss = r["dte"] - r["dtn"]
         return (not r["dok"]) and ((miss == 0 and 3 <= r["dte"] < 5) or (miss == 1 and r["dte"] == 5))
-    near = sorted([t for t in ids if near_ok(recs[t])], key=lambda t: -recs[t]["dts"])[:300]
+    near = sorted([t for t in ids if near_ok(recs[t])], key=key)[:300]
     return {"cand": cand, "near": near}
 
 def clean(o):
@@ -1915,7 +1946,7 @@ def dtx_targets(rk, recs):
         top += [t for t in lst[:8] if t not in top]
     return top[:130]
 
-LIVE_KEYS = ("px", "chg", "dt", "dok", "pmv", "pmh", "dts", "vx", "rsi", "a50", "a200", "macd", "bo", "pdh", "pdl", "pdc", "atr", "dtn", "dte", "hit")
+LIVE_KEYS = ("px", "chg", "dt", "dok", "pmv", "pmh", "dts", "vx", "rsi", "a50", "a200", "macd", "bo", "pdh", "pdl", "pdc", "atr", "dtn", "dte", "hit", "dtq", "dtqc")
 
 def live():
     """Snabb uppdatering (var 15:e minut under börstid): bara kandidater/toppaktier. Skriver daytrade.json."""
@@ -1947,10 +1978,13 @@ def live():
             stats = intraday_stats(intra[t]) if (is_us(t) and t in intra) else None
             new = build(t, daily[t], stats, {}, [], mk_by[old["m"][0]], sent=old.get("sent", 0), nf=old.get("nf", False))
             if new:
-                upd[t] = {k: new[k] for k in LIVE_KEYS}
-                for k in LIVE_KEYS: old[k] = new[k]
+                upd[t] = {k: new[k] for k in LIVE_KEYS if k in new}
+                for k in LIVE_KEYS:
+                    if k in new: old[k] = new[k]
         except Exception as e:
             print("Hoppar över", t, "–", e)
+    dt_quality(recs)
+    for t in upd: upd[t]["dtq"], upd[t]["dtqc"] = recs[t].get("dtq"), recs[t].get("dtqc")
     rk = rank_dt(recs, list(upd))
     dtx = {}
     for t in dtx_targets(rk, recs):
@@ -2391,6 +2425,10 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(clean(out), f, ensure_ascii=False, separators=(",", ":"))
     print(f"Klart: {len(recs)} aktier, {sum(len(v['mom']) for v in rank.values() if 'mom' in v)} i momentumlistor – {time.time() - t0:.0f} s")
+    try:
+        import dtlog; dtlog.update(recs, rank.get("DT"), daily)     # daghandelslogg (2026-11-24, information)
+    except Exception as ex:
+        print(f"  Daghandelsloggen hoppades över: {str(ex)[:80]}")
 
 def select_light(light_only, ld, uni, mk_by):
     """Lätt läge för hela börser: kurser för alla, full analys (info, nyheter, fundamenta) för de LIGHT_TOP starkaste likvida."""

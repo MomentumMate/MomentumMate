@@ -112,6 +112,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add data.json
           [ -f lists_cache.json ] && git add lists_cache.json || true
+          [ -f dtlog.json ] && git add dtlog.json || true
           git diff --quiet --cached || git commit -m "Uppdatering $(date -u +%F\ %H:%M)"
           # Två körningar kan ha passerat grinden nära varandra (12–13 nov: rebase-konflikt i data.json). Vår data.json är den
           # färskaste – lägg den ovanpå origin/main i stället för att försöka fläta ihop två versioner av samma fil.
@@ -119,7 +120,7 @@ jobs:
             git fetch -q origin main
             if git rebase -q origin/main; then git push -q origin HEAD:main && break; fi
             git rebase --abort || true
-            git reset -q --mixed origin/main && git add data.json && { [ -f lists_cache.json ] && git add lists_cache.json || true; }
+            git reset -q --mixed origin/main && git add data.json && { [ -f lists_cache.json ] && git add lists_cache.json || true; } && { [ -f dtlog.json ] && git add dtlog.json || true; }
             git diff --quiet --cached && exit 0
             git commit -qm "Uppdatering $(date -u +%F\ %H:%M)" && git push -q origin HEAD:main && break
             sleep 20
