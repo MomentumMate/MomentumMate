@@ -425,7 +425,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-j";
+const APPV="2026-11-24-k";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -3402,7 +3402,7 @@ function rStodCached(){const k=(RD&&RD.updated)||"";if(_rStod&&_rStod.k===k)retu
   const now=rStod(null),cut=new Date(Date.now()-7*864e5).toISOString().slice(0,10),prev=rStod(cut),pm={};prev.forEach(x=>pm[x.t]=x.rk);
   now.forEach(x=>x.prk=pm[x.t]||null);return _rStod={k,L:now}}
 const RSIG=[["stod","Institutionellt stöd"],["sma","Små och medelstora"],["salj","Säljs mest"],["aktivist","Aktivister"],["insider","Stora insiderköp"],["sektor","Sektorer"],["sektorstyrka","Sektorstyrka"]];
-const RSIGTXT={stod:"Alla aktier där de skuggade förvaltarna, ARK, insiders eller 5 %-ägare syns, sammanvägda till en poäng 0–100: <b>Bredd</b> 0–30 (hur många av förvaltarna som äger, största portföljvikt, fler eller färre ägare än förra kvartalet), <b>Flöde</b> 0–50 (nya och ökade positioner minus minskade och avslutade, större ändringar väger mer; insiders försäljningar högst en avslutad position; 25 = neutralt) och <b>Färska signaler</b> 0–20 (insiderköp och 13D/13G, väger hälften efter ca 60 dagar). Pilen visar ändring i placering mot för en vecka sedan. 13F släpar upp till 45 dagar; åldern på senaste händelsen står till höger.",
+const RSIGTXT={stod:"Alla aktier där de skuggade förvaltarna, ARK, insiders eller 5 %-ägare syns, sammanvägda till en poäng 0–100: <b>Bredd</b> 0–30 (hur många av förvaltarna som äger, största portföljvikt, fler eller färre ägare än förra kvartalet), <b>Flöde</b> 0–50 (nya och ökade positioner minus minskade och avslutade, större ändringar väger mer; insiders försäljningar högst en avslutad position; 25 = neutralt) och <b>Färska signaler</b> 0–20 (insiderköp och 13D/13G, väger hälften efter ca 60 dagar). Under poängen står ändringen i placering mot för en vecka sedan: ▲ klättrat, ▼ fallit, – oförändrad, NY = fanns inte med då. Förvaltarnas 13F kommer kvartalsvis, så mellan rapportperioderna rör sig listan bara på insiderköp och 5 %-anmälningar. 13F släpar upp till 45 dagar; åldern på senaste händelsen står till höger.",
   sma:"Samma lista, bara bolag med börsvärde under 50 mdr kr – där förvaltarnas köp oftare är tidiga.",
   salj:"Samma underlag sorterat efter flöde, svagast först: aktier som förvaltarna minskar, lämnar eller där insiders säljer.",
   sektor:"Sektorer där flera förvaltare ökar exponeringen (antal köpare minus säljare).",aktivist:"13D-anmälningar: en ägare med avsikt att påverka bolaget. Det är en annan signal än ett vanligt köp.",
