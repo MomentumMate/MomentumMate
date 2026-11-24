@@ -404,7 +404,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-23-l";
+const APPV="2026-11-24-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -2652,7 +2652,15 @@ function tradePlan(s,R){
   if(!s||!(s.px>0))return null;R=Object.assign({},RULE_DEF,R||{});
   const px=s.px,atr=s.atr>0?s.atr:px*0.02,sp=s.sp||[],s20=sma(sp,20);
   const swing=sp.length>10?Math.min(...sp.slice(-10)):px-2*atr;
-  const lv=(s.sr||[]).filter(z=>z.n>=2),Z=z=>({lvl:z.lvl,lo:z.lo??z.lvl,hi:z.hi??z.lvl,n:z.n});
+  // 2026-11-23: rekylzonen (Fibonacci 61,8–78,6 %) räknas som stöd/motstånd i planen, så att köpzon, stopp och mål inte motsäger
+  // zonen i grafen (MRVL: kursen 144,74 i zonen 126–166 men planens köpzon låg vid stödet 87). Över zonen = zonen är stödet;
+  // i zonen = nedre kanten (78,6 %) är stöd och övre (61,8 %) motstånd; under zonen = nedre kanten är motstånd.
+  const fzl=[],FZ=s.fz;
+  if(FZ&&FZ.z618>0&&FZ.z786>0){
+    if(px>FZ.z618)fzl.push({lvl:FZ.z618,lo:FZ.z786,hi:FZ.z618,n:2,role:"stöd",fib:1});
+    else if(px>=FZ.z786){fzl.push({lvl:FZ.z786,lo:FZ.z786,hi:FZ.z786,n:2,role:"stöd",fib:1});fzl.push({lvl:FZ.z618,lo:FZ.z618,hi:FZ.z618,n:2,role:"motstånd",fib:1})}
+    else fzl.push({lvl:FZ.z786,lo:FZ.z786,hi:FZ.z786,n:2,role:"motstånd",fib:1})}
+  const lv=(s.sr||[]).filter(z=>z.n>=2).concat(fzl),Z=z=>({lvl:z.lvl,lo:z.lo??z.lvl,hi:z.hi??z.lvl,n:z.n,fib:z.fib});
   const sups=lv.filter(z=>z.role==="stöd"&&z.lvl<px).sort((a,b)=>b.lvl-a.lvl).map(Z);
   const ress=lv.filter(z=>z.role==="motstånd"&&z.lvl>px).sort((a,b)=>a.lvl-b.lvl).map(Z);
   const sup=sups[0]||{lvl:swing,lo:swing,hi:swing,n:0},res=ress[0]||null,res2=ress[1]||null;
@@ -2678,8 +2686,9 @@ function tradePlan(s,R){
   const t2=res2&&res2.lo>t1?res2.lo-0.2*atr:entry+3*risk,rr=risk>0?(t1-entry)/risk:0;
   const brk=res?res.hi+0.2*atr:null;
   return{px,atr,setup,entry,eLo,eHi,stop,t1,t2,risk,rr,hot,brk,stopPct:(1-stop/entry)*100,sup:sup.n?sup:null,res,
-    stopWhy:sup.n?`strax under stödet vid ${f(sup.lvl,2)} (${sup.n} träffar)`:`under senaste tio dagarnas lägsta`,
-    t1Why:(setup==="breakout"?res2:res)?`strax under nästa motstånd vid ${f((setup==="breakout"?res2:res).lvl,2)}`:`2 × risken`,why}
+    stopWhy:sup.fib?`strax under rekylzonens nedre kant ${f(FZ.z786,2)} – där är uppgången i stort sett utraderad`:sup.n?`strax under stödet vid ${f(sup.lvl,2)} (${sup.n} träffar)`:`under senaste tio dagarnas lägsta`,
+    t1Why:(setup==="breakout"?res2:res)?`strax under nästa motstånd vid ${f((setup==="breakout"?res2:res).lvl,2)}${(setup==="breakout"?res2:res).fib?" (rekylzonens övre kant)":""}`:`2 × risken`,
+    why:why+(sup.fib?" Stödet är rekylzonen (Fibonacci).":FZ&&px>FZ.z618?` Ett närmare stöd ligger över rekylzonen; zonen ${f(FZ.z618,2)}–${f(FZ.z786,2)} är nästa stödnivå om det bryts.`:"")+(s.a200===false?" Obs: aktien ligger under SMA200 – modellen köper den inte.":"")}
 }
 function posSize(cap,riskPct,entry,stop,ccy){
   const r=entry-stop;if(!(cap>0)||!(r>0))return null;
