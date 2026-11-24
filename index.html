@@ -425,7 +425,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-i";
+const APPV="2026-11-24-j";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1009,6 +1009,7 @@ function act(a,d){
     case"allocedit":allocSheet();break;
     case"risktog":{Ui.riskOpen=!Ui.riskOpen;const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rsig":Ui.rsig=d.v;vRadar();break;
+    case"rinfo":Ui.rinfo=!Ui.rinfo;vRadar();break;
     case"stog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rtog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;vRadar();window.scrollTo(0,y);break}
     case"qrwreopen":{const p=getP(d.pid);if(!p)break;const tw=p.twin&&getP(p.twin);
@@ -3415,10 +3416,10 @@ function rDetail(x){const rows=[];x.items.slice().sort((a,b)=>(b.date||"")<(a.da
   const own=x.hold.slice().sort((a,b)=>b.w-a.w);if(own.length)rows.push(`<div class="mu" style="font-size:11px;margin-top:4px">Ägs av: ${own.slice(0,8).map(h=>`<b class="tlk" data-go="#/radar/${enc(h.id)}">${esc(h.inv)}</b> ${f(h.w,1)} %`).join(" · ")}${own.length>8?` · +${own.length-8}`:""}</div>`);
   return rows.join("")}
 function rStodRow(x,i,mode){const s=S[x.t],open=!!(Ui.ropen&&Ui.ropen[x.t]),age=daysAgo(x.last);
-  const mv=x.prk==null?'<span class="tag" style="font-size:9.5px">NY</span>':x.prk>x.rk?`<span class="up" style="font-size:11px">▲${x.prk-x.rk}</span>`:x.prk<x.rk?`<span class="dn" style="font-size:11px">▼${x.rk-x.prk}</span>`:'<span class="mu" style="font-size:11px">–</span>';
+  const mv=x.prk==null?'<span class="tag" style="white-space:nowrap;font-size:9.5px">NY</span>':x.prk>x.rk?`<span class="up" style="font-size:11px">▲${x.prk-x.rk}</span>`:x.prk<x.rk?`<span class="dn" style="font-size:11px">▼${x.rk-x.prk}</span>`:'<span class="mu" style="font-size:11px">–</span>';
   const p=[];if(x.n)p.push(`${x.n} äger`);if(x.ok.size)p.push(`<span class="up" style="font-weight:600">${x.ok.size} ökar</span>`);if(x.ny.size)p.push(`<span class="up" style="font-weight:600">${x.ny.size} ny</span>`);if(x.mi.size)p.push(`<span class="dn" style="font-weight:600">${x.mi.size} minskar</span>`);if(x.ut.size)p.push(`<span class="dn" style="font-weight:600">${x.ut.size} ut</span>`);
   if(x.insB)p.push(`<span class="up" style="font-weight:600">insiderköp${x.insB>1?" ×"+x.insB:""}</span>`);if(x.insS)p.push(`<span class="dn" style="font-weight:600">insidersälj${x.insS>1?" ×"+x.insS:""}</span>`);if(x.act)p.push("13D");if(x.dg)p.push("13G");
-  const tags=`${x.act?' <span class="tag" style="background:rgba(232,107,92,.18);color:#e86b5c">AKTIVIST</span>':""}${x.n>=8?' <span class="tag" style="font-size:9.5px">BRETT ÄGD</span>':""}${lowAtt(x.t)?' <span class="tag" style="background:rgba(232,182,74,.2);color:#e8b64a">LÅG BEVAKNING</span>':""}`;
+  const tags=`${x.act?' <span class="tag" style="white-space:nowrap;background:rgba(232,107,92,.18);color:#e86b5c">AKTIVIST</span>':""}${x.n>=8?' <span class="tag" style="white-space:nowrap;font-size:9.5px">BRETT ÄGD</span>':""}${lowAtt(x.t)?' <span class="tag" style="white-space:nowrap;background:rgba(232,182,74,.2);color:#e8b64a">LÅG BEVAKNING</span>':""}`;
   const val=mode==="salj"?`<b class="${cls(x.fl-25)}">${f(x.fl-25,1)}</b><div class="mu" style="font-size:10.5px">flöde</div>`:`<b>${f(x.sc,0)}</b><div class="mu" style="font-size:10.5px">${mv}</div>`;
   return`<div class="sr wrap" style="flex-wrap:wrap;align-items:flex-start"><div class="n">${i+1}</div><div class="m"><div>${fl(s)}<b class="tlk" data-act="gostock" data-t="${esc(x.t)}">${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span>${tags}</div><div class="mu" style="font-size:11px">${p.join(" · ")||"inga rörelser"}${age!=null?` · <span style="opacity:.75">senast ${age} d</span>`:""}</div></div><div class="p" style="text-align:right">${val}</div><div class="p" data-act="rtog" data-t="${esc(x.t)}" style="cursor:pointer;align-self:flex-start;padding:4px 0 6px 8px;line-height:1;color:var(--gd);font-size:14px">${open?"▴":"▾"}</div>${open?`<div style="flex-basis:100%;padding:4px 0 2px 44px;border-top:1px dashed var(--ln);margin-top:4px"><div class="mu" style="font-size:11px;margin-bottom:3px">Bredd <b>${f(x.br,0)}</b>/30 · Flöde <b>${f(x.fl,0)}</b>/50 · Färska <b>${f(x.fr,0)}</b>/20${x.prk?` · plats för en vecka sedan ${x.prk}`:""}</div>${rDetail(Object.assign({},x,{hold:rInvestors().filter(m=>!m.stale&&(m.holdings||[]).some(h=>h.t===x.t)).map(m=>({inv:m.n,id:m.id,w:(m.holdings.find(h=>h.t===x.t)||{}).w||0}))}))}</div>`:""}</div>`}
 /* Förvaltarlistan (radar_watch.json i repot) redigeras i appen med GitHub-tokenen. CIK slås upp av radarn vid nästa körning. */
@@ -3496,7 +3497,7 @@ function vRadar(arg){
     let L=sig==="sma"?ST.filter(x=>{const m=mcS(x.t);return m&&m<50e9}):sig==="aktivist"?ST.filter(x=>x.act):sig==="salj"?ST.filter(x=>x.fl<25).sort((a,b)=>a.fl-b.fl):ST;
     body=L.length?L.slice(0,40).map((x,i)=>rStodRow(x,i,sig)).join("")+(L.length>40?`<div class="mu" style="font-size:11px;padding:6px 2px">… och ${L.length-40} till</div>`:""):'<div class="mu">Inget att visa.</div>'}
   view(`${topbar("Radar",true,topBtn(`data-act="radarinfo"`,'<span class="ii">ⓘ</span>',"Om radarn"))}${dd}
-  ${chips}<div class="mod"><div class="mh"><h2>${esc((RSIG.find(x=>x[0]===sig)||[])[1]||"").toUpperCase()}</h2></div><div class="mu" style="font-size:11.5px;margin-bottom:4px">${RSIGTXT[sig]||""} Tryck på en rad för detaljer.</div>${body}</div>
+  ${chips}<div class="mod"><div class="mh" data-act="rinfo" style="cursor:pointer"><h2>${esc((RSIG.find(x=>x[0]===sig)||[])[1]||"").toUpperCase()}</h2><span class="ii" style="margin-left:auto;font-size:15px;color:${Ui.rinfo?"var(--gd)":"inherit"}" title="Om listan">ⓘ</span></div>${Ui.rinfo?`<div class="mu" style="font-size:11.5px;margin-bottom:6px">${RSIGTXT[sig]||""} Tryck på en rad för detaljer.</div>`:""}${body}</div>
   ${inv.map(m=>rInvCard(m)).join("")}${foot}`)
 }
 function vRadarStock(t){const s=S[t];if(!s){location.hash="#/radar";return}const ev=radarFor(t);
