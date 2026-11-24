@@ -431,7 +431,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-v";
+const APPV="2026-11-24-w";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -778,9 +778,9 @@ function sectorHTML(k,st){const ids=st.r.all,top=new Set(ids.slice(0,20)),A=ids.
    minst 2 av 3 år positiva, kurs över SMA200. Rangordnas på årstakt × jämnhet (R² på veckokurser) – en långsiktig motsvarighet till Clenow.
    Inte värdering (P/E m.m.) – nyckeltal ingår inte i dataplanen. */
 const valScore=x=>x.lt3&&x.lt3.r2!=null?x.lt3.cagr*x.lt3.r2:null;
-function valueHTML(k,st){const L=st.r.all.map(t=>S[t]).filter(x=>x&&x.lt3&&x.lt3.cagr>=8&&x.lt3.mdd>=-40&&x.lt3.yp>=2&&x.a200&&valScore(x)!=null).sort((a,b)=>valScore(b)-valScore(a)).slice(0,25);
-  return`<div class="mu" style="margin:0 2px 8px;font-size:12px">Stabila långsiktiga vinnare, 3 år: minst 8 % per år, största ras högst 40 %, minst 2 av 3 år positiva, över SMA200. Ordnade efter årstakt × jämnhet (R²). Inte värdering – nyckeltal ingår inte i datan. Information – modellen köper efter momentum (jämna trender som urval prövat 2026-11-23, T10).</div>
-  ${L.length?L.map((s,i)=>card(s,i+1,{mk:k,compact:true,sub:`3 år: <b class="up">${f(s.lt3.cagr,1)} %/år</b> · jämnhet ${f(s.lt3.r2,2)} · största ras ${f(s.lt3.mdd,0)} % · ${s.lt3.yp} av 3 år upp`})).join(""):'<div class="empty">Inga aktier ännu – fälten räknas av skanningen (kräver tre års kurshistorik).</div>'}`}
+function valueHTML(k,st){const L=st.r.all.map(t=>S[t]).filter(x=>x&&x.lt3&&x.lt3.cagr>=8&&x.lt3.mdd>=-40&&x.lt3.yp>=2&&x.a200&&valScore(x)!=null).sort((a,b)=>valScore(b)-valScore(a));const vk="val:"+k,n=Ui.shown[vk]||25;
+  return`<div class="mu" style="margin:0 2px 8px;font-size:12px">${L.length} aktier. Stabila långsiktiga vinnare, 3 år: minst 8 % per år, största ras högst 40 %, minst 2 av 3 år positiva, över SMA200. Ordnade efter årstakt × jämnhet (R²). Inte värdering – nyckeltal ingår inte i datan. Information – modellen köper efter momentum (jämna trender som urval prövat 2026-11-23, T10).</div>
+  ${L.length?L.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true,sub:`3 år: <b class="up">${f(s.lt3.cagr,1)} %/år</b> · jämnhet ${f(s.lt3.r2,2)} · största ras ${f(s.lt3.mdd,0)} % · ${s.lt3.yp} av 3 år upp`})).join("")+(L.length>n?`<button class="btn ghost wide" data-act="more" data-k="${vk}">Visa fler (${L.length-n})</button>`:""):'<div class="empty">Inga aktier ännu – fälten räknas av skanningen (kräver tre års kurshistorik).</div>'}`}
 /* PRICE TARGET (2026-11-23, information): störst uppsida mot analytikernas konsensusriktkurs (analysts.json), minst 5 analytiker.
    Uppsidan räknas mot aktuell kurs. Kvoter över 4× eller under 0,25× tas bort (valuta/enhetsfel, t.ex. pence mot pund). */
 function ptHTML(k,st){const ok=new Set(st.r.all);const L=[];if(AN&&AN.stocks)for(const t in AN.stocks){const a=AN.stocks[t],s=S[t];if(!s||!ok.has(t)||!(a.tgt>0)||!(s.px>0)||!((a.n||0)>=5))continue;const q=a.tgt/s.px;if(q>4||q<0.25)continue;L.push({s,a,up:(q-1)*100})}
