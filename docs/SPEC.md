@@ -161,6 +161,7 @@ senaste mot föregående rapport: nya innehav, ökningar/minskningar > 20 %, avs
 13D/13G – nya anmälningar ≥ 5 % i universumets USA-bolag senaste 60 dagarna, ändringar (/A) och passiva index-/depåförvaltare bortfiltrerade.
 ARK – dagliga innehavsfiler, dagens mot gårdagens. Insyn – FI:s insynsregister senaste 14 dagarna, ISIN → ticker via EODHD:s symbollista.
 Korsas mot topp 20 och portföljernas innehav. "Institutionellt stöd" i transaktionsloggen (§ 17) = köpliknande händelse utan säljliknande senaste 90 dagarna.
+Översikten är en sammanvägd lista, **Institutionellt stöd** 0–100 (2026-11-24): Bredd 0–30 + Flöde 0–50 (25 = neutralt) + Färska signaler 0–20; vikterna i HANDBOK och i appens förklaringstext. Poängen är information.
 Radarn som avgörare inom topp 20 är en framtida strategitest (TESTPLAN), inte en regel.
 
 ## 13. Paritetstest
