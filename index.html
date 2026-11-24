@@ -358,6 +358,10 @@ function scrubLegacy(s){
   try{const d=decayAlerts(s);if(d.length)s.al=d.concat(s.al||[])}catch(e){}
   DEAD_FIELDS.forEach(f=>{if(f in s)delete s[f]});
   return s}
+/* 2026-11-24: EN ordning för daghandeln överallt (startsidan, Börsdesken, daghandelssidan, chatten): relativ volym (dagens volym
+   mot snittet) först, daghandelspoängen som avgörare. Tidigare sorterade bara Börsdesken på volym – startsidan visade skannerns ordning. */
+const dtOrd=(a,b)=>((+b.vx||0)-(+a.vx||0))||((+b.dts||0)-(+a.dts||0));
+function dtSort(){const dt=D&&D.rank&&D.rank.DT;if(!dt)return;["cand","near"].forEach(k=>{if(Array.isArray(dt[k]))dt[k]=dt[k].filter(t=>S[t]).sort((x,y)=>dtOrd(S[x],S[y]))})}
 function indexData(){
   S=D.stocks;SL=Object.values(S);
   // 2026-11-23: all visning av "poäng" (momentumstapeln, exporter, sektorer, horisont) ska vara modellens 2.0-poäng.
@@ -365,6 +369,7 @@ function indexData(){
   SL.forEach(s=>{scrubLegacy(s);s._k=norm(s.d+" "+s.n+" "+s.t);if(typeof s.sc2==="number"&&s.sc1===undefined){s.sc1=s.sc;s.sc=s.sc2}});
   // rankningslistor från gammal data
   if(D.rank)Object.values(D.rank).forEach(r=>{if(r){delete r.val;delete r.grm;delete r.mgf}});
+  dtSort();
 }
 async function loadData(){
   loadDataCheck().catch(()=>{});
@@ -404,7 +409,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-a";
+const APPV="2026-11-24-b";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -770,7 +775,7 @@ function mktTabs(k,st){let tab=Ui.mtab||"mom";if(!["mom","val","pt","dt","all"].
 /* Daghandelslistan för en marknad (samma kort som sidan Daghandel, strikthet alla 5): kandidater + nästan kandidater. */
 function dtListHTML(k){const dt=D.rank.DT||{cand:[],near:[]};
   // 2026-11-23: inom kandidater och nästan-kandidater ordnas listan efter relativ volym (dagens volym mot snittet) – starkast volym först
-  const byV=(a,b)=>(+b.vx||0)-(+a.vx||0);
+  const byV=dtOrd;
   const C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,k)).sort(byV).slice(0,25),N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,k)).sort(byV).slice(0,Math.max(0,25-C.length)),hint=usHint();
   return`${hint.t?`<div class="mu" style="margin:0 2px 8px;font-size:12px">${esc(hint.t)}</div>`:""}${C.length?C.map((s,i)=>dcard(s,i+1,false)).join(""):'<div class="mu" style="margin:0 2px 10px">Inga aktier klarar alla fem kriterier just nu.</div>'}
   ${N.length?`<div class="mh" style="margin:16px 2px 4px"><h2 style="margin:0;font-size:13px;letter-spacing:1.8px;color:var(--gd)">NÄSTAN KANDIDATER</h2></div>${N.map((s,i)=>dcard(s,C.length+i+1,true)).join("")}`:""}
@@ -1086,7 +1091,7 @@ function vDT(){
   const dt=D.rank.DT||{cand:[],near:[]},mk=Ui.dtm,L=Ui.dtl,pk=dayPick(),ps=pk&&S[pk],px=ps&&D.dtx&&D.dtx[pk],hint=usHint(),ms=D.markets.filter(m=>!m.hidden);
   let C=[],N=[],single=[];
   if(L>=5){C=dt.cand.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,25);N=dt.near.map(t=>S[t]).filter(s=>s&&inMkt(s,mk)).slice(0,Math.max(0,25-C.length))}
-  else single=SL.filter(s=>inMkt(s,mk)&&!s.t.endsWith("-USD")&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||b.dts-a.dts).slice(0,25);
+  else single=SL.filter(s=>inMkt(s,mk)&&!s.t.endsWith("-USD")&&s.dtn>=L).sort((a,b)=>(b.dok-a.dok)||dtOrd(a,b)).slice(0,25);
   const mn=MK(mk);
   view(`${topbar("Daghandel",true,topBtn(`data-act="dtinfo"`,'<span class="ii">ⓘ</span>',"Info"))}
   ${dropdown("dddt",esc(mn.n),orderedMkts().map(m=>({html:`${m.flag} ${esc(m.n)}`,on:m.k===mk,attrs:`data-act="dtm" data-k="${m.k}"`})),{icon:"bolt"})}<div>
@@ -1905,7 +1910,7 @@ document.addEventListener("click",e=>{
 },true);
 const ddIc=t=>t.replace(/^(▦|🌍|＋|✨|↕|▤)\s?/,(m)=>`<span class="ic">${m.trim()}</span> `);
 const mchip=(m,sel,attrs)=>`<span class="chip mk${m.k===sel?" on":""}" ${attrs||`data-go="#/desk/${m.k}"`}>${m.flag} ${esc(SHORT[m.k]||m.n)}</span>`;
-const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦",".TW":"🇹🇼",".NS":"🇮🇳",".BO":"🇮🇳",".AX":"🇦🇺",".KS":"🇰🇷",".KQ":"🇰🇷",".SA":"🇧🇷",".SS":"🇨🇳",".SZ":"🇨🇳",".NZ":"🇳🇿"};
+const SUFF={".ST":"🇸🇪",".CO":"🇩🇰",".OL":"🇳🇴",".DE":"🇩🇪",".PA":"🇫🇷",".L":"🇬🇧",".AS":"🇳🇱",".HE":"🇫🇮",".SW":"🇨🇭",".IL":"🇬🇧",".T":"🇯🇵",".HK":"🇭🇰",".MC":"🇪🇸",".MI":"🇮🇹",".BR":"🇧🇪",".TO":"🇨🇦",".TW":"🇹🇼",".NS":"🇮🇳",".BO":"🇮🇳",".AX":"🇦🇺",".KS":"🇰🇷",".KQ":"🇰🇷",".SA":"🇧🇷",".SS":"🇨🇳",".SZ":"🇨🇳",".NZ":"🇳🇿",".WA":"🇵🇱",".VI":"🇦🇹",".IR":"🇮🇪",".LS":"🇵🇹"};   // .WA/.VI/.IR/.LS tillagda 2026-11-24 (visades som USA)
 const flagOf=t=>{if(/-USD$/.test(t))return"🪙";for(const k in SUFF)if(t.endsWith(k))return SUFF[k];return"🇺🇸"};
 const fl=s=>`<span class="fg">${flagOf(s.t)}</span>`;
 /* Blankning (2026-11-02): andel blankat – Yahoo (av float) eller FI:s register (summa positioner ≥ 0,5 %).
@@ -3575,7 +3580,7 @@ async function loadLive(){const u=liveUrl();if(!u||DEMO)return false;try{const r
   if(j.quotes){let n=0;Object.keys(j.quotes).forEach(t=>{const q=j.quotes[t],s=S[t];if(!s||!(q.px>0))return;
     if(q.ts&&s.qt&&q.ts*1000<=s.qt)return;              // behåll en nyare Finnhub-kurs
     s.px=q.px;s.chg=q.chg;s.qt=q.ts?q.ts*1000:Date.now();s.qsrc="eodhd";n++});
-    EQ.n=n;EQ.t=Date.now();EQ.src=j.quotes_src||"EODHD";EQ.at=j.updated}if(j.dt)D.rank.DT=j.dt;D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
+    EQ.n=n;EQ.t=Date.now();EQ.src=j.quotes_src||"EODHD";EQ.at=j.updated}if(j.dt){D.rank.DT=j.dt;dtSort()}D.dtx=Object.assign({},D.dtx||{},j.dtx||{});D.liveAt=j.updated;return true}catch(e){return false}}
 function newsUrl(){const h=location.hostname;if(!h.endsWith(".github.io"))return null;const repo=location.pathname.split("/")[1];return repo?"https://raw.githubusercontent.com/"+h.split(".")[0]+"/"+repo+"/news/news.json":null}
 async function loadNews(){
   const u=newsUrl();if(!u||DEMO)return false;
