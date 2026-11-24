@@ -66,7 +66,8 @@ a{color:inherit}
 .r .n{margin-top:1px}
 .n{width:28px;min-width:28px;height:28px;border-radius:8px;background:#17130b;display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--gd)}
 .n.w{width:40px;min-width:40px;font-size:12px}
-.c.t3 .n{background:linear-gradient(135deg,#b8862b,#ffd166);color:#1a1200}
+/* 2026-11-24: topp 3 utan guldrutor (ägarens önskemål) */
+.c.hc .al2{padding-left:62px}
 .m{flex:1;min-width:0}.m b{font-size:16px}.m>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* 2026-11-18: bolagsnamnet på aktiekortets rad 2 skrivs ut helt (radbryts), pilen linjerar med rad 1 */
 .c .r .m>div.mu{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}
@@ -431,7 +432,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-w";
+const APPV="2026-11-24-x";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -584,7 +585,7 @@ function card(s,i,o={}){
    <div class="acts"><button class="btn sm" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp mer</button><button class="btn sm ghost" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`:"";
   const preObj=h?{sig:h.sig,rule:h.rule,html:`<h4>Innehav</h4><div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}`,
     acts:`<div class="acts one"><button class="btn sm up" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp</button><button class="btn sm dn" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`}:null;
-  return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
+  return`<div class="c${open.has(key)?" o":""}${h?" hc":""}" data-t="${esc(key)}"><div class="r">${left}
   <div class="m"><div><span style="white-space:nowrap">${fl(s)}<b>${esc(s.d)}</b></span> ${s.dok?'<span class="htx" data-act="tip" data-tip="Klarar alla fem daghandelskriterierna i dag. Information – ingår inte i strategin.">DAGHANDEL</span> ':""}${newChip(s)} ${repChip(s)}</div><div class="mu">${coName(s)}</div></div>
   ${trendArrow(s)}${right}</div>
   <div class="al2">${chips}${flagChips(s)}${shortChip(s)}${o.sub?`<div class="mu csub" style="flex:0 0 100%;font-size:11px;line-height:1.45;margin:0;white-space:normal;overflow-wrap:anywhere">${o.sub}</div>`:""}</div>
