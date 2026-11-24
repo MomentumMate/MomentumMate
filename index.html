@@ -431,7 +431,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-s";
+const APPV="2026-11-24-t";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1108,7 +1108,7 @@ function usHint(){
 function dcard(s,i,near){
   const need=CRIT.filter((c,j)=>s.dt[j]===false),wait=CRIT.filter((c,j)=>s.dt[j]==null),x=D.dtx&&D.dtx[s.t],m=MK(s.m[0]);
   return`<div class="c${open.has("d:"+s.t)?" o":""}${i<=3&&!near?" t3":""}" data-t="d:${esc(s.t)}"><div class="r"><div class="n">${i}</div>
-  <div class="m"><div><span style="white-space:nowrap">${fl(s)}<b>${esc(s.d)}</b></span> ${s.dok?'<span class="htx">DAGHANDEL</span>':`<span class="htx">${s.dtn}/5</span>`} ${newChip(s)} ${repChip(s)}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div></div>
+  <div class="m"><div><span style="white-space:nowrap">${fl(s)}<b>${esc(s.d)}</b></span> ${s.dok?'<span class="htx">DAGHANDEL</span>':`<span class="htx" data-act="tip" data-tip="${s.dtn} av 5 inträdeskriterier uppfyllda just nu. Saknas: ${esc(CRIT.filter((c,j)=>(s.dt||[])[j]===false).join(", ")||"–")}${CRIT.some((c,j)=>(s.dt||[])[j]==null)?". Väntar på data: "+esc(CRIT.filter((c,j)=>(s.dt||[])[j]==null).join(", ")):""}.">${s.dtn}/5</span>`} ${newChip(s)} ${repChip(s)}${dayPick()===s.t?" ★":""}</div><div class="mu">${coName(s)}</div></div>
   ${trendArrow(s)}${hdrRight(s)}</div>
   <div class="al2">${flagChips(s)}${shortChip(s)}</div>
   <div class="bar"><i style="width:${Math.min(100,SC(s)||0)}%"></i></div>${detail(s,s.m[0],`<button class="btn sm" data-go="#/daytrade/${enc(s.t)}">Handla idag ›</button>`,{html:`<h4>Daghandel</h4>${s.dtq!=null?`<div class="k" style="font-size:12px;margin-bottom:4px">${dtqTxt(s)}</div>`:""}<div class="k mu" style="font-size:12px">${m.flag} ${esc(m.n)} · PM-vol ${fmtV(s.pmv)} · rel.vol ${s.vx}× · ${s.dtn}/5 kriterier${x?` · struktur: ${STL[x.st.k]}`:""}</div>${need.length?`<div class="k mu" style="font-size:12px">Saknar: ${need.map(esc).join(", ")}</div>`:""}${wait.length?`<div class="k mu" style="font-size:12px">Ej bedömbart: ${wait.map(esc).join(", ")}</div>`:""}<div class="bar" style="margin:6px 0 0"><i style="width:${Math.min(100,s.dts||0)}%"></i></div>`})}</div>`
