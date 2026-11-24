@@ -322,7 +322,7 @@ function flagChip(a){
   else if(/lägre toppar/i.test(s)){const m=s.match(/^(\d+)/);txt="LÄGRE TOPPAR"+(m?" "+m[1]+" V":"");cls="dn"}
   else if(/svag/i.test(s)){txt="SVAG";cls="dn"}
   else {txt=(s||t).toUpperCase().slice(0,18);cls="dn"}
-  return`<span class="fc ${cls}" title="${esc(t)}">${esc(txt)}</span>`}
+  return`<span class="fc ${cls}" data-act="tip" data-tip="${esc(t)}">${esc(txt)}</span>`}
 /* Sidhuvudets signalknappar (ägarens val 2026-11-24): STÖD/MOTSTÅND, VOLYMBALANS, NEDTREND, N % UNDER ATH (+ BLANKNING i shortChip).
    LÄGRE TOPPAR N V och VIDGANDE/SMALNANDE visas bara som text i det utfällda kortet. */
 const flagChips=s=>[...new Set((s.al||[]).filter(a=>(a.k==="decay"||a.k==="level")&&!/v lägre toppar/i.test(a.s||"")).map(flagChip))].slice(0,5).join("");
@@ -431,7 +431,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-r";
+const APPV="2026-11-24-s";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -585,7 +585,7 @@ function card(s,i,o={}){
   const preObj=h?{sig:h.sig,rule:h.rule,html:`<h4>Innehav</h4><div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}`,
     acts:`<div class="acts one"><button class="btn sm up" data-act="buy" data-t="${esc(s.t)}" data-pid="${p.id}">Köp</button><button class="btn sm dn" data-act="sell" data-t="${esc(s.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="move" data-t="${esc(s.t)}" data-pid="${p.id}">Omfördela</button><button class="btn sm ghost" data-act="edit" data-t="${esc(s.t)}" data-pid="${p.id}">Ändra</button></div>`}:null;
   return`<div class="c${open.has(key)?" o":""}${i<=3&&!o.compact&&!h?" t3":""}" data-t="${esc(key)}"><div class="r">${left}
-  <div class="m"><div><span style="white-space:nowrap">${fl(s)}<b>${esc(s.d)}</b></span> ${s.dok?'<span class="htx">DAGHANDEL</span> ':""}${newChip(s)} ${repChip(s)}</div><div class="mu">${coName(s)}</div></div>
+  <div class="m"><div><span style="white-space:nowrap">${fl(s)}<b>${esc(s.d)}</b></span> ${s.dok?'<span class="htx" data-act="tip" data-tip="Klarar alla fem daghandelskriterierna i dag. Information – ingår inte i strategin.">DAGHANDEL</span> ':""}${newChip(s)} ${repChip(s)}</div><div class="mu">${coName(s)}</div></div>
   ${trendArrow(s)}${right}</div>
   <div class="al2">${chips}${flagChips(s)}${shortChip(s)}${o.sub?`<div class="mu csub" style="flex:0 0 100%;font-size:11px;line-height:1.45;margin:0;white-space:normal;overflow-wrap:anywhere">${o.sub}</div>`:""}</div>
   <div class="bar"><i style="width:${Math.min(100,sc)}%"></i></div>${detail(s,o.mk,h?"":`<button class="btn sm" data-act="add" data-t="${esc(s.t)}">+ Portfölj</button>`,preObj)}</div>`
@@ -842,7 +842,7 @@ function vStock(t){
 const SH=$("#sh"),PN=$("#sh .pn");
 function sheet(html,mount){$("#shb").innerHTML=html;SH.classList.add("on");PN.scrollTop=0;if(mount)mount()}
 function closeSheet(){SH.classList.remove("on");PN.style.transform=""}
-let toastT;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),2200)}
+let toastT;function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),Math.max(2200,Math.min(7000,String(t).length*55)))}
 const F=" <p class='mu'>Modell – inte en prognos eller finansiell rådgivning.</p>";
 const INFO={
 graf:()=>["Poängkurvan","<p>Grafen är <b>inte en kurs över tid</b>. Varje punkt är en aktie i rankingen, från plats 25 längst till vänster till <b>plats 1 längst till höger</b> (den ljusa punkten).</p><p><b>Brant mot slutet:</b> få aktier sticker ut. <b>Jämn kurva:</b> momentumet är brett och många ligger nära toppen.</p>"],
@@ -1015,6 +1015,7 @@ function act(a,d){
     case"allocedit":allocSheet();break;
     case"risktog":{Ui.riskOpen=!Ui.riskOpen;const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rsig":Ui.rsig=d.v;vRadar();break;
+    case"tip":if(d.tip)toast(d.tip);break;
     case"rinfo":Ui.rinfo=!Ui.rinfo;vRadar();break;
     case"stog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rtog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;vRadar();window.scrollTo(0,y);break}
@@ -1873,7 +1874,7 @@ const SVA={
 "NOKIA.HE":"Nätverksutrustning och telekomteknik (Nokia)."
 };
 const epDays=s=>{if(!s||!s.ed)return null;const d=Math.ceil((Date.parse(s.ed+"T12:00:00Z")-Date.now())/864e5);return(d<0||d>14)?null:d};
-const repChip=s=>{const d=epDays(s);if(d==null)return"";const lbl=d===0?"idag":d===1?"imorgon":"om "+d+" d";return`<span class="htx" title="Kvartalsrapport ${s.ed} · ${lbl}">RAPPORT ${s.ed.slice(2).replace(/-/g,"")}</span>`};
+const repChip=s=>{const d=epDays(s);if(d==null)return"";const lbl=d===0?"idag":d===1?"imorgon":"om "+d+" d";return`<span class="htx" data-act="tip" data-tip="Kvartalsrapport ${s.ed} · ${lbl}">RAPPORT ${s.ed.slice(2).replace(/-/g,"")}</span>`};
 const f52=(s,k)=>typeof s[k]==="number"?f(s[k])+" "+(s.cur||""):"–";
 function edWarn(s){const d=epDays(s);if(d==null)return"";return`<div class="chips" style="margin:0 0 8px"><span class="rep${d<=3?" soon":""}" style="font-size:12px;padding:3px 8px">Rapportdag ${esc(s.ed)} · ${d===0?"idag":d===1?"imorgon":"om "+d+" dagar"}</span></div>`}
 function aboutHTML(s){
@@ -1996,9 +1997,9 @@ const newList=s=>{if(!s)return null;const nb=+s.nb||0;if(!nb)return null;const s
   const why=shortSma?`Nynoterad – ${nb} handelsdagar. För kort historik för modellens villkor: SMA200 om ${dSma} dagar, 12-1-rankning om ca ${dM}. BEHÅLL betyder här "inget underlag", inte "allt är bra". Fylls inte på vid likaviktning.`
     :`Nynoterad – ${nb} handelsdagar. SMA200 gäller (${s.a200?"över":"under"}), men 12-1 kan rankas först om ca ${dM} dagar. Kan inte få KÖP eller ÖKA till dess – fylls inte heller på vid likaviktning.`;
   return{nb,dSma,dM,shortSma,why}};
-const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="htx" title="${esc(ny.why)} · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}">NYNOTERAD</span>`};
+const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="htx" data-act="tip" data-tip="${esc(ny.why)} · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}">NYNOTERAD</span>`};
 const shortChip=s=>{if(!(s&&typeof s.shp==="number"&&s.shp>=SHORT_LO))return"";const hi=s.shp>=SHORT_HI;
-  return`<span class="fc${hi?" dn":""}" style="${hi?"":"color:#e8b64a;border-color:#7a5f22;background:#2a2210"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">BLANKNING ${f(s.shp,!hi&&s.shp>=9.5?1:0)}%</span>`};
+  return`<span class="fc${hi?" dn":""}" style="${hi?"":"color:#e8b64a;border-color:#7a5f22;background:#2a2210"}" data-act="tip" data-tip="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">BLANKNING ${f(s.shp,!hi&&s.shp>=9.5?1:0)}%</span>`};
 /* ---------- Ändra ordning (dra och släpp) ---------- */
 Ui.reorder=false;
 function reorderView(){
