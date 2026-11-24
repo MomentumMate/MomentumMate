@@ -1,30 +1,30 @@
 {
-"updated": "2026-11-21T11:40:07Z",
+"updated": "2026-11-24T08:40:20Z",
 "status": "warn",
 "red": [],
 "markets": {
 "Norden": {
 "antal": 201,
-"senaste": "2026-11-20",
+"senaste": "2026-11-23",
 "tysta": 0,
 "flaggade": 0
 },
 "USA": {
 "antal": 1595,
-"senaste": "2026-11-20",
+"senaste": "2026-11-23",
 "tysta": 9,
-"flaggade": 15
+"flaggade": 13
 },
 "Europa": {
 "antal": 497,
-"senaste": "2026-11-20",
+"senaste": "2026-11-23",
 "tysta": 2,
 "flaggade": 2
 }
 },
 "n": 2293,
 "silent": 11,
-"flagged": 17,
+"flagged": 15,
 "gone": [],
 "own_flagged": [],
 "issues": {
@@ -36,12 +36,6 @@
 ],
 "BLFS": [
 "tyst sedan 2026-10-05"
-],
-"EMBJ": [
-"dagsrörelse -76 % den 2026-11-16"
-],
-"GO": [
-"ingen kursdata (tom serie)"
 ],
 "INDV": [
 "tyst sedan 2026-11-05"
@@ -86,20 +80,20 @@
 "Norden": {
 "har": 202,
 "antal": 203,
-"kalla": "2026-11-20",
-"skanning": "2026-11-20T22:07Z"
+"kalla": "2026-11-23",
+"skanning": "2026-11-24T00:36Z"
 },
 "USA": {
 "har": 1587,
 "antal": 1598,
-"kalla": "2026-11-20",
-"skanning": "2026-11-20T22:07Z"
+"kalla": "2026-11-23",
+"skanning": "2026-11-24T00:36Z"
 },
 "Europa": {
-"har": 493,
+"har": 451,
 "antal": 497,
-"kalla": "2026-11-20",
-"skanning": "2026-11-20T22:07Z"
+"kalla": "2026-11-23",
+"skanning": "2026-11-24T00:36Z"
 }
 },
 "sources": {
