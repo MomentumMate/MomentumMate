@@ -425,7 +425,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-l";
+const APPV="2026-11-24-m";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -571,7 +571,7 @@ function card(s,i,o={}){
   const rk0=rankOf(s.t);const sub=`plats ${rk0||"–"} · 12-1 ${typeof s.m121==="number"?sg(s.m121,0):"–"} · ${s.a200?"över":"under"} SMA200`;
   const left=h?`<div class="n w">${f(h.w,0)}%</div>`:`<div class="n">${i}</div>`;
   const right=hdrRight(s,h);
-  const chips=h?`<span class="sig ${h.sig.k}">${SIGL[h.sig.k]}</span>${h.hl?`<span class="sig SELL">⚠ ${esc(h.hl.short)}</span>`:""}`:"";
+  const chips=h?`<span class="sig ${h.sig.k}">${SIGL[h.sig.k]}</span>${h.hl?`<span class="sig SELL">${esc(h.hl.short)}</span>`:""}`:"";
   const holdBlock=null;const _unused=h?`<div class="g"><div><small>Vikt</small><b>${f(h.w,1)}%</b></div><div><small>Antal</small><b>${f(h.h.q,h.h.q%1?2:0)}</b></div><div><small>GAV</small><b>${f(h.h.c)}</b></div><div><small>Inköpsdatum</small><b>${esc(h.h.d)}</b></div><div><small>Innehavstid</small><b>${(()=>{const dd=Math.round((Date.now()-Date.parse(h.h.d))/864e5);return dd>=0?(dd<60?dd+" dagar":(dd/30.4).toFixed(1)+" mån"):"–"})()}</b></div><div><small>Värde</small><b>${kr(h.val)} kr</b></div><div><small>Vinst/förlust</small><b class="${cls(h.pnl)}">${h.pnl>=0?"+":"−"}${kr(Math.abs(h.pnl))} kr</b></div><div><small>Avkastning</small><b class="${cls(h.ret)}">${sg(h.ret,1)}</b></div></div>
    ${h.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(h.hl.msg)}</div>`:""}
    <h4 data-i="psig">Signal: ${SIGL[h.sig.k]} <span class="ii">ⓘ</span></h4>${h.sig.why.map(w=>`<div class="k">• ${esc(w)}</div>`).join("")}${h.rule?urgHTML(h.rule.k):""}
@@ -668,7 +668,7 @@ function vHome(){
   <div class="mod" data-go="#/portfolio"><div class="mh"><h2>PORTFÖLJ</h2><span class="go">›</span></div>
    ${P.ps.length&&T.n?`<div><span class="big">${kr(T.tot)} kr</span><span class="pill ${cls(T.day)}">${sg(T.dp)} idag</span></div>
     <div class="mu" style="margin-top:4px">${P.ps.length} portfölj${P.ps.length>1?"er":""} · ${T.n} innehav · ${T.day>=0?"+":"−"}${kr(Math.abs(T.day))} kr idag</div>
-    <div class="al">${badN?`<span class="sig SELL" style="margin:0">⚠ ${badN} saknar data</span>`:""}${sigN?`<span class="sig SELL" style="margin:0">${sigN} sälj/omfördela</span>`:""}${rotN?`<span class="sig TRIM" style="margin:0">${rotN} byte</span>`:""}${buyN?`<span class="sig BUY" style="margin:0">${buyN} köp mer</span>`:""}${watchN?`<span class="sig WATCH" style="margin:0">${watchN} bevaka</span>`:""}${!sigN&&!rotN&&!buyN&&!watchN&&!badN?'<span class="sig HOLD" style="margin:0">Inga signaler – allt ser lugnt ut</span>':""}</div>`
+    <div class="al">${badN?`<span class="sig SELL" style="margin:0">${badN} saknar data</span>`:""}${sigN?`<span class="sig SELL" style="margin:0">${sigN} sälj/omfördela</span>`:""}${rotN?`<span class="sig TRIM" style="margin:0">${rotN} byte</span>`:""}${buyN?`<span class="sig BUY" style="margin:0">${buyN} köp mer</span>`:""}${watchN?`<span class="sig WATCH" style="margin:0">${watchN} bevaka</span>`:""}${!sigN&&!rotN&&!buyN&&!watchN&&!badN?'<span class="sig HOLD" style="margin:0">Inga signaler – allt ser lugnt ut</span>':""}</div>`
    :`<div class="mu" style="font-size:14px">Lägg in dina innehav i en eller flera portföljer och få dagliga signaler för köp, sälj och omfördelning.</div><div class="chips" style="margin-top:10px"><span class="chip on">+ Skapa portfölj</span></div>`}</div>
   ${erHomeHTML()}${fzHomeHTML()}
   <div class="mod" data-go="#/desk"><div class="mh"><h2>BÖRSDESK</h2><span class="go">›</span></div>
@@ -739,7 +739,7 @@ function holdCard(r,p){
   return`<div class="c${open.has(key)?" o":""}" data-t="${esc(key)}"><div class="r"><div class="n w">${f(r.w,0)}%</div>
   <div class="m"><div><span class="fg">${flagOf(h.t)}</span><b>${esc(h.t)}</b></div><div class="mu">${esc(h.n||"Ingen live-data")} · ${f(h.q,h.q%1?2:0)} st · GAV ${f(h.c)}</div></div>
   <div class="p"><b>${kr(r.val)} kr</b><div class="${cls(r.ret)}">${sg(r.ret,1)}</div></div></div>
-  <div class="al2"><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span>${r.hl?`<span class="sig SELL">⚠ ${esc(r.hl.short)}</span>`:""}</div>
+  <div class="al2"><span class="sig ${r.sig.k}">${SIGL[r.sig.k]}</span>${r.hl?`<span class="sig SELL">${esc(r.hl.short)}</span>`:""}</div>
   <div class="d">${r.hl?`<div class="stat SELL" style="margin:10px 0 0"><b>⚠ DATASTATUS</b>${esc(r.hl.msg)}<div class="acts"><button class="btn sm" data-act="lookup" data-q="${esc((h.n||h.t).replace(/\.[A-Z]{1,3}$/,""))}">Slå upp online</button><button class="btn sm ghost" data-act="edit" data-t="${esc(h.t)}" data-pid="${p.id}">Rätta ticker</button></div></div>`:""}
   <div class="acts"><button class="btn sm" data-act="buy" data-t="${esc(h.t)}" data-pid="${p.id}">Köp mer</button><button class="btn sm ghost" data-act="sell" data-t="${esc(h.t)}" data-pid="${p.id}">Sälj</button><button class="btn sm ghost" data-act="edit" data-t="${esc(h.t)}" data-pid="${p.id}">Ändra</button></div></div></div>`
 }
@@ -1867,9 +1867,9 @@ const SVA={
 "NOKIA.HE":"Nätverksutrustning och telekomteknik (Nokia)."
 };
 const epDays=s=>{if(!s||!s.ed)return null;const d=Math.ceil((Date.parse(s.ed+"T12:00:00Z")-Date.now())/864e5);return(d<0||d>14)?null:d};
-const repChip=s=>{const d=epDays(s);if(d==null)return"";const lbl=d===0?"idag":d===1?"imorgon":"om "+d+" d";return`<span class="rep${d<=3?" soon":""}" title="Kvartalsrapport ${s.ed}">📅 ${s.ed.slice(5)} ${lbl}</span>`};
+const repChip=s=>{const d=epDays(s);if(d==null)return"";const lbl=d===0?"idag":d===1?"imorgon":"om "+d+" d";return`<span class="rep${d<=3?" soon":""}" title="Kvartalsrapport ${s.ed} · ${lbl}">Rapport ${s.ed.slice(2).replace(/-/g,"")}</span>`};
 const f52=(s,k)=>typeof s[k]==="number"?f(s[k])+" "+(s.cur||""):"–";
-function edWarn(s){const d=epDays(s);if(d==null)return"";return`<div class="chips" style="margin:0 0 8px"><span class="rep${d<=3?" soon":""}" style="font-size:12px;padding:3px 8px">📅 Rapportdag ${esc(s.ed)} · ${d===0?"idag":d===1?"imorgon":"om "+d+" dagar"}</span></div>`}
+function edWarn(s){const d=epDays(s);if(d==null)return"";return`<div class="chips" style="margin:0 0 8px"><span class="rep${d<=3?" soon":""}" style="font-size:12px;padding:3px 8px">Rapportdag ${esc(s.ed)} · ${d===0?"idag":d===1?"imorgon":"om "+d+" dagar"}</span></div>`}
 function aboutHTML(s){
   if(!s)return"";
   const f=[],sec=s.sec?(SECSV[s.sec]||s.sec):"",txt=SVA[s.t]||"";
@@ -1990,9 +1990,9 @@ const newList=s=>{if(!s)return null;const nb=+s.nb||0;if(!nb)return null;const s
   const why=shortSma?`Nynoterad – ${nb} handelsdagar. För kort historik för modellens villkor: SMA200 om ${dSma} dagar, 12-1-rankning om ca ${dM}. BEHÅLL betyder här "inget underlag", inte "allt är bra". Fylls inte på vid likaviktning.`
     :`Nynoterad – ${nb} handelsdagar. SMA200 gäller (${s.a200?"över":"under"}), men 12-1 kan rankas först om ca ${dM} dagar. Kan inte få KÖP eller ÖKA till dess – fylls inte heller på vid likaviktning.`;
   return{nb,dSma,dM,shortSma,why}};
-const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="sig WATCH" title="${esc(ny.why)}">🆕 Nynoterad · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}</span>`};
+const newChip=s=>{const ny=newList(s);if(!ny)return"";return`<span class="sig WATCH" title="${esc(ny.why)}">Nynoterad · ${ny.shortSma?ny.dSma+" d till SMA200":ny.dM+" d till rankning"}</span>`};
 const shortChip=s=>{if(!(s&&typeof s.shp==="number"&&s.shp>=SHORT_LO))return"";const hi=s.shp>=SHORT_HI;
-  return`<span class="sig ${hi?"TRIM":"WATCH"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">🩳 ${hi?"Hög blankning":"Blankning"} ${f(s.shp,1)} %</span>`};
+  return`<span class="sig ${hi?"TRIM":"WATCH"}" title="${hi?"Hög blankning":"Blankning"} ${s.shp} % (${s.shs||"?"}${s.shd?" "+s.shd:""}). Information – styr inga förslag.">${hi?"Hög blankning":"Blankning"} ${f(s.shp,1)} %</span>`};
 /* ---------- Ändra ordning (dra och släpp) ---------- */
 Ui.reorder=false;
 function reorderView(){
