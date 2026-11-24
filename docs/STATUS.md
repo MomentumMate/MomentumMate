@@ -14,7 +14,7 @@ Modell 2.0 (Clenow 120 d) är validerad, specificerad och körs i appen sedan 5 
 
 **23 nov, kursfel rättat:** skanningen tog efterhandelns kurs som dagens kurs för USA-aktier när den körde efter stängningen (387 aktier avvek > 0,25 % den 20 nov). Rättat till officiell stängning – viktigt inför prövningen 30 nov, som räknas på kvällens skanning. Grafhuvudet i 1D/1V visade fredagens sista stapel medan övriga intervall visade livekursen (Visa 402,22 mot 406,53) – rättat.
 
-**24 nov:** GitHub körde ingen av datakontrollens sex nattkörningar (inte heller måndagens skanningar). Kontrollen startades manuellt 09:36 och blev grön. Appen startar nu kontrollen själv efter 04:20 UTC om den saknas (samma mekanism som skanningen), och den kan startas genom `.github/datacheck_request.txt`.
+**24 nov:** GitHub körde ingen av datakontrollens sex nattkörningar (inte heller måndagens skanningar). Kontrollen startades manuellt 09:36: gul (warn – 11 tysta, 15 flaggade av 2 293, inga egna innehav), ingen spärr. Appen startar nu kontrollen själv efter 04:20 UTC om den saknas (samma mekanism som skanningen), och den kan startas genom `.github/datacheck_request.txt`.
 
 Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 och första som loggas. Radar/analytikerrevideringar som avgörare testas tidigast 2027. Överlevnadsbias med Börsdata avvaktar.
 
