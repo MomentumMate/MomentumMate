@@ -11,6 +11,8 @@ on:
     - cron: "31 5 * * 2-6"
     - cron: "13 6 * * 2-6"
     - cron: "3 7 * * 2-6"
+  push:                      # 2026-11-24: ändring av .github/datacheck_request.txt startar kontrollen (som manuell start)
+    paths: [".github/datacheck_request.txt"]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,7 @@ jobs:
       - name: Grind – bara en körning per dygn (manuell start går alltid)
         id: gate
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           python3 - <<'PY' | tee gate.log; grep '^run=' gate.log >> "$GITHUB_OUTPUT"
           import json, datetime as dt
           try:
