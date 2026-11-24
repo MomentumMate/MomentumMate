@@ -431,7 +431,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-u";
+const APPV="2026-11-24-v";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -1473,7 +1473,7 @@ function riskHTML(p,c){if(!c.rows.length)return"";const tot=c.tot||1,N=p.targetN
   if(mk[0]&&mk[0][1]>=80&&mk.length>1)warns.push(`${f(mk[0][1],0)} % i ${mk[0][0]}`);
   const st=riskStats(p),br=breadth();
   const open=!!Ui.riskOpen;
-  return`<div class="mod"><div class="mh" data-act="risktog" style="cursor:pointer"><h2>RISK${warns.length?` <span class="tag" style="margin-left:6px;background:rgba(232,107,92,.18)">${warns.length} varning${warns.length>1?"ar":""}</span>`:""}</h2><span class="go">${open?"▲":"▼"}</span></div>
+  return`<div class="mod"><div class="mh" data-act="risktog" style="cursor:pointer"><h2>RISK${warns.length?` <span class="tag" style="margin-left:6px;background:rgba(232,107,92,.18)">${warns.length} varning${warns.length>1?"ar":""}</span>`:""}</h2><span style="margin-left:auto;color:var(--gd);font-size:14px;line-height:1;padding:4px 0 4px 10px">${open?"▴":"▾"}</span></div>
   ${warns.length&&!open?`<div class="mu" style="font-size:11.5px">${warns.slice(0,2).join(" · ")}${warns.length>2?" …":""}</div>`:""}
   ${open?`
   ${warns.length?`<div class="stat WAIT" style="margin:4px 0 8px;font-size:11.5px"><b>⚠ KONCENTRATION</b>${warns.map(w=>`<div class="k" style="padding:2px 0">• ${w}</div>`).join("")}</div>`:'<div class="mu" style="font-size:11.5px;margin-bottom:6px">Inga koncentrationsvarningar.</div>'}
