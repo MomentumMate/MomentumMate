@@ -25,6 +25,10 @@ concurrency:
   group: analysts
   cancel-in-progress: false
 
+# 2026-11-24: portföljinnehaven läses från Actions-variabeln LIVE_WATCH (skrivs av appen) i stället för den publika filen live_watch.json
+env:
+  LIVE_WATCH: ${{ vars.LIVE_WATCH }}
+
 jobs:
   analysts:
     runs-on: ubuntu-latest

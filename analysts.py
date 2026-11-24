@@ -29,6 +29,16 @@ ROT_MIN = float(os.environ.get("ANALYSTS_ROT_MIN", "30"))  # tidsgräns för hel
 KEEP_DAYS = 45                                             # graderingar som sparas
 KEEP_CH = 12                                               # högst så många graderingar per bolag
 
+
+def live_watch():
+    """Appens portföljinnehav (2026-11-24). Läses ur Actions-variabeln LIVE_WATCH (komma-separerad, inte publik) och,
+    under övergången, ur den gamla filen live_watch.json om den finns. Listan skrivs aldrig ut i loggen (loggarna är publika)."""
+    import os, json as _j
+    out = [t.strip() for t in (os.environ.get("LIVE_WATCH") or "").split(",") if t.strip()]
+    try: out += [t for t in _j.load(open("live_watch.json", encoding="utf-8")).get("tickers", []) if isinstance(t, str)]
+    except Exception: pass
+    return list(dict.fromkeys(out))
+
 def log(*a): print(*a, flush=True)
 def jload(p, default):
     try: return json.load(open(p, encoding="utf-8"))
@@ -40,8 +50,7 @@ def priority(d, S):
     except Exception: pass
     try: sel += [t for m in jload("markets_extra.json", {}).get("markets", []) for t in m.get("tickers", [])]
     except Exception: pass
-    try: sel += [t for t in jload("live_watch.json", {}).get("tickers", []) if isinstance(t, str)]
-    except Exception: pass
+    sel += live_watch()
     sel += [t for t, _ in sorted(((t, x.get("sc2") or 0) for t, x in S.items() if (x.get("sc2") or 0) > 0 and x.get("liqok", True)), key=lambda z: -z[1])[:30]]
     rk = (d.get("rank") or {}).get("DT") or {}
     sel += list(rk.get("cand") or [])

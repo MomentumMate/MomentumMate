@@ -432,7 +432,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-y";
+const APPV="2026-11-24-z";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -669,7 +669,7 @@ function vHome(){
   let rotN=0,badN=0;P.ps.forEach(p=>{const cc=calc(p);badN+=cc.rows.filter(r=>r.hl).length});
   const sigN=T.sg.SELL+T.sg.TRIM,buyN=T.sg.BUY,watchN=T.sg.WATCH;
   view(`<div class="top"><div class="ttl brand">Momentum<b>Mate</b></div><span class="gear" data-act="settings" aria-label="Inställningar">⚙</span><span class="av">MM</span></div>
-  <div class="mu" style="margin:-4px 2px 12px">${DEMO?"Demoläge":"Uppdaterad "+esc(upd)}</div>${banner()}${staleBanner()}${mchkHomeHTML()}
+  <div class="mu" style="margin:-4px 2px 12px">${DEMO?"Demoläge":"Uppdaterad "+esc(upd)}</div>${banner()}${staleBanner()}${tokenHomeHTML()}${backupHomeHTML()}${mchkHomeHTML()}
   <div class="mod" data-go="#/news"><div class="mh"><h2>NYHETER</h2><span class="go">›</span></div>
    ${items.length?`<div class="tk"><div class="in" id="tkin">${[0,1].map(()=>items.map(n=>`<div class="tl" data-go="#/news/${nid(n)}">${tchip(n)}${esc(n.h)}</div>`).join("")).join("")}</div></div>`:'<div class="mu">'+newsDiag()+'</div>'}</div>
   <div class="mod" data-go="#/portfolio"><div class="mh"><h2>PORTFÖLJ</h2><span class="go">›</span></div>
@@ -934,7 +934,7 @@ function pmenuSheet(pid){
     $("#rls").onclick=()=>{closeSheet();setTimeout(()=>rulesSheet(pid),260)};
     $("#cxp").onclick=()=>{const t=chatExport(pid);$("#io").innerHTML=`<p class="mu">Texten är kopierad. Fyll i “Mina uppgifter” och klistra in den i chatten med Claude. Den innehåller dina innehav, deras signaler och starka kandidater.</p><textarea id="ex" readonly style="min-height:240px">${esc(t)}</textarea>`;const e=$("#ex");e.focus();e.select();try{navigator.clipboard.writeText(t).then(()=>toast("Kopierat"),()=>{})}catch(x){}};
     $("#dlp").onclick=()=>{$("#io").innerHTML=`<p>Ta bort “${esc(p.name)}” och alla innehav i den?</p><button class="btn dn wide" id="dly">Ja, ta bort</button>`;$("#dly").onclick=()=>{P.ps=P.ps.filter(x=>x!==p);if(P.cur===p.id)P.cur=P.ps[0]?P.ps[0].id:null;save();closeSheet();location.hash="#/portfolio";route()}};
-    $("#exg").onclick=()=>{$("#io").innerHTML=`<p class="mu">Kopiera texten och spara den som säkerhetskopia (eller för att flytta portföljerna till en annan enhet).</p><textarea id="ex" readonly>${esc(JSON.stringify(P))}</textarea>`;const t=$("#ex");t.focus();t.select();try{navigator.clipboard.writeText(t.value);toast("Kopierad")}catch(e){}};
+    $("#exg").onclick=()=>{markBackup();$("#io").innerHTML=`<p class="mu">Kopiera texten och spara den som säkerhetskopia (eller för att flytta portföljerna till en annan enhet).</p><textarea id="ex" readonly>${esc(JSON.stringify(P))}</textarea>`;const t=$("#ex");t.focus();t.select();try{navigator.clipboard.writeText(t.value);toast("Kopierad")}catch(e){}};
     $("#img").onclick=()=>{$("#io").innerHTML=`<p class="mu">Klistra in text. Ett <b>förslag</b> (mm_plan) läggs in i den portfölj det gäller. En <b>enskild portfölj</b> (som jag skickat) läggs till som ny och påverkar inga andra. En <b>exporterad backup</b> ersätter dina nuvarande portföljer.</p><textarea id="im"></textarea><button class="btn wide" id="img2" style="margin-top:8px">Importera</button>`;$("#img2").onclick=()=>{try{const j=JSON.parse($("#im").value);
       if(j&&j.mm_rules){const names=[].concat(j.pf||[]).map(x=>String(x).toLowerCase()),hit=P.ps.filter(x=>names.includes(x.name.toLowerCase()));if(!hit.length)throw 0;
         hit.forEach(x=>{x.rules=Object.assign({},RULE_DEF,j.rules||{})});if(j.twin&&hit.length===2){hit[0].twin=hit[1].id;hit[1].twin=hit[0].id}
@@ -1016,6 +1016,7 @@ function act(a,d){
     case"allocedit":allocSheet();break;
     case"risktog":{Ui.riskOpen=!Ui.riskOpen;const y=window.scrollY;route(true);window.scrollTo(0,y);break}
     case"rsig":Ui.rsig=d.v;vRadar();break;
+    case"backup":backupFile();break;
     case"tip":if(d.tip)toast(d.tip);break;
     case"rinfo":Ui.rinfo=!Ui.rinfo;vRadar();break;
     case"stog":{Ui.ropen=Ui.ropen||{};Ui.ropen[d.t]=!Ui.ropen[d.t];const y=window.scrollY;route(true);window.scrollTo(0,y);break}
@@ -1276,11 +1277,19 @@ const dispatchWf=(wf,inputs)=>ghReq("/actions/workflows/"+wf+"/dispatches",{meth
    kan startas för hand med samma GitHub-token som uppslaget använder. Bara en knapp – jobbets grind avgör om det behövs. */
 const WFL={"scan.yml":"skanningen","daytrade.yml":"live-kurserna","datacheck.yml":"datakontrollen","radar.yml":"radarn"};
 const runLink=(wf,txt)=>ghReady()&&!DEMO?` <span class="lnk" data-act="runwf" data-wf="${wf}">${txt}</span>`:"";
-/* live_watch.json: alla portföljers innehav (inkl. demo) så att live-jobbet hämtar dagens staplar för dem (scanner.live, 2026-11-18). Skrivs bara när listan ändrats. */
-async function syncLiveWatch(){if(!ghReady())return;const tk=[...new Set(P.ps.flatMap(p=>(p.h||[]).map(x=>x.t)))].filter(t=>S[t]).sort();
-  let cur=null;try{cur=await ghGet("live_watch.json")}catch(e){}
-  try{if(cur&&JSON.stringify((JSON.parse(cur.text).tickers||[]).slice().sort())===JSON.stringify(tk))return}catch(e){}
-  await ghPut("live_watch.json",JSON.stringify({updated:new Date().toISOString(),tickers:tk},null,1),cur&&cur.sha,"live_watch: portföljinnehav från appen")}
+/* Portföljinnehaven till jobben (2026-11-24, säkerhet): skrivs till Actions-variabeln LIVE_WATCH (syns inte publikt) i stället för
+   den publika filen live_watch.json, som tas bort ur repot första gången variabeln skrivits. Tokenen behöver rättigheten
+   Variables = Read and write. Skrivs bara när listan ändrats (eller en gång per dygn). */
+const LWK="mm_lw";
+async function syncLiveWatch(force){if(!ghReady()||DEMO)return;const tk=[...new Set(P.ps.flatMap(p=>(p.h||[]).map(x=>x.t)))].filter(t=>S[t]).sort(),val=tk.join(",");
+  let st={};try{st=JSON.parse(localStorage.getItem(LWK))||{}}catch(e){}
+  if(!force&&st.v===val&&Date.now()-(st.at||0)<864e5)return;
+  try{try{await ghReq("/actions/variables/LIVE_WATCH",{method:"PATCH",body:JSON.stringify({name:"LIVE_WATCH",value:val||"-"})})}
+    catch(e){if(e.status!==404)throw e;await ghReq("/actions/variables",{method:"POST",body:JSON.stringify({name:"LIVE_WATCH",value:val||"-"})})}
+    st={v:val,at:Date.now(),del:st.del};delete st.err;
+    if(!st.del){try{const g=await ghReq("/contents/live_watch.json?ref=main");await ghReq("/contents/live_watch.json",{method:"DELETE",body:JSON.stringify({message:"live_watch.json borttagen – innehaven ligger nu i Actions-variabeln LIVE_WATCH",sha:g.sha,branch:"main"})})}catch(e){}st.del=1}
+  }catch(e){st.err=(e.status===403||e.status===404)?"Tokenen saknar rättigheten Variables (Read and write) – innehaven skickas inte till jobben.":e.message;st.at=Date.now()}
+  try{localStorage.setItem(LWK,JSON.stringify(st))}catch(e){}}
 /* AUTOMATISK SKANNING (2026-11-23): GitHub hoppar ibland över schemalagda körningar (hela måndagen 23 nov uteblev).
    Är senaste skanningen äldre än senaste passet (12:30 / 14:15 / 21:30 UTC, vardagar) med mer än 50 minuters marginal startar appen
    skanningen själv med GitHub-tokenen – högst en gång per 90 minuter per telefon. Skanningens egen grind hindrar dubbelarbete. */
@@ -1291,7 +1300,7 @@ async function autoCheck(now){try{const t=new Date(now),wd=t.getUTCDay();if(wd<2
   if(!DC||!DC.updated)return;const last=DC.updated.slice(0,10);if(last>=t.toISOString().slice(0,10))return;
   const k="mm_autocheck",prev=+(localStorage.getItem(k)||0);if(now-prev<90*60000)return;
   localStorage.setItem(k,String(now));await dispatchWf("datacheck.yml");toast("Nattens datakontroll hade inte körts – startad automatiskt.")}catch(e){}}
-async function autoScan(){try{if(DEMO||!ghReady()||!D||!D.updated)return;
+async function autoScan(){try{if(DEMO||!ghReady()||!D||!D.updated)return;syncLiveWatch().catch(()=>{});
   const now=Date.now(),slots=[[21,30],[14,15],[12,30]];let last=null;
   for(let back=0;back<5&&!last;back++){const d=new Date();d.setUTCDate(d.getUTCDate()-back);const wd=d.getUTCDay();if(wd===0||wd===6)continue;
     for(const[h,m]of slots){const t=new Date(d);t.setUTCHours(h,m,0,0);if(t.getTime()<=now-50*60000){last=t;break}}}
@@ -1342,13 +1351,43 @@ function addMarketSheet(i){
         closeSheet();toast("Skickat – ny skanning startad");if(pf)setTimeout(()=>addSheet(it.t),400)}
       catch(e){$("#amgo").disabled=false;$("#amgo").textContent="Skicka till skannern";toast(e.message.slice(0,80))}}})
 }
+/* SÄKERHETSKOPIA (2026-11-24): portföljerna finns bara i telefonen. Påminnelse på startsidan när senaste export är äldre än 7 dagar
+   och det finns verkliga innehav. "Spara fil" laddar ner en JSON-fil (iPhone: Filer), som importeras via Portfölj → ⋯ → Importera. */
+const BKK="mm_lastbackup";
+const markBackup=()=>{try{localStorage.setItem(BKK,String(Date.now()))}catch(e){}};
+function backupFile(){try{const d=todayISO().replace(/-/g,""),b=new Blob([JSON.stringify(P)],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");
+  a.href=u;a.download="momentummate-sakerhetskopia-"+d+".json";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500);markBackup();toast("Säkerhetskopia sparad – välj Spara i Filer");route(true)}catch(e){toast("Kunde inte spara: "+e.message)}}
+function backupHomeHTML(){if(DEMO)return"";const real=P.ps.filter(p=>!p.demo&&(p.h||[]).length);if(!real.length)return"";
+  const last=+(localStorage.getItem(BKK)||0),dd=last?Math.floor((Date.now()-last)/864e5):null;if(dd!=null&&dd<7)return"";
+  return`<div class="stat WAIT" style="margin:0 0 12px"><b>SÄKERHETSKOPIA</b>${dd==null?"Portföljerna har inte exporterats från den här telefonen.":`Senaste säkerhetskopian är ${dd} dagar gammal.`} Portföljerna finns bara i telefonen – spara en kopia i Filer eller iCloud. <span class="lnk" data-act="backup">Spara fil nu ›</span></div>`}
+/* TOKENKONTROLL (2026-11-24): typ (fine-grained/klassisk), hur många repon den når, vilka rättigheter som fungerar och slutdatum. */
+const GHX="mm_ghexp";
+async function tokenCheck(){const c=gh(),repo=ghRepo(),o=[];if(!c.token)return'<span class="mu">Ingen token sparad.</span>';
+  const fine=/^github_pat_/.test(c.token),classic=/^gh[pousr]_/.test(c.token);
+  o.push(fine?'<b class="up">Fine-grained token</b>':classic?'<b class="dn">Klassisk token – byt till fine-grained (den når alla dina repon).</b>':"Okänd tokentyp.");
+  const H={Authorization:"Bearer "+c.token,Accept:"application/vnd.github+json"};
+  try{const r=await fetch("https://api.github.com/user/repos?per_page=100",{headers:H});const sc=r.headers.get("x-oauth-scopes");const j=r.ok?await r.json():[];
+    if(sc)o.push(`Behörigheter: ${esc(sc)}${/\brepo\b|admin|delete_repo|workflow/.test(sc)?' <b class="dn">(bredare än appen behöver)</b>':""}`);
+    if(r.ok)o.push(j.length<=1?'<b class="up">Når bara ett repo</b>':`<b class="dn">Når ${j.length} repon – välj "Only select repositories" och bara ${esc(repo)}</b>`)}catch(e){}
+  const t=async(path,lbl)=>{try{const r=await fetch("https://api.github.com/repos/"+repo+path,{headers:H});o.push(r.ok?`<b class="up">✓</b> ${lbl}`:`<b class="dn">✗</b> ${lbl} (${r.status})`)}catch(e){o.push(`<b class="dn">✗</b> ${lbl}`)}};
+  try{const r=await fetch("https://api.github.com/user",{headers:H});if(r.ok){const u=await r.json();o.push(`<b class="up">✓</b> Tokenen är giltig (konto ${esc(u.login||"?")})`)}else o.push(`<b class="dn">✗ Tokenen fungerar inte (${r.status}) – den kan ha gått ut eller återkallats</b>`)}catch(e){}
+  await t("/actions/variables","Variables (innehaven till jobben)");o.push('<span class="mu">Contents och Actions prövas när appen sparar en fil eller startar ett jobb – går det inte visas ett fel där.</span>');
+  let st={};try{st=JSON.parse(localStorage.getItem(LWK))||{}}catch(e){}if(st.err)o.push(`<b class="dn">${esc(st.err)}</b>`);else if(st.v!=null)o.push('<b class="up">✓</b> Innehaven ligger i Actions-variabeln LIVE_WATCH');
+  const ex=localStorage.getItem(GHX);if(ex){const n=Math.round((Date.parse(ex)-Date.now())/864e5);o.push(n<0?`<b class="dn">Tokenen gick ut ${esc(ex)}</b>`:n<=14?`<b class="dn">Tokenen går ut om ${n} dagar (${esc(ex)}) – skapa en ny</b>`:`Gäller till ${esc(ex)} (${n} dagar)`)}else o.push("Ange slutdatum nedan så påminner appen innan tokenen går ut.");
+  return o.join("<br>")}
+function tokenHomeHTML(){if(DEMO||!gh().token)return"";const ex=localStorage.getItem(GHX);let st={};try{st=JSON.parse(localStorage.getItem(LWK))||{}}catch(e){}
+  const n=ex?Math.round((Date.parse(ex)-Date.now())/864e5):null,cl=/^gh[pousr]_/.test(gh().token||"");
+  const msg=n!=null&&n<=14?(n<0?"GitHub-tokenen har gått ut.":`GitHub-tokenen går ut om ${n} dagar.`):cl?"GitHub-tokenen är klassisk och når alla dina repon – byt till fine-grained.":st.err?st.err:"";
+  return msg?`<div class="stat WAIT" style="margin:0 0 12px"><b>GITHUB-TOKEN</b>${esc(msg)} <span class="lnk" data-act="settings">Inställningar ›</span></div>`:""}
 function settingsSheet(){
   const c=gh();
   sheet(`<h3>Inställningar</h3><div class="mu" style="margin:-6px 0 8px;font-size:11.5px">Appversion ${APPV}${VER.server&&VER.server!==APPV?` · <b class="dn">ny version ${esc(VER.server)} finns</b>`:VER.server?" · senaste":""}${D&&D.source?` · Datakälla ${esc(D.source.prices)}${D.source.coverage?` · täckning ${D.source.coverage.got} av ${D.source.coverage.want}`:""}${D.source.eodhd?` · EODHD ${D.source.eodhd.ok} ok, ${D.source.eodhd.fallback} via Yahoo`:""}`:""}</div>
-  <h4>GitHub-koppling (valfri)</h4><p class="mu" style="font-size:13px">Behövs bara för att slå upp och lägga till okända aktier/börser direkt i appen. Skapa en <b>fine-grained token</b> via <a class="lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">den här länken ›</a> (eller profilbilden → Settings → längst ned: Developer settings). Välj <b>endast det här repot</b> och behörigheterna <b>Contents</b> och <b>Actions</b> = Read and write. Token sparas bara i den här webbläsaren.</p>
+  <h4>GitHub-koppling (valfri)</h4><p class="mu" style="font-size:13px">Behövs bara för att slå upp och lägga till okända aktier/börser direkt i appen. Skapa en <b>fine-grained token</b> via <a class="lnk" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">den här länken ›</a> (eller profilbilden → Settings → längst ned: Developer settings). Välj <b>endast det här repot</b> och behörigheterna <b>Contents</b>, <b>Actions</b> och <b>Variables</b> = Read and write, och ett slutdatum (högst 90 dagar). Token sparas bara i den här webbläsaren.</p>
   <label class="fld"><span>Repo (användare/repo)</span><input id="ghr" value="${esc(c.repo||ghRepoGuess())}" placeholder="dittnamn/MomentumMate" autocapitalize="off"></label>
   <label class="fld"><span>Token</span><input id="ght" type="password" value="${esc(c.token||"")}" placeholder="github_pat_…" autocomplete="off"></label>
-  <button class="btn wide" id="ghs">Spara</button>
+  <label class="fld"><span>Tokenen gäller till (från GitHub)</span><input id="ghx" type="date" value="${esc(localStorage.getItem(GHX)||"")}"></label>
+  <button class="btn wide" id="ghs">Spara</button> <button class="btn sm ghost" id="ghc" style="margin-top:8px">Kontrollera tokenen</button><div id="ghcr" class="mu" style="font-size:12px;margin:6px 0 4px;line-height:1.6"></div>
+  <h4 style="margin-top:16px">Säkerhetskopia</h4><p class="mu" style="font-size:12.5px;margin:-4px 0 6px">Portföljerna finns bara i den här telefonen. Spara en kopia i Filer/iCloud minst en gång i veckan; den läses in via Portfölj → ⋯ → Importera.${localStorage.getItem(BKK)?` Senast ${esc(new Date(+localStorage.getItem(BKK)).toLocaleDateString("sv-SE"))}.`:" Ingen kopia sparad ännu."}</p><button class="btn sm" data-act="backup">Spara säkerhetskopia</button>
   <h4 style="margin-top:16px">Mate</h4><span class="chip${mateOff?"":" on"}" data-act="mmute">Popup-kommentarer: ${mateOff?"av":"på"}</span>
   <h4 style="margin-top:16px">Intro</h4><div class="chips"><span class="chip${introOff()?"":" on"}" data-act="introtoggle">Animerad intro: ${introOff()?"av":"på"}</span><span class="chip" data-act="introplay">▶ Visa introt nu</span></div>
   <h4 style="margin-top:16px">Realtidskälla (Finnhub) – valfritt</h4><p class="mu" style="font-size:12px;margin:-4px 0 6px">Behövs <b>bara</b> för tick-för-tick-kurser i daghandelsläget. Portföljen och börsdesken får sina kurser från EODHD och klarar sig utan.</p><p class="mu" style="font-size:13px">Skapa ett gratis konto på finnhub.io och kopiera din API key från Dashboard. Ger realtidsaffärer för amerikanska aktier (data från börsen IEX). Nyckeln sparas bara i den här webbläsaren, och en nyckel kan bara vara ansluten på en enhet åt gången.</p>
@@ -1365,7 +1404,8 @@ function settingsSheet(){
         else if(!r.ok)o.innerHTML=`<b class="dn">HTTP ${r.status}.</b> Oväntat svar från Finnhub.`;
         else{const q=await r.json();o.innerHTML=q&&q.c>0?`<b class="up">Fungerar.</b> Apple ${q.c} USD just nu. Spara nyckeln så används den för amerikanska aktier.`:'<b class="dn">Svar utan kurs.</b> Nyckeln kan vara en sandbox-nyckel – använd den vanliga API-nyckeln.'}
       }catch(e){o.innerHTML='<b class="dn">Nätverksfel.</b> Kunde inte nå finnhub.io – kontrollera uppkopplingen.'}};
-    $("#ghs").onclick=()=>{try{localStorage.setItem(GHK,JSON.stringify({repo:$("#ghr").value.trim(),token:$("#ght").value.trim()}))}catch(e){}closeSheet();toast("Sparat")}})
+    $("#ghs").onclick=()=>{try{localStorage.setItem(GHK,JSON.stringify({repo:$("#ghr").value.trim(),token:$("#ght").value.trim()}));const x=$("#ghx").value;if(x)localStorage.setItem(GHX,x);else localStorage.removeItem(GHX);localStorage.removeItem(LWK)}catch(e){}closeSheet();toast("Sparat");syncLiveWatch(true).catch(()=>{})};
+    $("#ghc").onclick=async()=>{$("#ghcr").innerHTML="Kontrollerar…";$("#ghcr").innerHTML=await tokenCheck()}})
 }
 /* ---------- Import från bank (CSV/Excel-export) ---------- */
 function parseCSV(t){t=t.replace(/^\uFEFF/,"");const first=t.split(/\r?\n/).find(l=>l.trim())||"";const d=[";","\t",","].map(c=>[c,first.split(c).length]).sort((a,b)=>b[1]-a[1])[0][0];

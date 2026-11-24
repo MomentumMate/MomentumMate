@@ -14,6 +14,10 @@ concurrency:
   group: daytrade
   cancel-in-progress: true
 
+# 2026-11-24: portföljinnehaven läses från Actions-variabeln LIVE_WATCH (skrivs av appen) i stället för den publika filen live_watch.json
+env:
+  LIVE_WATCH: ${{ vars.LIVE_WATCH }}
+
 jobs:
   live:
     runs-on: ubuntu-latest

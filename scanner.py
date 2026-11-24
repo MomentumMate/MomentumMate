@@ -14,6 +14,16 @@ warnings.filterwarnings("ignore", message=".*inplace keyword.*")
 # Filtret ovan räcker inte: yfinance öppnar egna warnings-kontexter som lägger sig före våra filter.
 # Därför byts själva utskriftsfunktionen – bara den här kända pandas-varningen tystas, allt annat skrivs ut.
 _show_warning = warnings.showwarning
+
+def live_watch():
+    """Appens portföljinnehav (2026-11-24). Läses ur Actions-variabeln LIVE_WATCH (komma-separerad, inte publik) och,
+    under övergången, ur den gamla filen live_watch.json om den finns. Listan skrivs aldrig ut i loggen (loggarna är publika)."""
+    import os, json as _j
+    out = [t.strip() for t in (os.environ.get("LIVE_WATCH") or "").split(",") if t.strip()]
+    try: out += [t for t in _j.load(open("live_watch.json", encoding="utf-8")).get("tickers", []) if isinstance(t, str)]
+    except Exception: pass
+    return list(dict.fromkeys(out))
+
 def _quiet_showwarning(message, category, *args, **kwargs):
     if "inplace keyword" in str(message) or getattr(category, "__name__", "") == "Pandas4Warning":
         return
@@ -1963,8 +1973,7 @@ def live():
     try: extra += [t for m in json.load(open("markets_extra.json", encoding="utf-8")).get("markets", []) for t in m.get("tickers", [])]
     except Exception: pass
     # 2026-11-18: appens portföljinnehav (alla portföljer inkl. demo) – appen skriver live_watch.json när den startar live-jobbet
-    try: extra += [t for t in json.load(open("live_watch.json", encoding="utf-8")).get("tickers", []) if isinstance(t, str)][:150]
-    except Exception: pass
+    extra += live_watch()[:150]
     extra += [t for t, _ in sorted(((t, r.get("sc2") or 0) for t, r in recs.items() if (r.get("sc2") or 0) > 0 and r.get("liqok", True)), key=lambda x: -x[1])[:20]]
     intra_pool = [t for t in dict.fromkeys(pool + extra) if t in recs]
     print(f"Live-uppdatering av {len(pool)} aktier, intradag för {len(intra_pool)}")

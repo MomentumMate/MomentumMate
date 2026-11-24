@@ -39,7 +39,7 @@ Handelsrytm: **en gång i månaden**, på månadens sista stängning räknas fö
 | `holdings.txt` | Aktier som ska finnas i universumet även om de inte fångas av någon indexlista. |
 | `markets_extra.json` | Egna börser/bevakningslistor som ägaren lagt till i appen. |
 | `radar_watch.json` | Förvaltarna radarn skuggar (24 st), redigeras i appen. |
-| `live_watch.json` | Alla portföljers innehav, skrivs av appen; styr vilka aktier live-jobbet och analytikerjobbet hämtar. |
+| Actions-variabeln `LIVE_WATCH` | Alla portföljers innehav (tickers, komma-separerade), skrivs av appen; styr vilka aktier live-jobbet och analytikerjobbet hämtar. Ersatte den publika filen `live_watch.json` 2026-11-24 (säkerhet). |
 | `lists_cache.json`, `lookup.json`, `cusip_map.json` | Cacher (indexlistor med valuta/ISIN, uppslag, CUSIP→ticker). |
 
 ### 2.2 Datafiler appen läser
@@ -71,7 +71,7 @@ GitHub kör schemalagda jobb timmar sent eller inte alls. Därför har de viktig
 | `parity.yml` | vid ändring av index.html, parity_test.js, SPEC.md, data.json | Röd = appen avviker från SPEC. |
 | `diagnos.yml`, `lookup.yml` | manuell / från appen | Diagnos av tickers eller 13F-filer; uppslag av ny aktie. |
 
-Appen kan starta skanning, live-jobb, datakontroll, radar och uppslag direkt (kräver GitHub-token i Inställningar). Token används också för att skriva `holdings.txt`, `markets_extra.json`, `radar_watch.json` och `live_watch.json`.
+Appen kan starta skanning, live-jobb, datakontroll, radar och uppslag direkt (kräver GitHub-token i Inställningar). **Säkerhet (2026-11-24):** repot är publikt (krävs för gratis Pages) – koden, dokumenten och marknadsdata syns, inte portföljernas antal/belopp (bara i telefonen) eller hemligheterna. Tokenen ska vara fine-grained, bara detta repo, Contents/Actions/Variables = Read and write, slutdatum ≤ 90 dagar; appen kontrollerar den (Inställningar → Kontrollera tokenen) och varnar 14 dagar före slutdatum. Säkerhetskopia: startsidan påminner när senaste export är äldre än 7 dagar; "Spara säkerhetskopia" laddar ner en JSON-fil. Kontot ska ha tvåstegsverifiering, main skydd mot force-push/radering, och Secret scanning/Push protection ska vara på. Token används också för att skriva `holdings.txt`, `markets_extra.json`, `radar_watch.json` och `live_watch.json`.
 
 ### 2.4 Datakällor och deras gränser
 
