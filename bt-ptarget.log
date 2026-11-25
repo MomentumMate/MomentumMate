@@ -1,0 +1,132 @@
+  OMXS: 110 aktier
+  EODHD: planen omfattar inte fundamentaldata (403) – indexlistor, namn och nyckeltal hämtas från andra källor
+  SP500: 503 aktier
+  Nasdaq-100 hämtad från Nasdaq API
+  NASDAQ: 101 aktier
+  DOW: 30 aktier
+  OMXC: 27 aktier
+  OSE: 31 aktier
+  OMXH: 17 aktier
+  DAX: 48 aktier
+  CAC: 43 aktier
+  FTSE: 68 aktier
+  AEX: 23 aktier
+  SMI: 18 aktier
+  IBEX: 20 aktier
+  MIB: 20 aktier
+  SP400: 400 aktier
+  SP600: 600 aktier
+  STOXX600: 590 tickers med börssuffix
+  STOXX600: 590 aktier
+  ADR: 84 aktier
+  SMSN: 2 aktier
+Universum: 2293 aktier – Europa/övrigt 497, Norden 201, USA 1595
+Hämtar 2293 aktier 2015-10-22 → 2026-11-25 …
+  Datakälla: EODHD (nyckel hittad), Yahoo som reserv
+  EODHD 200/2293
+  EODHD 400/2293
+  EODHD 600/2293
+  EODHD 800/2293
+  EODHD 1000/2293
+  EODHD 1200/2293
+  EODHD 1400/2293
+  EODHD 1600/2293
+  EODHD 1800/2293
+  EODHD 2000/2293
+  EODHD 2200/2293
+  EODHD gav 2250 av 2293 – 43 hämtas från Yahoo
+  1–43 av 43 …
+  FELKURSER LAGADE: 4 aktier (dagar ersatta med föregående stängning):
+    KINV-B.ST      2019-06-10 (3 dagar)
+    NOLA-B.ST      2019-06-10 (3 dagar)
+    PACT.ST        2019-06-10 (3 dagar)
+    SVOL-B.ST      2019-06-10 (2 dagar)
+  FELKURSFILTER: 11 aktier bortfiltrerade (felet består):
+    ABVX.PA        2025-07-23 +510 %, kommer inte tillbaka inom 5 dagar
+    ATO.PA         2024-11-12 +8528 %, kommer inte tillbaka inom 5 dagar
+    CHRD           2020-11-20 +25717 %, kommer inte tillbaka inom 5 dagar
+    CLSK           2015-05-13 +1088 %, kommer inte tillbaka inom 5 dagar
+    IVT            2021-08-06 -90 %, kommer inte tillbaka inom 5 dagar
+    KNTK           2018-11-13 +9092 %, kommer inte tillbaka inom 5 dagar
+    PCRX           2026-11-12 -99 %, kommer inte tillbaka inom 5 dagar
+    QLINEA.ST      2025-02-21 -82 %, kommer inte tillbaka inom 5 dagar
+    SEZL           2023-09-14 -81 %, kommer inte tillbaka inom 5 dagar
+    SUPN           2014-12-29 +1980475 %, kommer inte tillbaka inom 5 dagar
+    TALO           2016-06-13 +9011 %, kommer inte tillbaka inom 5 dagar
+  2282 aktier med data, 3114 handelsdagar
+Nedladdat: Europa/övrigt 495, Norden 200, USA 1587
+
+=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===
+   slutkapital       6.598
+   CAGR_%            18.34
+   volatilitet_%     17.5
+   Sharpe            1.05
+   max_nedgång_%     -39.2
+   Calmar            0.47
+   affärer           0
+   köp               0
+   köp_per_år        0.0
+   innehavstid_dagar None
+   längsta_innehav_dagarNone
+   utgångar          {}
+
+   Riktkurshistorik: 1564 av 2282 aktier i backtestets universum · täckning {'US': {'bolag': 1554, 'rader': 280797, 'första': '2011-12-08'}, 'SW': {'bolag': 3, 'rader': 312, 'första': '2014-01-02'}, 'ST': {'bolag': 4, 'rader': 4, 'första': '2015-02-19'}, 'L': {'bolag': 4, 'rader': 9, 'första': '2019-03-26'}, 'DE': {'bolag': 2, 'rader': 37, 'första': '2012-02-24'}, 'MC': {'bolag': 2, 'rader': 5, 'första': '2023-11-08'}, 'OL': {'bolag': 2, 'rader': 41, 'första': '2023-01-12'}, 'MI': {'bolag': 2, 'rader': 125, 'första': '2015-11-15'}, 'PA': {'bolag': 2, 'rader': 23, 'första': '2024-03-15'}}
+   Månader med konsensus: 134; med minst 200 aktier: 133 (från 2015-08-31)
+
+   Hela
+   grupp                  n (6 mån)   median 63d   medel 63d  slår 63d  median 126d  medel 126d slår 126d  median 252d  medel 252d slår 252d
+   U1                         12297        -1.11        0.79     47.1%        -1.79        2.14     47.1%        -4.02        4.94     45.4%
+   U2                         12244        -0.61        0.22     48.0%        -1.58        0.37     46.9%        -4.24        0.32     44.3%
+   U3                         12227         -0.6       -0.01     48.0%        -1.71       -0.36     46.1%        -4.67       -1.36     43.4%
+   U4                         12244        -0.94       -0.29     46.8%        -1.77        -0.6     45.9%        -4.45       -1.43     43.1%
+   U5                         12256        -0.65       -0.07     47.6%        -1.69       -0.48     46.3%         -4.7       -1.46     42.5%
+   U6                         12220        -0.64       -0.07     47.8%        -1.68        -0.5     46.2%        -3.72       -0.81     44.2%
+   U7                         12228        -1.18       -0.38     46.7%        -2.38       -0.78     44.9%        -5.64       -1.62     42.3%
+   U8                         12243         -1.2        -0.3     46.2%        -2.79       -0.74     43.8%        -6.32       -2.12     41.4%
+   U9                         12228        -1.74       -0.49     44.7%        -3.36       -0.92     43.3%         -7.0       -1.54     40.6%
+   U10                        12293        -1.72        0.58     46.0%        -3.22        1.85     44.3%        -5.88        5.03     43.3%
+   U10 (≥5 analyshus)          8973        -2.15        0.14     45.0%        -4.04        1.23     43.1%         -7.0        4.54     42.4%
+   REV+                       17907        -1.32       -0.19     45.9%        -2.17       -0.01     45.4%        -5.12         0.5     43.0%
+   REV−                       10085        -1.36       -0.22     46.4%        -3.42       -0.65     43.3%        -6.47       -0.31     42.2%
+   REV+ över SMA200           16093        -1.29       -0.24     46.0%        -2.17       -0.15     45.4%        -5.19        0.14     42.7%
+
+   Första halvan (till 2021-03-31)
+   grupp                  n (6 mån)   median 63d   medel 63d  slår 63d  median 126d  medel 126d slår 126d  median 252d  medel 252d slår 252d
+   U1                          5000         0.15        1.99     50.6%        -0.19        3.33     49.6%        -1.64        6.95     48.4%
+   U2                          4978         0.18        0.99     50.8%        -0.09        1.39     49.9%        -2.53        1.75     46.8%
+   U3                          4965        -0.12        0.08     49.4%        -1.06       -0.11     47.5%        -3.47        -0.5     45.1%
+   U4                          4978        -0.65       -0.24     47.8%        -1.34       -0.37     46.9%         -3.8       -0.59     44.0%
+   U5                          4979        -0.55       -0.46     47.9%        -1.92       -1.15     46.1%        -4.77        -2.0     42.7%
+   U6                          4966        -0.61       -0.25     47.9%        -1.64       -0.64     46.4%        -3.61       -1.54     44.1%
+   U7                          4967        -0.98       -0.58     46.9%        -2.37       -1.07     45.0%        -6.09       -2.29     41.7%
+   U8                          4976        -1.26       -0.43     45.5%        -2.45       -0.76     44.6%        -6.99       -1.89     40.8%
+   U9                          4968        -1.92       -1.02     43.6%         -3.3       -1.34     42.0%        -7.46       -2.06     38.4%
+   U10                         5003        -1.77        -0.1     45.4%         -3.2        0.69     43.9%        -6.73        2.14     41.9%
+   U10 (≥5 analyshus)          3375        -2.15       -0.61     44.2%        -3.92        0.26     42.9%        -7.58        1.91     40.9%
+   REV+                        5412        -0.79       -0.35     47.3%         -2.4       -1.04     45.0%        -5.62       -1.28     42.8%
+   REV−                        2546        -1.75       -0.36     45.2%        -3.29        -0.1     43.2%        -4.89        1.54     43.9%
+   REV+ över SMA200            4750        -0.71       -0.43     47.5%        -2.54       -1.52     44.5%        -5.82       -2.32     42.4%
+
+   Andra halvan (från 2021-03-31)
+   grupp                  n (6 mån)   median 63d   medel 63d  slår 63d  median 126d  medel 126d slår 126d  median 252d  medel 252d slår 252d
+   U1                          7297        -2.03         0.0     44.9%        -2.85        1.32     45.4%        -5.53         3.4     43.1%
+   U2                          7266        -1.21       -0.29     46.3%        -2.37       -0.34     44.9%        -5.64       -0.77     42.4%
+   U3                          7262        -0.93       -0.06     47.1%         -2.1       -0.53     45.2%        -5.42       -2.03     42.2%
+   U4                          7266         -1.2       -0.32     46.2%        -2.12       -0.76     45.2%        -4.91       -2.08     42.4%
+   U5                          7277        -0.69         0.2     47.4%        -1.53       -0.03     46.4%        -4.58       -1.05     42.4%
+   U6                          7254        -0.69        0.04     47.8%         -1.7        -0.4     46.2%        -3.87       -0.24     44.2%
+   U7                          7261        -1.28       -0.25     46.5%        -2.42       -0.58     44.8%         -5.2        -1.1     42.7%
+   U8                          7267        -1.17       -0.22     46.7%         -3.1       -0.72     43.2%        -5.89        -2.3     41.9%
+   U9                          7260        -1.59       -0.14     45.5%        -3.37       -0.64     44.2%        -6.53       -1.14     42.3%
+   U10                         7290         -1.7        1.03     46.3%        -3.26        2.65     44.6%        -5.15        7.26     44.4%
+   U10 (≥5 analyshus)          5598        -2.13        0.59     45.5%        -4.12        1.81     43.2%        -6.36        6.33     43.4%
+   REV+                       12495        -1.56       -0.13     45.3%        -2.11        0.44     45.6%        -4.87        1.41     43.1%
+   REV−                        7539        -1.21       -0.17     46.8%        -3.53       -0.84     43.3%        -6.97       -1.02     41.5%
+   REV+ över SMA200           11343        -1.55       -0.16     45.3%        -2.05        0.43     45.8%        -4.92        1.35     42.8%
+
+   Regel A (uppsida): 1) U10 > +2 pe 6 mån: False · 2) U10 > U1 6 och 12 mån: False · 3) U10 > 0 båda halvor: False · varning (U10 < −2 båda halvor): True
+   => A KLARAR INTE
+   Regel B (revideringar): 1) REV+ > +1 pe 3 och 6 mån: False · 2) REV+ > REV− 3 och 6 mån: True · 3) REV+ > 0 båda halvor: False
+   => B KLARAR INTE
+
+Skrev bt-ptarget.json
