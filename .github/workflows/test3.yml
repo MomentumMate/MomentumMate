@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        strat: [fibzone]
+        strat: [ptarget]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,6 +25,9 @@ jobs:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Hämta riktkurshistoriken (T12)
+        if: matrix.strat == 'ptarget'
+        run: git fetch -q --depth 1 origin pthist && git show origin/pthist:pt_hist.json.gz > pt_hist.json.gz && ls -la pt_hist.json.gz
       - name: Kör ${{ matrix.strat }}
         env:
           EODHD_KEY: ${{ secrets.EODHD_KEY }}

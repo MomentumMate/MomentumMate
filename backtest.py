@@ -1339,6 +1339,96 @@ def fib_study(close):
     out["regel"] = {"1": c1, "2": c2, "3": c3, "4": c4, "klarar": ok}
     return out
 
+def pt_study(close, path="pt_hist.json.gz"):
+    """T12 (TESTPLAN_3.0, 2026-11-25): riktkursernas uppsida och revideringar – händelsestudie vid månadsslut, köp T+1.
+    Konsensus = median av varje analyshus senaste riktkurs (365 d, minst 3 analyshus); revidering = höjda minus sänkta 30 d."""
+    import gzip
+    J = json.load(gzip.open(path, "rt", encoding="utf-8"))
+    data = {t: r for t, r in J["data"].items() if t in close.columns}
+    print(f"\n   Riktkurshistorik: {len(data)} av {close.shape[1]} aktier i backtestets universum · täckning {J.get('täckning')}")
+    idx = close.index; n = len(idx); col = {t: k for k, t in enumerate(close.columns)}
+    C = close.values.astype(float); pxf = close.ffill().values
+    s200 = close.rolling(200, min_periods=160).mean().values
+    me = [i for i in range(200, n - 1) if idx[i].month != idx[i + 1].month]
+    H = (63, 126, 252)
+    def fwd(i, j, h):
+        k = i + 1 + h
+        if k >= n: return None
+        a, b = pxf[i + 1, j], pxf[k, j]
+        if not (a == a and b == b and a > 0): return None
+        r = b / a - 1
+        return r if -0.95 < r < 10 else None
+    recs = []   # (månad, t, uppsida, nfirm, upp, ned, över200, f63, f126, f252)
+    for t, rows in data.items():
+        j = col[t]; p = 0; last = {}
+        for i in me:
+            D = idx[i].strftime("%Y-%m-%d")
+            while p < len(rows) and rows[p][0] <= D:
+                d, firm, pt, ppt = rows[p]
+                prev = last.get(firm)
+                last[firm] = (d, pt, ppt if ppt else (prev[1] if prev else None)); p += 1
+            lo365 = (idx[i] - pd.Timedelta(days=365)).strftime("%Y-%m-%d"); lo30 = (idx[i] - pd.Timedelta(days=30)).strftime("%Y-%m-%d")
+            cur = [v for v in last.values() if v[0] > lo365]
+            if len(cur) < 3: continue
+            px = C[i, j]
+            if not (px == px and px > 0): continue
+            cons = float(np.median([v[1] for v in cur])); q = cons / px
+            if q < 0.25 or q > 4: continue
+            up = sum(1 for v in cur if v[0] > lo30 and v[2] and v[1] > v[2] * 1.0001)
+            dn = sum(1 for v in cur if v[0] > lo30 and v[2] and v[1] < v[2] * 0.9999)
+            a200 = bool(s200[i, j] == s200[i, j] and px > s200[i, j])
+            recs.append((i, t, q - 1, len(cur), up, dn, a200) + tuple(fwd(i, j, h) for h in H))
+    df = pd.DataFrame(recs, columns=["i", "t", "ups", "nf", "up", "dn", "a200", 63, 126, 252])
+    if df.empty:
+        print("   Ingen data."); return {"fel": "ingen data"}
+    cnt = df.groupby("i").size(); good = cnt[cnt >= 200].index
+    print(f"   Månader med konsensus: {len(cnt)}; med minst 200 aktier: {len(good)} (från {idx[good[0]].date() if len(good) else '–'})")
+    df = df[df.i.isin(good)].copy()
+    indik = len(good) < 36
+    for h in H:
+        m = df.groupby("i")[h].transform("mean"); df[f"x{h}"] = df[h] - m
+    df["dec"] = df.groupby("i")["ups"].transform(lambda v: pd.qcut(v.rank(method="first"), 10, labels=False) + 1)
+    mid = good[len(good) // 2] if len(good) else 0
+    def st(d, h):
+        v = d[f"x{h}"].dropna()
+        if not len(v): return None
+        return {"n": int(len(v)), "median_pe": round(float(v.median()) * 100, 2), "medel_pe": round(float(v.mean()) * 100, 2),
+                "andel_%": round(float((v > 0).mean()) * 100, 1)}
+    G = {f"U{k}": (lambda d, k=k: d[d.dec == k]) for k in range(1, 11)}
+    G["U10 (≥5 analyshus)"] = lambda d: d[(d.dec == 10) & (d.nf >= 5)]
+    G["REV+"] = lambda d: d[(d.up >= 2) & (d.dn == 0)]
+    G["REV−"] = lambda d: d[(d.dn >= 2) & (d.up == 0)]
+    G["REV+ över SMA200"] = lambda d: d[(d.up >= 2) & (d.dn == 0) & d.a200]
+    out = {"månader": int(len(good)), "indikation": indik}
+    for per, f_ in (("Hela", lambda d: d), ("Första halvan", lambda d: d[d.i < mid]), ("Andra halvan", lambda d: d[d.i >= mid])):
+        sub = f_(df); out[per] = {}
+        print(f"\n   {per}" + (f" (till {idx[mid].date()})" if per == "Första halvan" else f" (från {idx[mid].date()})" if per == "Andra halvan" else ""))
+        print(f"   {'grupp':<22}{'n (6 mån)':>10}" + "".join(f"{f'median {h}d':>13}{f'medel {h}d':>12}{f'slår {h}d':>10}" for h in H))
+        for g, fn in G.items():
+            d = fn(sub); o = {str(h): st(d, h) for h in H}; out[per][g] = o
+            line = f"   {g:<22}{((o['126'] or {}).get('n', 0)):>10}"
+            for h in H:
+                q = o[str(h)] or {}
+                line += f"{str(q.get('median_pe', '–')):>13}{str(q.get('medel_pe', '–')):>12}{str(q.get('andel_%', '–')):>9}%"
+            print(line)
+    med = lambda per, g, h: ((out[per][g].get(str(h)) or {}).get("median_pe"))
+    def gt(a, b): return a is not None and b is not None and a > b
+    A1 = (med("Hela", "U10", 126) or -99) > 2
+    A2 = gt(med("Hela", "U10", 126), med("Hela", "U1", 126)) and gt(med("Hela", "U10", 252), med("Hela", "U1", 252))
+    A3 = all((med(p, "U10", 126) or -99) > 0 for p in ("Första halvan", "Andra halvan"))
+    Awarn = all((med(p, "U10", 126) if med(p, "U10", 126) is not None else 0) < -2 for p in ("Första halvan", "Andra halvan"))
+    B1 = (med("Hela", "REV+", 63) or -99) > 1 and (med("Hela", "REV+", 126) or -99) > 1
+    B2 = gt(med("Hela", "REV+", 63), med("Hela", "REV−", 63)) and gt(med("Hela", "REV+", 126), med("Hela", "REV−", 126))
+    B3 = all((med(p, "REV+", 126) or -99) > 0 for p in ("Första halvan", "Andra halvan"))
+    A, B = bool(A1 and A2 and A3), bool(B1 and B2 and B3)
+    tag = " (INDIKATION – färre än 36 månader)" if indik else ""
+    print(f"\n   Regel A (uppsida): 1) U10 > +2 pe 6 mån: {A1} · 2) U10 > U1 6 och 12 mån: {A2} · 3) U10 > 0 båda halvor: {A3} · varning (U10 < −2 båda halvor): {Awarn}")
+    print(f"   => A {'KLARAR' if A else 'KLARAR INTE'}{tag}")
+    print(f"   Regel B (revideringar): 1) REV+ > +1 pe 3 och 6 mån: {B1} · 2) REV+ > REV− 3 och 6 mån: {B2} · 3) REV+ > 0 båda halvor: {B3}")
+    print(f"   => B {'KLARAR' if B else 'KLARAR INTE'}{tag}")
+    out["regel"] = {"A": A, "A1": bool(A1), "A2": bool(A2), "A3": bool(A3), "A_varning": bool(Awarn), "B": B, "B1": bool(B1), "B2": bool(B2), "B3": bool(B3)}
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=float, default=10)
@@ -1378,7 +1468,7 @@ def main():
     ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
     ap.add_argument("--survive", action="store_true", help="överlevnadsbias: S&P 500-medlemmar som kandidater först från sitt inträdesdatum (Wikipedia)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
-    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3; 2026-11-25: fibzone (T11)")
+    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3; 2026-11-25: fibzone (T11), ptarget (T12)")
     a = ap.parse_args()
 
     if a.universe:
@@ -1530,6 +1620,10 @@ def main():
                "T6-a. Sälj först under 0,97 × SMA200": dict(M2, sma_buf=3),
                "T6-b. Sälj först under 0,95 × SMA200": dict(M2, sma_buf=5),
                "T6-c. SMA200-brott två månadsskiften i rad": dict(M2, sma_two=True)}
+        if which == "ptarget":
+            res = pt_study(close)
+            with open(a.out, "w", encoding="utf-8") as f: json.dump({"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "test": "T12 riktkurser", "resultat": res}, f, ensure_ascii=False, indent=1)
+            print(f"\nSkrev {a.out}"); return
         if which == "fibzone":
             res = fib_study(close)
             with open(a.out, "w", encoding="utf-8") as f: json.dump({"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "test": "T11 rekylzon", "aktier": int(close.shape[1]), "resultat": res}, f, ensure_ascii=False, indent=1)
