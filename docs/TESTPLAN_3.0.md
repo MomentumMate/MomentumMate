@@ -117,6 +117,31 @@ Halvor, 6 mån median ZON mot TOPP: första −3,03 mot −2,53; andra −2,31 m
 Sju av tio aktier i zonen stänger under zonens nedre kant inom tre månader: zonen håller sällan som stöd. Köp nära toppen är inte sämre
 än köp i rekylen – samma slutsats som T7 och grunden för momentum. Zonen förblir information (SPEC § 11).
 
+## T12 Riktkurser: uppsida och revideringar (ägarbeslut 2026-11-25, regler skrivna före hämtning och körning)
+
+Fråga: förtjänar Börsdeskens **Price target** (störst uppsida mot konsensus) och **revideringarna** (höjda/sänkta riktkurser 30 d) mer än att vara information?
+Händelsestudie; modell 2.0 ändras inte oavsett utfall.
+
+**Data** (`pt_hist.py`, workflow `pt_hist.yml`): Yahoos historik över analyshusens graderingar med riktkurs (datum, analyshus, ny och tidigare riktkurs) för
+hela universumet, plus aktiesplittar. Riktkurser före en split delas med splitfaktorn så att de jämförs med splitjusterade kurser.
+Utdelningsjustering görs inte (kursen bakåt blir något lägre → uppsidan något för hög, lika för alla).
+
+**Konsensus vid varje månadsslut** (bara det som var känt då): median av varje analyshus senaste riktkurs de senaste 365 dagarna; minst 3 analyshus
+(Price target-listan kräver 5 – redovisas som undergrupp). Uppsida = konsensus / stängning − 1; kvot utanför 0,25–4 utesluts (som appen).
+**Revidering 30 d**: antal analyshus som höjt minus sänkt sin riktkurs (ny mot tidigare) senaste 30 dagarna.
+**Grupper**: uppsidetiondelar U1 (lägst) … U10 (högst); **REV+** = minst 2 höjningar och ingen sänkning; **REV−** = minst 2 sänkningar och ingen höjning;
+REV+ över SMA200. Köp T+1. Mått: avkastning 3, 6, 12 mån minus likaviktat snitt av alla aktier med konsensus samma månad (överavkastning, pe);
+median, medel, andel som slår snittet. Halvor = före/efter mittdatum för månaderna med tillräcklig täckning.
+
+**Täckningsgrind**: bara månader med minst 200 aktier med konsensus räknas. Färre än 36 sådana månader → utfallet redovisas som **indikation**, inte beslut.
+
+**Beslutsregel A – uppsidan (Price target-listan)**: listan förtjänar mer än information om U10:s median-överavkastning på 6 mån är > +2 pe,
+U10 > U1 på 6 och 12 mån, och U10 > 0 på 6 mån i båda halvorna. Annars förblir den information; är U10 klart negativ (< −2 pe på 6 mån i båda halvorna)
+får listan en varningstext.
+**Beslutsregel B – revideringar**: REV+ median-överavkastning > +1 pe på både 3 och 6 mån, REV+ > REV− på 3 och 6 mån, och REV+ > 0 på 6 mån i båda halvorna.
+Klarar B regeln blir revideringar kandidat till strategitestet 2027 (avgörare inom topp 20, egen regel skrivs då); annars stryks det testet.
+**Känd snedvridning**: överlevnadsbias (dagens indexmedlemmar) gynnar hög uppsida (fallna bolag som försvann saknas); Yahoos täckning av analyshus är ofullständig.
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.
