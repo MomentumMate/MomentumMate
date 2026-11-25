@@ -1,2 +1,3 @@
 2026-11-23 tester 3.0: after, pullback, sectorsale
 2026-11-23 T9 volcap, T10 steady
+2026-11-25 T11 fibzone

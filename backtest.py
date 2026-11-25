@@ -1261,6 +1261,84 @@ def sector_sale(close, vol, eqA, thr_list=(0.20, 0.25, 0.30), holds=(126, 252), 
                   f"  → rea {x['rea_%']} %  univ {x['univ_%']} %  sektor {x['sektor_%']} %  2.0 {x['A_%']} %{'' if x['klar'] else '  (pågår)'}")
     return res
 
+def fib_study(close):
+    """T11 (TESTPLAN_3.0, 2026-11-25): rekylzonen som köpläge – händelsestudie vid varje månadsslut.
+    Samma zon som skannerns fib_zone: topp = högsta stängning 252 d, botten = lägsta före toppen, uppgång >= 30 %.
+    Grupper ZON (61,8–78,6 % rekyl), TOPP (högst 5 % under toppen), ZON+/TOPP+ (dessutom över SMA200).
+    Köp T+1; överavkastning mot universumets likaviktade snitt 21/63/126 d."""
+    C = close.values.astype(float); idx = close.index; n, m = C.shape
+    s200 = close.rolling(200, min_periods=160).mean().values
+    me = [i for i in range(252, n - 1) if idx[i].month != idx[i + 1].month]
+    H = (21, 63, 126)
+    pxf = close.ffill().values
+    U = {}
+    for h in H:
+        f = np.full((n, m), np.nan)
+        f[:n - h - 1] = pxf[1 + h:] / pxf[1:n - h] - 1
+        f[(f <= -0.95) | (f >= 10)] = np.nan
+        U[h] = f
+    Um = {h: np.nanmean(U[h], axis=1) for h in H}
+    rows = []
+    for i in me:
+        W = C[i - 251:i + 1]
+        ok = np.isfinite(W).sum(axis=0) >= 200
+        Wf = np.where(np.isfinite(W), W, -np.inf); ih = Wf.argmax(axis=0)
+        hi = W[ih, np.arange(m)]
+        Wl = np.where(np.isfinite(W), W, np.inf); cm = np.minimum.accumulate(Wl, axis=0)
+        lo = cm[np.maximum(ih - 1, 0), np.arange(m)]
+        px = C[i]
+        valid = ok & (ih >= 10) & np.isfinite(px) & (lo > 0) & np.isfinite(lo) & (hi / np.where(lo > 0, lo, np.nan) - 1 >= 0.30)
+        rng = hi - lo; z618 = hi - .618 * rng; z786 = hi - .786 * rng
+        zon = valid & (px <= z618) & (px >= z786)
+        top = valid & (px >= 0.95 * hi)
+        up = np.isfinite(s200[i]) & (px > s200[i])
+        for g, mask in (("ZON", zon), ("TOPP", top), ("ZON+", zon & up), ("TOPP+", top & up)):
+            for j in np.where(mask)[0]:
+                r = {"g": g, "d": idx[i], "t": close.columns[j]}
+                for h in H:
+                    v = U[h][i, j]; r[h] = (v - Um[h][i]) if (v == v and Um[h][i] == Um[h][i]) else None
+                if g in ("ZON", "ZON+"):
+                    k = min(n, i + 1 + 63); fut = C[i + 1:k, j]
+                    r["bruten"] = bool(np.nanmin(fut) < z786[j]) if np.isfinite(fut).any() else None
+                rows.append(r)
+    mid = idx[len(idx) // 2]
+    def st(rs, h):
+        v = sorted(x[h] for x in rs if x[h] is not None)
+        if not v: return None
+        return {"n": len(v), "median_pe": round(v[len(v) // 2] * 100, 2), "medel_pe": round(sum(v) / len(v) * 100, 2),
+                "andel_slår_univ_%": round(sum(1 for x in v if x > 0) / len(v) * 100, 1)}
+    out = {}
+    print("\n########## T11 Rekylzonen som köpläge (händelsestudie, månadsslut, köp T+1) ##########")
+    print("   Överavkastning mot universumets likaviktade snitt, procentenheter. Regel: TESTPLAN_3.0 T11.")
+    for per, f_ in (("Hela", lambda d: True), ("Första halvan", lambda d: d < mid), ("Andra halvan", lambda d: d >= mid)):
+        out[per] = {}
+        print(f"\n   {per}")
+        print(f"   {'grupp':<7}{'n (6 mån)':>10}" + "".join(f"{f'median {h} d':>14}{f'medel {h} d':>13}{f'slår {h} d':>11}" for h in H) + f"{'bruten 3 mån':>14}")
+        for g in ("ZON", "TOPP", "ZON+", "TOPP+"):
+            rs = [x for x in rows if x["g"] == g and f_(x["d"])]
+            o = {h: st(rs, h) for h in H}
+            br = [x["bruten"] for x in rs if x.get("bruten") is not None]
+            o["bruten_3m_%"] = round(sum(br) / len(br) * 100, 1) if br else None
+            out[per][g] = {str(h): o[h] for h in H}; out[per][g]["bruten_3m_%"] = o["bruten_3m_%"]
+            line = f"   {g:<7}{(o[126] or {}).get('n', 0):>10}"
+            for h in H:
+                q = o[h] or {}
+                line += f"{str(q.get('median_pe', '–')):>14}{str(q.get('medel_pe', '–')):>13}{str(q.get('andel_slår_univ_%', '–')):>10}%"
+            line += f"{str(o['bruten_3m_%'] if o['bruten_3m_%'] is not None else '–'):>13}"
+            print(line)
+    gZ, gT = out["Hela"]["ZON"], out["Hela"]["TOPP"]
+    med = lambda o, h: (o.get(str(h)) or {}).get("median_pe")
+    c1 = med(gZ, 126) is not None and med(gT, 126) is not None and med(gZ, 126) > 0 and med(gZ, 126) - med(gT, 126) >= 2
+    c2 = med(gZ, 63) is not None and med(gT, 63) is not None and med(gZ, 63) > med(gT, 63)
+    c3 = ((gZ.get("126") or {}).get("medel_pe") or -1) > 0
+    c4 = all(med(out[p]["ZON"], 126) is not None and med(out[p]["TOPP"], 126) is not None and med(out[p]["ZON"], 126) > med(out[p]["TOPP"], 126) for p in ("Första halvan", "Andra halvan"))
+    c1, c2, c3, c4 = bool(c1), bool(c2), bool(c3), bool(c4)
+    ok = c1 and c2 and c3 and c4
+    print(f"\n   Regel: 1) 6 mån ZON>0 och ≥ TOPP+2 pe: {c1} · 2) 3 mån ZON>TOPP: {c2} · 3) medel 6 mån ZON>0: {c3} · 4) båda halvor: {c4}")
+    print(f"   => T11 {'KLARAR regeln – strategikörning (reaficka) är motiverad' if ok else 'KLARAR INTE regeln – zonen förblir information'}")
+    out["regel"] = {"1": c1, "2": c2, "3": c3, "4": c4, "klarar": ok}
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=float, default=10)
@@ -1300,7 +1378,7 @@ def main():
     ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
     ap.add_argument("--survive", action="store_true", help="överlevnadsbias: S&P 500-medlemmar som kandidater först från sitt inträdesdatum (Wikipedia)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
-    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3")
+    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3; 2026-11-25: fibzone (T11)")
     a = ap.parse_args()
 
     if a.universe:
@@ -1452,6 +1530,10 @@ def main():
                "T6-a. Sälj först under 0,97 × SMA200": dict(M2, sma_buf=3),
                "T6-b. Sälj först under 0,95 × SMA200": dict(M2, sma_buf=5),
                "T6-c. SMA200-brott två månadsskiften i rad": dict(M2, sma_two=True)}
+        if which == "fibzone":
+            res = fib_study(close)
+            with open(a.out, "w", encoding="utf-8") as f: json.dump({"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "test": "T11 rekylzon", "aktier": int(close.shape[1]), "resultat": res}, f, ensure_ascii=False, indent=1)
+            print(f"\nSkrev {a.out}"); return
         if which in ("after", "t3"):
             T5, trig, _ = after_sale(close, vol, M2)
             if trig: VAR.update(T6V)
