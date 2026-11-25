@@ -1,11 +1,11 @@
-# Datakontroll 2026-11-24T08:40:20Z – WARN
+# Datakontroll 2026-11-25T08:55:24Z – WARN
 
 
 | Marknad | Aktier | Senaste stängning | Tysta | Flaggade |
 |---|---|---|---|---|
-| Norden | 201 | 2026-11-23 | 0 | 0 |
-| USA | 1595 | 2026-11-23 | 9 | 13 |
-| Europa | 497 | 2026-11-23 | 2 | 2 |
+| Norden | 201 | 2026-11-24 | 0 | 0 |
+| USA | 1595 | 2026-11-24 | 9 | 13 |
+| Europa | 497 | 2026-11-24 | 2 | 2 |
 
 **Flaggade aktier (15):**
 - 1COV.DE: tyst sedan 2026-11-11
