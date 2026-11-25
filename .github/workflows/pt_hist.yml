@@ -1,0 +1,39 @@
+name: Riktkurshistorik (T12)
+
+# T12 (TESTPLAN_3.0, 2026-11-25): Yahoos riktkurshistorik för hela universumet, publiceras på grenen pthist.
+# Startas genom ändring av .github/pt_hist_request.txt (eller manuellt).
+on:
+  push:
+    paths: [".github/pt_hist_request.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 170
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Hämta
+        env:
+          PT_LIMIT_MIN: "150"
+        run: |
+          set -o pipefail
+          python pt_hist.py 2>&1 | tee pt_hist.log
+      - name: Publicera på grenen pthist
+        if: always()
+        run: |
+          mkdir /tmp/pt && cp pt_hist.json.gz pt_hist.log /tmp/pt/ 2>/dev/null; cd /tmp/pt
+          git init -q -b pthist
+          git config user.name "momentum-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A && git commit -qm "riktkurshistorik $(date -u +%F)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -f origin pthist
