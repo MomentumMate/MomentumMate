@@ -46,7 +46,7 @@ Ett positivt T8-utfall är därför en övre gräns. Analytikerfiltret (riktkurs
 data samlas från 2026-11-23 för hela universumet (`analysts.yml`, `pt30`) och prövas 2027.
 
 ## Inte nu
-Marknadsutgång efter fall eller bredd (förkastad, T2 2026-11-18). Gapsäljning, omvänd volatilitet, radar/analytikerrevideringar som avgörare: 2027 på loggens data.
+Marknadsutgång efter fall eller bredd (förkastad, T2 2026-11-18). Gapsäljning, omvänd volatilitet, radar som avgörare: 2027 på loggens data (analytikerrevideringar struket efter T12 2026-11-25).
 
 ## T9 och T10 – volatila rusare mot jämna trender (ägarbeslut 2026-11-23, regler skrivna före körning)
 
@@ -141,6 +141,27 @@ får listan en varningstext.
 **Beslutsregel B – revideringar**: REV+ median-överavkastning > +1 pe på både 3 och 6 mån, REV+ > REV− på 3 och 6 mån, och REV+ > 0 på 6 mån i båda halvorna.
 Klarar B regeln blir revideringar kandidat till strategitestet 2027 (avgörare inom topp 20, egen regel skrivs då); annars stryks det testet.
 **Känd snedvridning**: överlevnadsbias (dagens indexmedlemmar) gynnar hög uppsida (fallna bolag som försvann saknas); Yahoos täckning av analyshus är ofullständig.
+
+### T12 utfall (Actions `pt_hist.yml` #45614364413 + `test3.yml` #45618409912, grenarna `pthist`, `test3-ptarget`, 2026-11-25)
+
+Data: Yahoos riktkurshistorik för 1 575 av 2 297 aktier, i praktiken bara USA (1 554 bolag, 281 000 riktkurser från 2012; Norden/Europa några få bolag).
+133 månader med minst 200 aktier med konsensus (2015-08 – 2026-10) → beslut, inte indikation. Överavkastning mot likaviktat snitt av aktier med konsensus (pe):
+
+| Grupp | n (6 mån) | 3 mån median | 6 mån median | 6 mån medel | slår snittet 6 mån | 12 mån median |
+|---|---|---|---|---|---|---|
+| U1 (minst uppsida) | 12 297 | −1,1 | −1,8 | +2,1 | 47,1 % | −4,0 |
+| U5 | 12 256 | −0,7 | −1,7 | −0,5 | 46,3 % | −4,7 |
+| **U10 (störst uppsida)** | 12 293 | −1,7 | **−3,2** | +1,9 | **44,3 %** | −5,9 |
+| U10, ≥ 5 analyshus (som appen) | 8 973 | −2,2 | −4,0 | +1,2 | 43,1 % | −7,0 |
+| REV+ (≥ 2 höjt, inget sänkt) | 17 907 | −1,3 | −2,2 | 0,0 | 45,4 % | −5,1 |
+| REV− (≥ 2 sänkt, inget höjt) | 10 085 | −1,4 | −3,4 | −0,7 | 43,3 % | −6,5 |
+
+Medianerna är negativa för alla grupper eftersom snittet dras upp av få stora vinnare. U10 6 mån: −3,2 pe hela, −3,2 / −3,3 i halvorna.
+**Regel A: klarar inte** (U10 sämst av nästan alla tiondelar, sämre än U1 på 6 och 12 mån). **Varningsvillkoret utlöses** (U10 < −2 pe i båda halvorna):
+Price target-listan får en varningstext i appen (2026-11-25-f). Hög uppsida mot riktkurs = aktier som fallit; medlet är positivt av några få stora återhämtningar.
+**Regel B: klarar inte.** REV+ slår REV− med ca 1,2 pe på 6 mån och 1,4 pe på 12 mån men inte på 3 mån (−1,32 mot −1,36), och REV+ är inte positiv mot snittet
+i någon halva. Kriteriet "median > +1 pe mot snittet" var strängt (medianerna ligger under ett medel som dras upp av vinnare) – men även den relativa skillnaden
+är liten, under testplanens brusnivå. **Strategitestet 2027 med revideringar som avgörare stryks.**
 
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 

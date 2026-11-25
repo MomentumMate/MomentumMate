@@ -149,12 +149,13 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 | Volatilitetstak vid köp (σ60 > 80/100/120 %) | T9 2026-11-23 | CAGR 30,6–38,6 mot 42,8 %, lägre Calmar, faller på halvor och förskjutet kvartal |
 | Jämna/lugna trender som avgörare (R², lägst volatilitet, tak 100 + R²) | T10 2026-11-23 | CAGR 22–26 mot 42,8 %, Sharpe inte högre – branta trender är avkastningskällan |
 | Rekylzonen (Fibonacci 61,8–78,6 %) som köpläge | T11 2026-11-25 (händelsestudie) | 6 mån median −2,6 pe mot universum, 0,5 pe sämre än köp nära toppen, sämre i båda halvorna; 69 % bryter zonen inom 3 mån |
+| Riktkursens uppsida (Price target) och revideringar som köpsignal | T12 2026-11-25 (händelsestudie, USA 2015–2026) | störst uppsida −3,2 pe på 6 mån (median), sämre än minst uppsida; höjda riktkurser bara ~1 pe bättre än sänkta |
 
 ## 12. Information som visas men inte styr
 
 RSI, MACD, stöd/motstånd, volym, OBV, ATH-avstånd, fundamenta, blankning, nyheter, sektor, daghandelslistan,
 rankningsplats för befintliga innehav, ⏳ mellan prövningarna, 1.0-rankningen (visas bredvid 2.0 under övergången),
-omsättning relativt börsens median, **rekylzonen** (Fibonacci 61,8–78,6 % av senaste stora uppgången, fält `fz`, i aktiekortet och grafen; startsidans modul borttagen 2026-11-25 efter T11), **rapportkalendern** (nästa rapport och kursreaktion på de senaste åtta, fält `ed`/`er`, startsidans RAPPORTER 14 DAGAR), **sektorfliken** i Börsdesken (sektorstyrka och rotation, fält `r3ly`), radarns **Stora insiderköp** (≥ 5 Mkr eller ledningen), **låg bevakning** och **uppskattad 13F-inköpskurs** (kvartalssnitt, fält `qavg`), **påminnelsen** inför månadsprövningen (alla 2026-11-23), **institutionella radarn** (nedan). Allt detta får visas; inget av det får ändra en rad i förslaget.
+omsättning relativt börsens median, **rekylzonen** (Fibonacci 61,8–78,6 % av senaste stora uppgången, fält `fz`, i aktiekortet och grafen; startsidans modul borttagen 2026-11-25 efter T11), **rapportkalendern** (nästa rapport och kursreaktion på de senaste åtta, fält `ed`/`er`, startsidans RAPPORTER 14 DAGAR), **sektorfliken** i Börsdesken (sektorstyrka och rotation, fält `r3ly`), Börsdeskens **Price target** (med varning efter T12 2026-11-25), radarns **Stora insiderköp** (≥ 5 Mkr eller ledningen), **låg bevakning** och **uppskattad 13F-inköpskurs** (kvartalssnitt, fält `qavg`), **påminnelsen** inför månadsprövningen (alla 2026-11-23), **institutionella radarn** (nedan). Allt detta får visas; inget av det får ändra en rad i förslaget.
 
 **Institutionell radar** *(2026-11-11, `radar.py`/`radar.yml`, fliken Radar):* fyra källor, samlade varje morgon till `radar.json`.
 13F – kvartalsrapporter till SEC från förvaltarna i `radar_watch.json` (standardlista i `radar.py`; CIK verifieras mot SEC:s namn eller slås upp),
