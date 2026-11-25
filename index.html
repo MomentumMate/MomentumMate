@@ -432,7 +432,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-24-z";
+const APPV="2026-11-25-a";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -3418,25 +3418,31 @@ function rSignals(){
    + Färska signaler 0–20 (insiderköp, 13D/13G; halveras på ca 60 dagar). Information – styr inget (SPEC § 12). */
 const isoD=d=>{if(!d)return"";const m=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(d);return m?`${m[3]}-${m[1]}-${m[2]}`:String(d).slice(0,10)};
 const daysAgo=d=>d?Math.max(0,Math.round((Date.now()-new Date(isoD(d)+"T12:00:00Z"))/864e5)):null;
+/* Aktieslag (2026-11-25): GOOG/GOOGL, FOX/FOXA, NWS/NWSA, UA/UAA, CENT/CENTA är samma bolag. I radarlistan slås de ihop till
+   slaget med högst omsättning, och en förvaltare som har båda slagen räknas en gång per händelsetyp. */
+let _rCanon=null;
+function rCanon(t){if(!_rCanon){_rCanon={};const g={};for(const k in S){const z=S[k];if(z&&z.n&&!/\./.test(k))(g[z.n]=g[z.n]||[]).push(k)}
+  for(const n in g){const L=g[n];if(L.length<2)continue;const c=L.slice().sort((a,b)=>(S[b].adv||0)-(S[a].adv||0))[0];L.forEach(k=>_rCanon[k]=c)}}
+  return _rCanon[t]||t}
 function rStod(cut){
   const per={},P_=t=>per[t]=per[t]||{t,own:new Set(),maxw:0,newO:0,outO:0,flow:0,fresh:0,ny:new Set(),ok:new Set(),mi:new Set(),ut:new Set(),insB:0,insS:0,act:false,dg:false,last:"",items:[]};
   const keep=d=>!cut||(d&&d<=cut),touch=(x,d)=>{if(d>x.last)x.last=d};
   const wt=w=>1+Math.min(w||0,10)/10;
   ((RD&&RD.managers)||[]).forEach(m=>{if(m.stale||m.err)return;const d=isoD(m.filed),fresh=keep(d);
     const evT={};(m.events||[]).forEach(e=>{if(e.t)evT[e.t]=e});
-    (m.holdings||[]).forEach(h=>{if(!h.t||!S[h.t])return;const e=evT[h.t];if(!fresh&&e&&e.kind==="ny")return;const x=P_(h.t);x.own.add(m.n);x.maxw=Math.max(x.maxw,h.w||0)});
+    (m.holdings||[]).forEach(h=>{if(!h.t||!S[h.t])return;const e=evT[h.t];if(!fresh&&e&&e.kind==="ny")return;const x=P_(rCanon(h.t));x.own.add(m.n);x.maxw=Math.max(x.maxw,h.w||0)});
     if(!fresh)return;
-    (m.events||[]).forEach(e=>{if(!e.t||!S[e.t])return;const x=P_(e.t),k=e.kind,r=(e.psh>0&&e.sh>0)?e.sh/e.psh:null;let v=0;
+    const seen=new Set();(m.events||[]).forEach(e=>{if(!e.t||!S[e.t])return;const ct=rCanon(e.t),sk=ct+"|"+e.kind;if(seen.has(sk))return;seen.add(sk);const x=P_(ct),k=e.kind,r=(e.psh>0&&e.sh>0)?e.sh/e.psh:null;let v=0;
       if(k==="ny"){v=1;x.ny.add(m.n);x.newO++}else if(k==="ökat"){v=Math.min(0.5+0.5*Math.log2(r||1.5),1);x.ok.add(m.n)}
       else if(k==="minskat"){v=-Math.min(0.4+(r!=null?(1-r):0.3),1);x.mi.add(m.n)}else if(k==="ut"){v=-1;x.ut.add(m.n);x.outO++}else return;
       x.flow+=v*wt(e.w);touch(x,d);x.items.push({inv:m.n,id:m.id,src:"13F",kind:k,w:e.w||0,ratio:r,date:d,period:m.period})})});
   ((RD&&RD.funds)||[]).forEach(m=>{if(m.stale)return;const d=isoD(m.asof);if(!keep(d))return;
-    (m.events||[]).forEach(e=>{if(!e.t||!S[e.t])return;const k=e.kind,x=P_(e.t);const v=k==="köp"||k==="ny"?0.4:k==="sälj"||k==="ut"?-0.4:0;if(!v)return;
+    (m.events||[]).forEach(e=>{if(!e.t||!S[e.t])return;const k=e.kind,x=P_(rCanon(e.t));const v=k==="köp"||k==="ny"?0.4:k==="sälj"||k==="ut"?-0.4:0;if(!v)return;
       x.flow+=v;touch(x,d);(v>0?x.ok:x.mi).add("ARK");x.items.push({inv:m.n,id:m.id,src:"ARK",kind:k,d:e.d,w:e.w,date:d})})});
   const dec=d=>Math.pow(0.5,(daysAgo(d)||0)/60);
-  (RD.filings13||[]).forEach(e=>{if(!S[e.t]||!keep(e.date))return;const x=P_(e.t),a=/13D/.test(e.form);x.fresh+=(a?6:4)*dec(e.date);if(a)x.act=true;else x.dg=true;touch(x,e.date);
+  (RD.filings13||[]).forEach(e=>{if(!S[e.t]||!keep(e.date))return;const x=P_(rCanon(e.t)),a=/13D/.test(e.form);x.fresh+=(a?6:4)*dec(e.date);if(a)x.act=true;else x.dg=true;touch(x,e.date);
     x.items.push({inv:e.who||e.form,src:"13DG",kind:a?"aktivist ≥ 5 %":"anmälan ≥ 5 %",date:e.date})});
-  (RD.insyn||[]).forEach(e=>{if(!S[e.t]||!keep(e.date))return;const x=P_(e.t),sek=(e.amt||0)*fx(e.ccy||S[e.t].ccy),lead=INS_LEAD.test(e.role||"");
+  (RD.insyn||[]).forEach(e=>{if(!S[e.t]||!keep(e.date))return;const x=P_(rCanon(e.t)),sek=(e.amt||0)*fx(e.ccy||S[e.t].ccy),lead=INS_LEAD.test(e.role||"");
     if(e.kind==="köp"){x.insB++;x.fresh+=(sek>=5e6||lead?6:sek>=5e5?3:1)*dec(e.date)}else{x.insS++;x.insF=(x.insF||0)+0.3*dec(e.date)}
     touch(x,e.date);x.items.push({inv:e.who,src:"INSYN",kind:e.kind,amt:e.amt,ccy:e.ccy,date:e.date,role:e.role})});
   const L=Object.values(per).map(x=>{const n=x.own.size;
@@ -3469,7 +3475,7 @@ function rStodRow(x,i,mode){const s=S[x.t],open=!!(Ui.ropen&&Ui.ropen[x.t]),age=
   if(x.insB)p.push(`<span class="up" style="font-weight:600">insiderköp${x.insB>1?" ×"+x.insB:""}</span>`);if(x.insS)p.push(`<span class="dn" style="font-weight:600">insidersälj${x.insS>1?" ×"+x.insS:""}</span>`);if(x.act)p.push("13D");if(x.dg)p.push("13G");
   const tags=`${x.act?' <span class="tag" style="white-space:nowrap;background:rgba(232,107,92,.18);color:#e86b5c">AKTIVIST</span>':""}${x.n>=8?' <span class="tag" style="white-space:nowrap;font-size:9.5px">BRETT ÄGD</span>':""}${lowAtt(x.t)?' <span class="tag" style="white-space:nowrap;background:rgba(232,182,74,.2);color:#e8b64a">LÅG BEVAKNING</span>':""}`;
   const val=mode==="salj"?`<b class="${cls(x.fl-25)}">${f(x.fl-25,1)}</b><div class="mu" style="font-size:10.5px">flöde</div>`:`<b>${f(x.sc,0)}</b><div class="mu" style="font-size:10.5px">${mv}</div>`;
-  return`<div class="sr wrap" style="flex-wrap:wrap;align-items:flex-start"><div class="n">${i+1}</div><div class="m"><div>${fl(s)}<b class="tlk" data-act="gostock" data-t="${esc(x.t)}">${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span>${tags}</div><div class="mu" style="font-size:11px">${p.join(" · ")||"inga rörelser"}${age!=null?` · <span style="opacity:.75">senast ${age} d</span>`:""}</div></div><div class="p" style="text-align:right">${val}</div><div class="p" data-act="rtog" data-t="${esc(x.t)}" style="cursor:pointer;align-self:flex-start;padding:4px 0 6px 8px;line-height:1;color:var(--gd);font-size:14px">${open?"▴":"▾"}</div>${open?`<div style="flex-basis:100%;padding:4px 0 2px 44px;border-top:1px dashed var(--ln);margin-top:4px"><div class="mu" style="font-size:11px;margin-bottom:3px">Bredd <b>${f(x.br,0)}</b>/30 · Flöde <b>${f(x.fl,0)}</b>/50 · Färska <b>${f(x.fr,0)}</b>/20${x.prk?` · plats för en vecka sedan ${x.prk}`:""}</div>${rDetail(Object.assign({},x,{hold:rInvestors().filter(m=>!m.stale&&(m.holdings||[]).some(h=>h.t===x.t)).map(m=>({inv:m.n,id:m.id,w:(m.holdings.find(h=>h.t===x.t)||{}).w||0}))}))}</div>`:""}</div>`}
+  return`<div class="sr wrap" style="flex-wrap:wrap;align-items:flex-start"><div class="n">${i+1}</div><div class="m"><div>${fl(s)}<b class="tlk" data-act="gostock" data-t="${esc(x.t)}">${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span>${tags}</div><div class="mu" style="font-size:11px">${p.join(" · ")||"inga rörelser"}${age!=null?` · <span style="opacity:.75">senast ${age} d</span>`:""}</div></div><div class="p" style="text-align:right">${val}</div><div class="p" data-act="rtog" data-t="${esc(x.t)}" style="cursor:pointer;align-self:flex-start;padding:4px 0 6px 8px;line-height:1;color:var(--gd);font-size:14px">${open?"▴":"▾"}</div>${open?`<div style="flex-basis:100%;padding:4px 0 2px 44px;border-top:1px dashed var(--ln);margin-top:4px"><div class="mu" style="font-size:11px;margin-bottom:3px">Bredd <b>${f(x.br,0)}</b>/30 · Flöde <b>${f(x.fl,0)}</b>/50 · Färska <b>${f(x.fr,0)}</b>/20${x.prk?` · plats för en vecka sedan ${x.prk}`:""}</div>${rDetail(Object.assign({},x,{hold:rInvestors().filter(m=>!m.stale&&(m.holdings||[]).some(h=>rCanon(h.t)===x.t)).map(m=>({inv:m.n,id:m.id,w:(m.holdings||[]).filter(h=>rCanon(h.t)===x.t).reduce((a,h)=>a+(h.w||0),0)}))}))}</div>`:""}</div>`}
 /* Förvaltarlistan (radar_watch.json i repot) redigeras i appen med GitHub-tokenen. CIK slås upp av radarn vid nästa körning. */
 async function radarWatchSheet(){
   if(!ghReady()){toast("Koppla appen till GitHub först (⚙ Inställningar)");return}
