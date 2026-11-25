@@ -81,6 +81,27 @@ A i körningarna: **42,8 % / Sharpe 1,23 / Calmar 1,02 / −42,0 %**, median vol
 Ett volatilitetstak kostar 4–12 pe och håller inte i halvorna eller vid förskjutet kvartal. Modellens avkastning kommer från just de branta, volatila trenderna;
 de enskilda bakslagen (MRNA, FRO) är priset, och likavikt över 20 innehav är skyddet. Stabilitet hör hemma i kapitalfördelningen (allokeringsvyn), inte i urvalet.
 
+## T11 Rekylzonen (Fibonacci 61,8–78,6 %) som köpläge (ägarbeslut 2026-11-25, regel skriven före körning)
+
+Fråga: har aktier som köps i rekylzonen slagit aktier som köps nära toppen av samma uppgång? Zonen visas i appen som information (SPEC § 12);
+testet avgör om den förtjänar mer än så. Händelsestudie, inte strategikörning: modell 2.0 ändras inte oavsett utfall.
+
+**Metod** (`--strat fibzone`, samma universum och kurser som backtestet, 10 år): vid varje månadsslut, för varje aktie, samma definition som skannern
+(`fib_zone`): topp = högsta stängning senaste 252 dagarna, botten = lägsta stängning före toppen, uppgång ≥ 30 %. Grupper:
+**ZON** = kursen i 61,8–78,6 % rekyl; **TOPP** = kursen högst 5 % under toppen (samma uppgångskrav); **ZON+** och **TOPP+** = samma men kurs över SMA200.
+Köp till nästa dags stängning (T+1). Mått: avkastning 1, 3 och 6 månader minus universumets likaviktade snitt samma period (överavkastning, pe);
+median, medel, andel som slår universum; för ZON även andel som bryter zonen (stänger under 78,6 %-nivån) inom 3 månader.
+Uppdelat på första och andra halvan av perioden.
+
+**Beslutsregel** – zonen räknas som ett köpläge värt en strategikörning (en egen reaficka, ny regel skrivs då) om ALLA gäller:
+1. ZON:s median-överavkastning på 6 mån är > 0 och minst **2 pe högre** än TOPP:s,
+2. samma riktning (ZON > TOPP) på 3 mån,
+3. medelöveravkastningen för ZON på 6 mån är > 0,
+4. ZON > TOPP på 6 mån i **båda** halvorna.
+
+Kravet på 2 pe är skärpt eftersom överlevnadsbias gynnar ZON: aktier som föll och sedan försvann ur index finns inte i universumet.
+Klarar zonen inte regeln förblir den information; ägaren avgör då om modulen REKYLZONER på startsidan ska bort.
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.
