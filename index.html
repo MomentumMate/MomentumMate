@@ -432,7 +432,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-25-f";
+const APPV="2026-11-25-g";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -784,18 +784,18 @@ function valueHTML(k,st){const L=st.r.all.map(t=>S[t]).filter(x=>x&&x.lt3&&x.lt3
   ${L.length?L.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true,sub:`3 år: <b class="up">${f(s.lt3.cagr,1)} %/år</b> · jämnhet ${f(s.lt3.r2,2)} · största ras ${f(s.lt3.mdd,0)} % · ${s.lt3.yp} av 3 år upp`})).join("")+(L.length>n?`<button class="btn ghost wide" data-act="more" data-k="${vk}">Visa fler (${L.length-n})</button>`:""):'<div class="empty">Inga aktier ännu – fälten räknas av skanningen (kräver tre års kurshistorik).</div>'}`}
 /* PRICE TARGET (2026-11-23, information): störst uppsida mot analytikernas konsensusriktkurs (analysts.json), minst 5 analytiker.
    Uppsidan räknas mot aktuell kurs. Kvoter över 4× eller under 0,25× tas bort (valuta/enhetsfel, t.ex. pence mot pund). */
+/* Price target-fliken borttagen ur Börsdesken 2026-11-25 efter T12 (ägarbeslut); riktkursen finns kvar på aktiekortet. */
 function ptHTML(k,st){const ok=new Set(st.r.all);const L=[];if(AN&&AN.stocks)for(const t in AN.stocks){const a=AN.stocks[t],s=S[t];if(!s||!ok.has(t)||!(a.tgt>0)||!(s.px>0)||!((a.n||0)>=5))continue;const q=a.tgt/s.px;if(q>4||q<0.25)continue;L.push({s,a,up:(q-1)*100})}
   L.sort((x,y)=>y.up-x.up);
   const pk="pt:"+k,n=Ui.shown[pk]||50;
   return`<div class="mu" style="margin:0 2px 8px;font-size:12px"><div class="stat WAIT" style="margin:0 0 8px;font-size:12px"><b>OBS – INGET KÖPLÄGE</b>Backtest T12 (USA 2015–2026, ca 1 500 aktier): tiondelen med störst uppsida gick i median 3 pe <i>sämre</i> än snittet på 6 mån och slog det bara i 44 % av fallen. Stor uppsida betyder oftast att kursen har fallit. Höjda riktkurser gav bara ca 1 pe bättre än sänkta.</div>${L.length} aktier med riktkurs, sorterade efter uppsida mot analytikernas konsensusriktkurs (minst 5 analytiker). Uppsidan räknas mot appens senaste kurs, så den ändras under dagen. Riktkursen släpar efter kursen. Information – styr inget.</div>
   ${L.length?L.slice(0,n).map((x,i)=>card(x.s,i+1,{mk:k,compact:true,sub:[x.a.rec!=null?(()=>{const r=anRec(x.a.rec),c=x.a.rec<=2.5?"#3fb67a":x.a.rec<=3.5?"#e8b64a":"#e86b5c";return`<b style="color:${c}">${r.toUpperCase()}</b>`})():"",`Riktkurs ${f(x.a.tgt,2)}`,`<b class="up">uppsida ${sg(x.up,0)}</b>`,`${x.a.n} analytiker`,x.a.pt30?`30 d: <b class="up">${x.a.pt30.up} höjt</b>/<b class="dn">${x.a.pt30.dn} sänkt</b>`:"",x.a.asof?esc(x.a.asof):""].filter(Boolean).map(z=>`<span style="white-space:nowrap">${z}</span>`).join(" · ")})).join("")+(L.length>n?`<button class="btn ghost wide" data-act="more" data-k="${pk}">Visa fler (${L.length-n})</button>`:""):'<div class="empty">Ingen riktkursdata för marknaden ännu.</div>'}`}
-function mktTabs(k,st){let tab=Ui.mtab||"mom";if(!["mom","val","pt","dt","all"].includes(tab))tab="mom";const r=st.r;let body="";
+function mktTabs(k,st){let tab=Ui.mtab||"mom";if(!["mom","val","dt","all"].includes(tab))tab="mom";const r=st.r;let body="";
   if(tab==="mom"){const L=st.L;body=(L.map(s=>card(s,L.indexOf(s)+1,{mk:k})).join("")||'<div class="empty">Inga aktier i listan.</div>')+`<div class="acts" style="margin-top:8px"><button class="btn sm ghost" data-act="tab" data-k="${k}" data-v="all">Hela rankningen (${r.all.length}) ›</button></div>`}
   else if(tab==="val")body=valueHTML(k,st);
-  else if(tab==="pt")body=ptHTML(k,st);
   else if(tab==="dt")body=dtListHTML(k);
   else{const A=r.all.map(t=>S[t]).filter(Boolean),n=Ui.shown[k]||40;body=`<div class="mu" style="margin:0 2px 8px">Alla ${A.length} aktier, sorterade efter momentumpoäng.</div>`+A.slice(0,n).map((s,i)=>card(s,i+1,{mk:k,compact:true})).join("")+(A.length>n?`<button class="btn ghost wide" data-act="more" data-k="${k}">Visa fler (${A.length-n})</button>`:"")}
-  return`<div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum</button><button class="${tab==="val"?"on":""}" data-act="tab" data-k="${k}" data-v="val">Value</button><button class="${tab==="pt"?"on":""}" data-act="tab" data-k="${k}" data-v="pt">Price target</button><button class="${tab==="dt"||tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="dt">Daghandel</button></div>${tab==="all"?`<div class="mu" style="margin:0 2px 8px;font-size:12px"><span class="lnk" data-act="tab" data-k="${k}" data-v="mom">‹ Momentum</span></div>`:""}${body}`}
+  return`<div class="tabs"><button class="${tab==="mom"?"on":""}" data-act="tab" data-k="${k}" data-v="mom">Momentum</button><button class="${tab==="val"?"on":""}" data-act="tab" data-k="${k}" data-v="val">Value</button><button class="${tab==="dt"||tab==="all"?"on":""}" data-act="tab" data-k="${k}" data-v="dt">Daghandel</button></div>${tab==="all"?`<div class="mu" style="margin:0 2px 8px;font-size:12px"><span class="lnk" data-act="tab" data-k="${k}" data-v="mom">‹ Momentum</span></div>`:""}${body}`}
 /* Daghandelslistan för en marknad (samma kort som sidan Daghandel, strikthet alla 5): kandidater + nästan kandidater. */
 function dtListHTML(k){const dt=D.rank.DT||{cand:[],near:[]};
   // 2026-11-23: inom kandidater och nästan-kandidater ordnas listan efter relativ volym (dagens volym mot snittet) – starkast volym först
