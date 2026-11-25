@@ -1,0 +1,193 @@
+{
+ "skapad": "2026-11-25T14:11:52Z",
+ "test": "T13/T14 kombination",
+ "resultat": {
+  "A. Modell 2.0": {
+   "cagr": 44.2,
+   "sharpe": 1.2,
+   "nedgång": -42.0,
+   "calmar": 1.05,
+   "vol": 34.7,
+   "sharpe_h1": 1.27,
+   "sharpe_h2": 1.13,
+   "korr_A": 1.0,
+   "fönster": {
+    "2018 Q4": -23.3,
+    "covid 2020": -36.5,
+    "björn 2022": -15.6,
+    "våren 2025": -25.4
+   }
+  },
+  "T14 Defensiv (20 lägst volatilitet)": {
+   "cagr": 6.4,
+   "sharpe": 0.52,
+   "nedgång": -42.9,
+   "calmar": 0.15,
+   "vol": 13.2,
+   "sharpe_h1": 0.45,
+   "sharpe_h2": 0.68,
+   "korr_A": 0.2,
+   "fönster": {
+    "2018 Q4": -5.0,
+    "covid 2020": -42.5,
+    "björn 2022": -11.3,
+    "våren 2025": -3.3
+   },
+   "jämnare_resa": false,
+   "egen_kandidat": false
+  },
+  "70/30 2.0 / T14 Defensiv (20 lägst volatilitet)": {
+   "cagr": 34.1,
+   "sharpe": 1.19,
+   "nedgång": -38.3,
+   "calmar": 0.89,
+   "vol": 27.2,
+   "sharpe_h1": 1.24,
+   "sharpe_h2": 1.14,
+   "korr_A": 0.99,
+   "fönster": {
+    "2018 Q4": -17.9,
+    "covid 2020": -38.1,
+    "björn 2022": -14.3,
+    "våren 2025": -19.0
+   },
+   "jämnare_resa": false
+  },
+  "50/50 2.0 / T14 Defensiv (20 lägst volatilitet)": {
+   "cagr": 26.9,
+   "sharpe": 1.16,
+   "nedgång": -39.4,
+   "calmar": 0.68,
+   "vol": 22.0,
+   "sharpe_h1": 1.2,
+   "sharpe_h2": 1.16,
+   "korr_A": 0.97,
+   "fönster": {
+    "2018 Q4": -14.3,
+    "covid 2020": -39.3,
+    "björn 2022": -13.5,
+    "våren 2025": -14.6
+   },
+   "jämnare_resa": false
+  },
+  "Berkshire (BRK-B)": {
+   "cagr": 14.2,
+   "sharpe": 0.78,
+   "nedgång": -29.6,
+   "calmar": 0.48,
+   "vol": 18.9,
+   "sharpe_h1": 0.76,
+   "sharpe_h2": 0.82,
+   "korr_A": 0.11,
+   "fönster": {
+    "2018 Q4": -12.6,
+    "covid 2020": -29.3,
+    "björn 2022": -12.2,
+    "våren 2025": 1.8
+   },
+   "jämnare_resa": false
+  },
+  "70/30 2.0 / Berkshire (BRK-B)": {
+   "cagr": 36.0,
+   "sharpe": 1.21,
+   "nedgång": -35.4,
+   "calmar": 1.02,
+   "vol": 27.8,
+   "sharpe_h1": 1.26,
+   "sharpe_h2": 1.18,
+   "korr_A": 0.99,
+   "fönster": {
+    "2018 Q4": -20.4,
+    "covid 2020": -34.6,
+    "björn 2022": -14.6,
+    "våren 2025": -17.4
+   },
+   "jämnare_resa": false
+  },
+  "50/50 2.0 / Berkshire (BRK-B)": {
+   "cagr": 30.2,
+   "sharpe": 1.21,
+   "nedgång": -33.2,
+   "calmar": 0.91,
+   "vol": 23.4,
+   "sharpe_h1": 1.24,
+   "sharpe_h2": 1.2,
+   "korr_A": 0.94,
+   "fönster": {
+    "2018 Q4": -18.3,
+    "covid 2020": -33.2,
+    "björn 2022": -13.9,
+    "våren 2025": -12.0
+   },
+   "jämnare_resa": false
+  },
+  "Index S&P 500 (SPY)": {
+   "cagr": 13.9,
+   "sharpe": 0.81,
+   "nedgång": -33.7,
+   "calmar": 0.41,
+   "vol": 17.5,
+   "sharpe_h1": 0.87,
+   "sharpe_h2": 0.75,
+   "korr_A": 0.44,
+   "fönster": {
+    "2018 Q4": -19.2,
+    "covid 2020": -33.7,
+    "björn 2022": -24.5,
+    "våren 2025": -18.8
+   },
+   "jämnare_resa": false
+  },
+  "70/30 2.0 / Index S&P 500 (SPY)": {
+   "cagr": 35.5,
+   "sharpe": 1.17,
+   "nedgång": -36.5,
+   "calmar": 0.97,
+   "vol": 28.7,
+   "sharpe_h1": 1.25,
+   "sharpe_h2": 1.09,
+   "korr_A": 0.99,
+   "fönster": {
+    "2018 Q4": -22.2,
+    "covid 2020": -35.7,
+    "björn 2022": -18.2,
+    "våren 2025": -23.5
+   },
+   "jämnare_resa": false
+  },
+  "50/50 2.0 / Index S&P 500 (SPY)": {
+   "cagr": 29.6,
+   "sharpe": 1.14,
+   "nedgång": -35.2,
+   "calmar": 0.84,
+   "vol": 24.7,
+   "sharpe_h1": 1.23,
+   "sharpe_h2": 1.05,
+   "korr_A": 0.96,
+   "fönster": {
+    "2018 Q4": -21.4,
+    "covid 2020": -35.2,
+    "björn 2022": -20.0,
+    "våren 2025": -22.2
+   },
+   "jämnare_resa": false
+  },
+  "Universumet likaviktat": {
+   "cagr": 18.3,
+   "sharpe": 1.02,
+   "nedgång": -39.2,
+   "calmar": 0.47,
+   "vol": 17.5,
+   "sharpe_h1": 1.15,
+   "sharpe_h2": 0.88,
+   "korr_A": 0.43,
+   "fönster": {
+    "2018 Q4": -20.0,
+    "covid 2020": -39.1,
+    "björn 2022": -20.5,
+    "våren 2025": -16.5
+   },
+   "jämnare_resa": false
+  }
+ }
+}

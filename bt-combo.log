@@ -1,0 +1,91 @@
+  OMXS: 110 aktier
+  EODHD: planen omfattar inte fundamentaldata (403) – indexlistor, namn och nyckeltal hämtas från andra källor
+  SP500: 503 aktier
+  Nasdaq-100 hämtad från Nasdaq API
+  NASDAQ: 101 aktier
+  DOW: 30 aktier
+  OMXC: 27 aktier
+  OSE: 31 aktier
+  OMXH: 17 aktier
+  DAX: 48 aktier
+  CAC: 43 aktier
+  FTSE: 68 aktier
+  AEX: 23 aktier
+  SMI: 18 aktier
+  IBEX: 20 aktier
+  MIB: 20 aktier
+  SP400: 400 aktier
+  SP600: 600 aktier
+  STOXX600: 590 tickers med börssuffix
+  STOXX600: 590 aktier
+  ADR: 84 aktier
+  SMSN: 2 aktier
+Universum: 2293 aktier – Europa/övrigt 497, Norden 201, USA 1595
+Hämtar 2293 aktier 2015-10-22 → 2026-11-25 …
+  Datakälla: EODHD (nyckel hittad), Yahoo som reserv
+  EODHD 200/2293
+  EODHD 400/2293
+  EODHD 600/2293
+  EODHD 800/2293
+  EODHD 1000/2293
+  EODHD 1200/2293
+  EODHD 1400/2293
+  EODHD 1600/2293
+  EODHD 1800/2293
+  EODHD 2000/2293
+  EODHD 2200/2293
+  EODHD gav 2250 av 2293 – 43 hämtas från Yahoo
+  1–43 av 43 …
+  FELKURSER LAGADE: 4 aktier (dagar ersatta med föregående stängning):
+    KINV-B.ST      2019-06-10 (3 dagar)
+    NOLA-B.ST      2019-06-10 (3 dagar)
+    PACT.ST        2019-06-10 (3 dagar)
+    SVOL-B.ST      2019-06-10 (2 dagar)
+  FELKURSFILTER: 11 aktier bortfiltrerade (felet består):
+    ABVX.PA        2025-07-23 +510 %, kommer inte tillbaka inom 5 dagar
+    ATO.PA         2024-11-12 +8528 %, kommer inte tillbaka inom 5 dagar
+    CHRD           2020-11-20 +25717 %, kommer inte tillbaka inom 5 dagar
+    CLSK           2015-05-13 +1088 %, kommer inte tillbaka inom 5 dagar
+    IVT            2021-08-06 -90 %, kommer inte tillbaka inom 5 dagar
+    KNTK           2018-11-13 +9092 %, kommer inte tillbaka inom 5 dagar
+    PCRX           2026-11-12 -99 %, kommer inte tillbaka inom 5 dagar
+    QLINEA.ST      2025-02-21 -82 %, kommer inte tillbaka inom 5 dagar
+    SEZL           2023-09-14 -81 %, kommer inte tillbaka inom 5 dagar
+    SUPN           2014-12-29 +1980475 %, kommer inte tillbaka inom 5 dagar
+    TALO           2016-06-13 +9011 %, kommer inte tillbaka inom 5 dagar
+  2281 aktier med data, 3114 handelsdagar
+Nedladdat: Europa/övrigt 494, Norden 200, USA 1587
+
+=== JÄMFÖRELSE: likaviktat snitt av universumet (INTE ett riktigt index) ===
+   slutkapital       6.601
+   CAGR_%            18.35
+   volatilitet_%     17.5
+   Sharpe            1.05
+   max_nedgång_%     -39.2
+   Calmar            0.47
+   affärer           0
+   köp               0
+   köp_per_år        0.0
+   innehavstid_dagar None
+   längsta_innehav_dagarNone
+   utgångar          {}
+   SPY: 3019 dagar
+
+########## T13/T14 Kombinationer med modell 2.0 (2015-11-17 – 2026-11-24) ##########
+   T14: 44 kvartalsbyten, snittomsättning 57 % per kvartal
+                                                          CAGR  Sharpe   Nedg.  Calmar    Vol  Sh H1  Sh H2  korr A     2018 Q4  covid 2020  björn 2022  våren 2025   regel
+   A. Modell 2.0                                          44.2     1.2   -42.0    1.05   34.7   1.27   1.13     1.0       -23.3       -36.5       -15.6       -25.4   referens
+   T14 Defensiv (20 lägst volatilitet)                     6.4    0.52   -42.9    0.15   13.2   0.45   0.68     0.2        -5.0       -42.5       -11.3        -3.3   nej
+   70/30 2.0 / T14 Defensiv (20 lägst volatilitet)        34.1    1.19   -38.3    0.89   27.2   1.24   1.14    0.99       -17.9       -38.1       -14.3       -19.0   nej
+   50/50 2.0 / T14 Defensiv (20 lägst volatilitet)        26.9    1.16   -39.4    0.68   22.0    1.2   1.16    0.97       -14.3       -39.3       -13.5       -14.6   nej
+   Berkshire (BRK-B)                                      14.2    0.78   -29.6    0.48   18.9   0.76   0.82    0.11       -12.6       -29.3       -12.2         1.8   nej
+   70/30 2.0 / Berkshire (BRK-B)                          36.0    1.21   -35.4    1.02   27.8   1.26   1.18    0.99       -20.4       -34.6       -14.6       -17.4   nej
+   50/50 2.0 / Berkshire (BRK-B)                          30.2    1.21   -33.2    0.91   23.4   1.24    1.2    0.94       -18.3       -33.2       -13.9       -12.0   nej
+   Index S&P 500 (SPY)                                    13.9    0.81   -33.7    0.41   17.5   0.87   0.75    0.44       -19.2       -33.7       -24.5       -18.8   nej
+   70/30 2.0 / Index S&P 500 (SPY)                        35.5    1.17   -36.5    0.97   28.7   1.25   1.09    0.99       -22.2       -35.7       -18.2       -23.5   nej
+   50/50 2.0 / Index S&P 500 (SPY)                        29.6    1.14   -35.2    0.84   24.7   1.23   1.05    0.96       -21.4       -35.2       -20.0       -22.2   nej
+   Universumet likaviktat                                 18.3    1.02   -39.2    0.47   17.5   1.15   0.88    0.43       -20.0       -39.1       -20.5       -16.5   nej
+
+   Regel (TESTPLAN_3.0 T13/T14): jämnare resa = Sharpe ≥ A + 0,05, nedgång ≥ 5 pe grundare, Sharpe inte lägre än A i någon halva.
+
+Skrev bt-combo.json
