@@ -163,6 +163,27 @@ Price target-listan får en varningstext i appen (2026-11-25-f). Hög uppsida mo
 i någon halva. Kriteriet "median > +1 pe mot snittet" var strängt (medianerna ligger under ett medel som dras upp av vinnare) – men även den relativa skillnaden
 är liten, under testplanens brusnivå. **Strategitestet 2027 med revideringar som avgörare stryks.**
 
+## T13 och T14 – är momentum rätt val, eller en kombination? (ägarbeslut 2026-11-25, regler skrivna före körning)
+
+Bakgrund: forskningsgenomgång 2026-11-25 (Buffett's Alpha; Value and Momentum Everywhere; Momentum Crashes; McLean & Pontiff; Novy-Marx; Bessembinder).
+Buffetts stil = säkra, billiga, lönsamma bolag – motsatsen till 2.0 – och kombinationer av stilar har historiskt gett jämnare resa.
+En riktig kvalitets-/värdestrategi kräver historiska bokslut (saknas). Det som kan prövas på kursdata:
+
+| Test | Vad | Metod (`--strat combo`) |
+|---|---|---|
+| **T13 Kombination** | 2.0 tillsammans med (a) Berkshire Hathaway (BRK-B) som ställföreträdare för Buffetts stil, (b) brett index (SPY, S&P 500) | Dagliga avkastningar, samma tio år. Blandningar 70/30 och 50/50 (2.0/annat), ombalansering första handelsdagen varje år. |
+| **T14 Defensiv portfölj** | Buffetts "säkra" ben ur vårt universum: de 20 aktierna med lägst volatilitet (252 d) bland dem som ligger över SMA200, har 12-1 > 0 och klarar likviditetsgolvet | Likavikt, ombyte sista handelsdagen varje kvartal, köp T+1, 0,2 % kostnad per sida. Ensam och blandad 70/30 och 50/50 med 2.0. |
+
+Mått: CAGR, Sharpe, Calmar, största nedgång; korrelation mellan månadsavkastningar; avkastning i kraschfönstren; hela perioden och två halvor.
+Allt i lokal valuta (som backtestet). A = modell 2.0 (P3-basis) i samma körning.
+
+**Beslutsregel** – en blandning räknas som en **jämnare resa** om ALLA gäller: Sharpe minst 0,05 högre än A på hela perioden; största nedgång minst 5 pe grundare än A;
+Sharpe inte lägre än A i någon halva. CAGR-kostnaden redovisas bredvid. Testerna ändrar inte modell 2.0: de gäller hur kapitalet fördelas
+(SPEC § 15 – risknivån styrs utanför modellen), och fördelningen är ägarens beslut. Klarar en blandning regeln förs den in som räkneexempel i allokeringsvyn.
+T14 ensam blir kandidat till en egen regelstyrd portfölj bara om den dessutom har Sharpe högre än A i båda halvorna.
+**Kända snedvridningar:** perioden 2015–2026 gynnade momentum och missgynnade värde (se forskningsgenomgången) – en blandning ser därför sämre ut här än den
+kan vara framåt; Berkshire är ett enda bolag valt i efterhand; överlevnadsbias gynnar både 2.0 och T14; ingen valutaeffekt räknas.
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.
