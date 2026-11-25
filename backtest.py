@@ -1429,6 +1429,86 @@ def pt_study(close, path="pt_hist.json.gz"):
     out["regel"] = {"A": A, "A1": bool(A1), "A2": bool(A2), "A3": bool(A3), "A_varning": bool(Awarn), "B": B, "B1": bool(B1), "B2": bool(B2), "B3": bool(B3)}
     return out
 
+def combo_study(close, vol, cfg_a, spy=None):
+    """T13/T14 (TESTPLAN_3.0, 2026-11-25): 2.0 blandad med Berkshire, index och en defensiv lågvolatilitetsportfölj.
+    Ändrar inte modellen – gäller kapitalfördelningen."""
+    cfg = dict(DEF); cfg.update(cfg_a)
+    eA, _, _ = run(close, vol, cfg)
+    idx = eA.index; rA = eA.pct_change().fillna(0)
+    C = close.reindex(idx); n = len(idx)
+    # --- T14 defensiv portfölj
+    full = close; s200 = full.rolling(200, min_periods=160).mean()
+    sig = full.pct_change().rolling(252, min_periods=200).std()
+    to = (full * vol.reindex_like(full)).rolling(20, min_periods=10).mean()
+    pos = {d: i for i, d in enumerate(full.index)}
+    qe = [d for k, d in enumerate(full.index[:-1]) if d.month in (3, 6, 9, 12) and full.index[k + 1].month != d.month and d >= idx[0]]
+    rD = pd.Series(0.0, index=idx); held = []; turns = []
+    pc = full.pct_change()
+    for k, d in enumerate(qe):
+        i = pos[d]; px = full.iloc[i]
+        cal = d - pd.DateOffset(months=1); cal12 = d - pd.DateOffset(months=12)
+        p1 = full.loc[:cal].ffill().iloc[-1] if len(full.loc[:cal]) else px * np.nan
+        p12 = full.loc[:cal12].ffill().iloc[-1] if len(full.loc[:cal12]) else px * np.nan
+        ok = (px > s200.iloc[i]) & ((p1 / p12 - 1) > 0) & (to.iloc[i] >= 3e6) & sig.iloc[i].notna()
+        pick = list(sig.iloc[i][ok].nsmallest(20).index)
+        if not pick: continue
+        turn = 1 - len(set(pick) & set(held)) / max(1, len(pick)); turns.append(turn)
+        j0 = i + 2; j1 = (pos[qe[k + 1]] + 2) if k + 1 < len(qe) else len(full.index)
+        seg = pc.iloc[j0:j1][pick].fillna(0)
+        val = (1 + seg).cumprod(); pv = val.mean(axis=1)
+        r = pv.pct_change(); 
+        if len(r): r.iloc[0] = pv.iloc[0] - 1
+        if len(r): r.iloc[0] -= turn * 0.004           # 0,2 % per sida på den del som byts
+        rD.loc[r.index.intersection(idx)] = r.reindex(r.index.intersection(idx))
+        held = pick
+    legs = {"T14 Defensiv (20 lägst volatilitet)": rD}
+    if "BRK-B" in C.columns: legs["Berkshire (BRK-B)"] = C["BRK-B"].ffill().pct_change().fillna(0)
+    if spy is not None and len(spy) > 200: legs["Index S&P 500 (SPY)"] = spy.reindex(idx).ffill().pct_change().fillna(0)
+    legs["Universumet likaviktat"] = C.pct_change().mean(axis=1).fillna(0)
+    def blend(ra, rb, w):
+        e = []; va, vb = w, 1 - w; yr = None
+        for d in idx:
+            if yr is not None and d.year != yr:
+                t = va + vb; va, vb = t * w, t * (1 - w)
+            yr = d.year
+            va *= 1 + ra.at[d]; vb *= 1 + rb.at[d]; e.append(va + vb)
+        return pd.Series(e, index=idx)
+    def met(e):
+        yrs = (e.index[-1] - e.index[0]).days / 365.25
+        if yrs <= 0 or len(e) < 60: return None
+        r = e.pct_change().dropna(); cagr = (e.iloc[-1] / e.iloc[0]) ** (1 / yrs) - 1
+        sd = r.std() * math.sqrt(252); dd = float((e / e.cummax() - 1).min())
+        return {"cagr": round(cagr * 100, 1), "sharpe": round(float(r.mean() * 252 / sd), 2) if sd > 0 else None,
+                "nedgång": round(dd * 100, 1), "calmar": round(cagr / abs(dd), 2) if dd < 0 else None, "vol": round(sd * 100, 1)}
+    mid = idx[len(idx) // 2]
+    WIN = {"2018 Q4": ("2018-10-01", "2018-12-24"), "covid 2020": ("2020-02-19", "2020-03-23"), "björn 2022": ("2022-01-03", "2022-10-12"), "våren 2025": ("2025-02-19", "2025-04-08")}
+    curves = {"A. Modell 2.0": (1 + rA).cumprod()}
+    for nm, rb in legs.items():
+        curves[nm] = (1 + rb).cumprod()
+        if nm != "Universumet likaviktat":
+            for w in (0.7, 0.5): curves[f"{int(w*100)}/{int(100-w*100)} 2.0 / {nm}"] = blend(rA, rb, w)
+    mA = rA.resample("ME").apply(lambda x: (1 + x).prod() - 1)
+    print(f"\n########## T13/T14 Kombinationer med modell 2.0 ({idx[0].date()} – {idx[-1].date()}) ##########")
+    print(f"   T14: {len(turns)} kvartalsbyten, snittomsättning {np.mean(turns)*100:.0f} % per kvartal" if turns else "   T14: inga byten")
+    print(f"   {'':<52}{'CAGR':>7}{'Sharpe':>8}{'Nedg.':>8}{'Calmar':>8}{'Vol':>7}{'Sh H1':>7}{'Sh H2':>7}{'korr A':>8}" + "".join(f"{k:>12}" for k in WIN) + "   regel")
+    out = {}; A = None
+    for nm, e in curves.items():
+        m = met(e); h1 = met(e.loc[:mid]); h2 = met(e.loc[mid:])
+        r = e.pct_change().fillna(0); mm = r.resample("ME").apply(lambda x: (1 + x).prod() - 1)
+        corr = round(float(mm.corr(mA)), 2)
+        w_ = {k: round(float(e.loc[a:b].iloc[-1] / e.loc[a:b].iloc[0] - 1) * 100, 1) if len(e.loc[a:b]) > 5 else None for k, (a, b) in WIN.items()}
+        o = dict(m, sharpe_h1=h1["sharpe"], sharpe_h2=h2["sharpe"], korr_A=corr, fönster=w_)
+        if A is None: A = o; verdict = "referens"
+        else:
+            ok = (o["sharpe"] >= A["sharpe"] + 0.05) and (o["nedgång"] >= A["nedgång"] + 5) and o["sharpe_h1"] >= A["sharpe_h1"] and o["sharpe_h2"] >= A["sharpe_h2"]
+            o["jämnare_resa"] = bool(ok); verdict = "JÄMNARE RESA" if ok else "nej"
+            if nm.startswith("T14"):
+                o["egen_kandidat"] = bool(ok and o["sharpe_h1"] > A["sharpe_h1"] and o["sharpe_h2"] > A["sharpe_h2"])
+        out[nm] = o
+        print(f"   {nm:<52}{o['cagr']:>7}{o['sharpe']:>8}{o['nedgång']:>8}{str(o['calmar']):>8}{o['vol']:>7}{o['sharpe_h1']:>7}{o['sharpe_h2']:>7}{corr:>8}" + "".join(f"{str(w_[k]):>12}" for k in WIN) + f"   {verdict}")
+    print("\n   Regel (TESTPLAN_3.0 T13/T14): jämnare resa = Sharpe ≥ A + 0,05, nedgång ≥ 5 pe grundare, Sharpe inte lägre än A i någon halva.")
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--years", type=float, default=10)
@@ -1468,7 +1548,7 @@ def main():
     ap.add_argument("--fulln", action="store_true", help="antal innehav i fullt läge under 2.0: 15/20/25/30 vid 10 Mkr och 600 tkr, dubbla kostnader, förskjutet kvartal")
     ap.add_argument("--survive", action="store_true", help="överlevnadsbias: S&P 500-medlemmar som kandidater först från sitt inträdesdatum (Wikipedia)")
     ap.add_argument("--parity", action="store_true", help="paritet backtest↔app: köp vid månadsslut, 12-1 i kalendermånader, appens överhettningsformel")
-    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3; 2026-11-25: fibzone (T11), ptarget (T12)")
+    ap.add_argument("--strat", default="", help="strategitester 2026-11-18 (TESTPLAN § 9): gap | breadth | sector | invvol | all; 3.0 (2026-11-23): after | smabuf | pullback | sectorsale | t3; 2026-11-25: fibzone (T11), ptarget (T12), combo (T13/T14)")
     a = ap.parse_args()
 
     if a.universe:
@@ -1620,6 +1700,19 @@ def main():
                "T6-a. Sälj först under 0,97 × SMA200": dict(M2, sma_buf=3),
                "T6-b. Sälj först under 0,95 × SMA200": dict(M2, sma_buf=5),
                "T6-c. SMA200-brott två månadsskiften i rad": dict(M2, sma_two=True)}
+        if which == "combo":
+            spy = None
+            try:
+                import yfinance as yf
+                d_ = yf.download("SPY", start=str(close.index[0].date()), auto_adjust=True, progress=False)["Close"]
+                spy = d_.iloc[:, 0] if hasattr(d_, "columns") else d_
+                spy.index = pd.to_datetime(spy.index).tz_localize(None)
+                print(f"   SPY: {len(spy)} dagar")
+            except Exception as ex:
+                print("   SPY kunde inte hämtas:", str(ex)[:80])
+            res = combo_study(close, vol, M2, spy)
+            with open(a.out, "w", encoding="utf-8") as f: json.dump({"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "test": "T13/T14 kombination", "resultat": res}, f, ensure_ascii=False, indent=1)
+            print(f"\nSkrev {a.out}"); return
         if which == "ptarget":
             res = pt_study(close)
             with open(a.out, "w", encoding="utf-8") as f: json.dump({"skapad": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "test": "T12 riktkurser", "resultat": res}, f, ensure_ascii=False, indent=1)
