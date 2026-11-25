@@ -174,7 +174,7 @@ Modulerna: påminnelse inför månadsprövningen (de fem sista dagarna i månade
 - Ny aktie: sök → "Slå upp" (Yahoo via Actions) → "Skicka till skannern".
 
 ### Daghandel (egen sida)
-Kandidater över alla marknader med strikthet (antal kriterier av 5: över gårdagens high, över SMA200, över förmarknadens high, över öppning, förmarknadsvolym ≥ 50 000), struktur (vänta/bryt/…), PM-vol, rel.vol, tekniska larm (SMA50-brott, RSI, Fibonacci), handelsplan per aktie. Information – ingår inte i strategin.
+Kandidater över alla marknader; knapparna **Kandidater** (alla 5 + nästan-kandidater) och **Bredare** (minst 3 av 5) (2026-11-25; kriterierna: över gårdagens high, över SMA200, över förmarknadens high, över öppning, förmarknadsvolym ≥ 50 000), struktur (vänta/bryt/…), PM-vol, rel.vol, tekniska larm (SMA50-brott, RSI, Fibonacci), handelsplan per aktie. Information – ingår inte i strategin.
 *2026-11-24:* listorna (startsidan, Börsdesken, daghandelssidan) ordnas efter ett **sammanvägt daghandelsmått** 0–100 (skannerns `dtq`): relativ volym 35, katalysator 20 (rapport i dag/senaste handelsdagen, nyhet), egen rörelse 20 (mot börsens median), rörlighet 15 (ATR %), likviditet 10. **Daghandelsloggen** (`dtlog.py` → `dtlog.json`): de 30 högst rankade sparas varje handelsdag vid första skanningen 12–15 UTC; dagen efter fylls öppning→stängning i, jämfört med börsens median. Daghandelssidan visar UTFALL (LOGG) per tredjedel av måttet. Information – ingår inte i strategin.
 
 ### Radar (institutionell radar, SPEC § 12)
