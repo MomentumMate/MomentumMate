@@ -102,6 +102,21 @@ Uppdelat på första och andra halvan av perioden.
 Kravet på 2 pe är skärpt eftersom överlevnadsbias gynnar ZON: aktier som föll och sedan försvann ur index finns inte i universumet.
 Klarar zonen inte regeln förblir den information; ägaren avgör då om modulen REKYLZONER på startsidan ska bort.
 
+### T11 utfall (Actions `test3.yml` #45604703719, gren `test3-fibzone`, 2026-11-25)
+
+Månadsslut 2016–2026, ca 2 300 aktier. Överavkastning mot universumets likaviktade snitt (pe), köp T+1:
+
+| Grupp | n | 3 mån median | 6 mån median | 6 mån medel | slår univ. 6 mån | bruten inom 3 mån |
+|---|---|---|---|---|---|---|
+| ZON | 9 525 | −0,87 | **−2,59** | +0,69 | 44,9 % | **69 %** |
+| TOPP | 59 320 | −0,98 | **−2,06** | −0,51 | 45,0 % | – |
+| ZON+ (över SMA200) | 769 | −0,30 | −2,18 | +2,59 | 45,1 % | 69 % |
+
+Halvor, 6 mån median ZON mot TOPP: första −3,03 mot −2,53; andra −2,31 mot −1,62. Regel: 1) nej (ZON 0,5 pe *sämre* än TOPP),
+2) ja (3 mån marginellt bättre), 3) ja (medel svagt positivt – några stora återhämtningar), 4) nej. **Klarar inte regeln.**
+Sju av tio aktier i zonen stänger under zonens nedre kant inom tre månader: zonen håller sällan som stöd. Köp nära toppen är inte sämre
+än köp i rekylen – samma slutsats som T7 och grunden för momentum. Zonen förblir information (SPEC § 11).
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.

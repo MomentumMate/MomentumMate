@@ -148,6 +148,7 @@ Innehav med mindre än tolv kalendermånaders historik kan inte prövas (saknar 
 | Sektor-rea som fristående ficka (sektor ≥ 20–30 % under 52v-högsta, marknaden inte) | T8 2026-11-23 | 1 signal på tio år vid 25 % – inget utfall; vid 20 % slog den 2.0 i 0 av 5 fall |
 | Volatilitetstak vid köp (σ60 > 80/100/120 %) | T9 2026-11-23 | CAGR 30,6–38,6 mot 42,8 %, lägre Calmar, faller på halvor och förskjutet kvartal |
 | Jämna/lugna trender som avgörare (R², lägst volatilitet, tak 100 + R²) | T10 2026-11-23 | CAGR 22–26 mot 42,8 %, Sharpe inte högre – branta trender är avkastningskällan |
+| Rekylzonen (Fibonacci 61,8–78,6 %) som köpläge | T11 2026-11-25 (händelsestudie) | 6 mån median −2,6 pe mot universum, 0,5 pe sämre än köp nära toppen, sämre i båda halvorna; 69 % bryter zonen inom 3 mån |
 
 ## 12. Information som visas men inte styr
 

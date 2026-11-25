@@ -46,6 +46,7 @@ Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 
 | #81 | Överlevnadsbias nedre gräns: 44,0 → 36,4 %; bara S&P 500 31,7 → 17,5 |
 | #82 | 2.0 faller mindre i snabba nedgångar, mer i utdragna |
 | strat 2026-11-18 | A = 43,2 / 1,25 / 1,03 / −42,0. Gap, bredd, sektortak, omvänd volatilitet – alla faller på regeln. Ingen ändring. |
+| test3 2026-11-25 | T11 rekylzonen som köpläge: zonen 0,5 pe sämre än toppen på 6 mån, 69 % bryter zonen inom 3 mån – klarar inte regeln. Ingen ändring. |
 | test3 2026-11-23 (2) | T9 volatilitetstak och T10 jämna trender – alla faller (CAGR 22–39 mot 42,8). Ingen ändring. |
 | test3 2026-11-23 | T5: sålda slår ersättaren i 43 % (6 mån), median −8,9 pe; återköp 1 % → T6 stryks. T7 rekyl: 35–40 % mot 42,8, faller. T8 sektor-rea: för få signaler. Ingen ändring. |
 
