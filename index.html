@@ -432,7 +432,7 @@ function dataStatusHTML(){
   return`<div class="stat ${g?"BAD":"WAIT"}" style="margin:0 0 8px;font-size:11.5px"><b>${g?"⛔ DATAPROBLEM":"✅ Datakontroll "+dhm(DC.updated)}</b> ${g?esc(g):row}${DC.own_flagged&&DC.own_flagged.length?"<br>Egna innehav flaggade: "+DC.own_flagged.map(esc).join(", "):""}${DC.gone&&DC.gone.length?"<br>Borta ur listorna sedan i går: "+DC.gone.length:""}${g?(scanGate()?runLink("scan.yml","<br>Starta skanningen nu ›"):runLink("datacheck.yml","<br>Kör datakontrollen nu ›")):""}</div>`}
 
 /* ---------- PORTFÖLJER (sparas i webbläsaren) ---------- */
-const APPV="2026-11-25-b";
+const APPV="2026-11-25-c";
 const LS="mm_portfolios_v1";
 let P=(()=>{try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.ps)return j}catch(e){}return{ps:[],cur:null,snap:{}}})();
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(P))}catch(e){}};
@@ -677,7 +677,7 @@ function vHome(){
     <div class="mu" style="margin-top:4px">${P.ps.length} portfölj${P.ps.length>1?"er":""} · ${T.n} innehav · ${T.day>=0?"+":"−"}${kr(Math.abs(T.day))} kr idag</div>
     <div class="al">${badN?`<span class="sig SELL" style="margin:0">${badN} saknar data</span>`:""}${sigN?`<span class="sig SELL" style="margin:0">${sigN} sälj/omfördela</span>`:""}${rotN?`<span class="sig TRIM" style="margin:0">${rotN} byte</span>`:""}${buyN?`<span class="sig BUY" style="margin:0">${buyN} köp mer</span>`:""}${watchN?`<span class="sig WATCH" style="margin:0">${watchN} bevaka</span>`:""}${!sigN&&!rotN&&!buyN&&!watchN&&!badN?'<span class="sig HOLD" style="margin:0">Inga signaler – allt ser lugnt ut</span>':""}</div>`
    :`<div class="mu" style="font-size:14px">Lägg in dina innehav i en eller flera portföljer och få dagliga signaler för köp, sälj och omfördelning.</div><div class="chips" style="margin-top:10px"><span class="chip on">+ Skapa portfölj</span></div>`}</div>
-  ${erHomeHTML()}${fzHomeHTML()}
+  ${erHomeHTML()}
   <div class="mod" data-go="#/desk"><div class="mh"><h2>BÖRSDESK</h2><span class="go">›</span></div>
    ${top.length?`<div style="margin-top:10px"><small>Dagens starkaste momentum</small>${top.map(s=>`<div class="sr" data-go="#/stock/${enc(s.t)}"><div class="m"><div>${fl(s)}<b>${esc(s.d)}</b> <span class="mu">${esc(s.n)}</span></div></div><div class="p"><b>${s.px} ${s.cur}</b> <span class="${cls(s.chg)}">${sg(s.chg)}</span></div></div>`).join("")}</div>`:""}</div>
   <div class="mod" data-go="#/daytrade"><div class="mh"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div><h2>DAGHANDEL</h2><span class="go">›</span></div>

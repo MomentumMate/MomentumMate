@@ -155,7 +155,7 @@ Avgiftsinställning: courtageplan (Avanza-nivåer m.fl.), växlingspåslag 0,266
 ## 5. Funktioner i appen, vy för vy
 
 ### Hem
-Modulerna: påminnelse inför månadsprövningen (de fem sista dagarna i månaden), Portfölj (summa, dagens förändring), Rapporter 14 dagar (ägda aktier med rapport inom två veckor och deras snittrörelse vid rapport), Rekylzoner (ägda/bevakade aktier i eller högst 5 % ovanför sin rekylzon – larm i appen, information), Förslag (antal rader, status), Börsdesk, Daghandel, Radar, Nyheter, datastatus (senaste skanning per marknad, datakontroll, live-jobb – med startlänkar), versionskontroll.
+Modulerna: påminnelse inför månadsprövningen (de fem sista dagarna i månaden), Portfölj (summa, dagens förändring), Rapporter 14 dagar (ägda aktier med rapport inom två veckor och deras snittrörelse vid rapport), Förslag (antal rader, status), Börsdesk, Daghandel, Radar, Nyheter, datastatus (senaste skanning per marknad, datakontroll, live-jobb – med startlänkar), versionskontroll.
 
 ### Portfölj
 - **Rullista** över portföljer + "Alla portföljer" + "Ny demoportfölj". Översikten visar varje portfölj som kort (värde, dagens, sedan start) och längst ner **ALLOKERING**: kapital i strategin mot kapital utanför (redigerbart), andel och vad en −50 %-nedgång i strategin betyder för hela kapitalet.
