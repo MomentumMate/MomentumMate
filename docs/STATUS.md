@@ -33,6 +33,7 @@ Kvar är uppföljning: månadsprövningen **30 november** – första under 2.0 
 - 2026-11-11/16: radarn i Börsdesk-stil; 24 förvaltare, inga banker/privatpersoner, Form 4; riktkurser som information.
 - 2026-11-18: strategitester gap/riskbudget/sektortak/omvänd volatilitet – ingen ändring; radar/revideringar som avgörare 2027; överlevnadsbias/Börsdata avvaktar.
 - 2026-11-20: kortens högerblock två rader när aktien inte ägs; riktkurser bara på aktiekortet, inte i radarn.
+- 2026-11-25: efter T11–T14 (rekylzon, riktkurser, kombinationer) – 2.0 oförändrad; REKYLZONER bort från startsidan, Price target bort ur Börsdesken, revideringar som avgörare 2027 struket. Börsdata (Pro+, en provmånad för att kontrollera avnoterade bolag, rapportdatum och USA-täckning inför ett kvalitetstest) tas upp **efter månadsprövningen 30 november**.
 
 ## Resultat – sammanfattning
 
