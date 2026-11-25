@@ -1,0 +1,272 @@
+{
+ "skapad": "2026-11-25T11:31:55Z",
+ "test": "T11 rekylzon",
+ "aktier": 2282,
+ "resultat": {
+  "Hela": {
+   "ZON": {
+    "21": {
+     "n": 9963,
+     "median_pe": -0.4,
+     "medel_pe": 0.16,
+     "andel_slår_univ_%": 48.2
+    },
+    "63": {
+     "n": 9703,
+     "median_pe": -0.87,
+     "medel_pe": 0.65,
+     "andel_slår_univ_%": 47.7
+    },
+    "126": {
+     "n": 9525,
+     "median_pe": -2.59,
+     "medel_pe": 0.69,
+     "andel_slår_univ_%": 44.9
+    },
+    "bruten_3m_%": 69.3
+   },
+   "TOPP": {
+    "21": {
+     "n": 61139,
+     "median_pe": -0.25,
+     "medel_pe": -0.02,
+     "andel_slår_univ_%": 48.4
+    },
+    "63": {
+     "n": 60476,
+     "median_pe": -0.98,
+     "medel_pe": -0.23,
+     "andel_slår_univ_%": 46.6
+    },
+    "126": {
+     "n": 59320,
+     "median_pe": -2.06,
+     "medel_pe": -0.51,
+     "andel_slår_univ_%": 45.0
+    },
+    "bruten_3m_%": null
+   },
+   "ZON+": {
+    "21": {
+     "n": 802,
+     "median_pe": -0.36,
+     "medel_pe": 0.55,
+     "andel_slår_univ_%": 49.1
+    },
+    "63": {
+     "n": 788,
+     "median_pe": -0.3,
+     "medel_pe": 3.29,
+     "andel_slår_univ_%": 48.9
+    },
+    "126": {
+     "n": 769,
+     "median_pe": -2.18,
+     "medel_pe": 2.59,
+     "andel_slår_univ_%": 45.1
+    },
+    "bruten_3m_%": 69.3
+   },
+   "TOPP+": {
+    "21": {
+     "n": 61134,
+     "median_pe": -0.25,
+     "medel_pe": -0.02,
+     "andel_slår_univ_%": 48.4
+    },
+    "63": {
+     "n": 60471,
+     "median_pe": -0.98,
+     "medel_pe": -0.23,
+     "andel_slår_univ_%": 46.6
+    },
+    "126": {
+     "n": 59315,
+     "median_pe": -2.06,
+     "medel_pe": -0.52,
+     "andel_slår_univ_%": 45.0
+    },
+    "bruten_3m_%": null
+   }
+  },
+  "Första halvan": {
+   "ZON": {
+    "21": {
+     "n": 3610,
+     "median_pe": -0.23,
+     "medel_pe": 0.07,
+     "andel_slår_univ_%": 48.8
+    },
+    "63": {
+     "n": 3610,
+     "median_pe": -1.04,
+     "medel_pe": 0.58,
+     "andel_slår_univ_%": 47.1
+    },
+    "126": {
+     "n": 3607,
+     "median_pe": -3.03,
+     "medel_pe": 0.73,
+     "andel_slår_univ_%": 43.9
+    },
+    "bruten_3m_%": 68.6
+   },
+   "TOPP": {
+    "21": {
+     "n": 27218,
+     "median_pe": -0.31,
+     "medel_pe": -0.1,
+     "andel_slår_univ_%": 47.8
+    },
+    "63": {
+     "n": 27218,
+     "median_pe": -0.99,
+     "medel_pe": -0.32,
+     "andel_slår_univ_%": 46.3
+    },
+    "126": {
+     "n": 27216,
+     "median_pe": -2.53,
+     "medel_pe": -1.09,
+     "andel_slår_univ_%": 43.7
+    },
+    "bruten_3m_%": null
+   },
+   "ZON+": {
+    "21": {
+     "n": 328,
+     "median_pe": 0.14,
+     "medel_pe": 0.69,
+     "andel_slår_univ_%": 50.3
+    },
+    "63": {
+     "n": 328,
+     "median_pe": -0.04,
+     "medel_pe": 6.14,
+     "andel_slår_univ_%": 49.4
+    },
+    "126": {
+     "n": 326,
+     "median_pe": -0.67,
+     "medel_pe": 5.75,
+     "andel_slår_univ_%": 48.2
+    },
+    "bruten_3m_%": 67.1
+   },
+   "TOPP+": {
+    "21": {
+     "n": 27217,
+     "median_pe": -0.31,
+     "medel_pe": -0.1,
+     "andel_slår_univ_%": 47.8
+    },
+    "63": {
+     "n": 27217,
+     "median_pe": -0.99,
+     "medel_pe": -0.32,
+     "andel_slår_univ_%": 46.3
+    },
+    "126": {
+     "n": 27215,
+     "median_pe": -2.53,
+     "medel_pe": -1.09,
+     "andel_slår_univ_%": 43.7
+    },
+    "bruten_3m_%": null
+   }
+  },
+  "Andra halvan": {
+   "ZON": {
+    "21": {
+     "n": 6353,
+     "median_pe": -0.45,
+     "medel_pe": 0.21,
+     "andel_slår_univ_%": 47.9
+    },
+    "63": {
+     "n": 6093,
+     "median_pe": -0.74,
+     "medel_pe": 0.7,
+     "andel_slår_univ_%": 48.1
+    },
+    "126": {
+     "n": 5918,
+     "median_pe": -2.31,
+     "medel_pe": 0.66,
+     "andel_slår_univ_%": 45.5
+    },
+    "bruten_3m_%": 69.6
+   },
+   "TOPP": {
+    "21": {
+     "n": 33921,
+     "median_pe": -0.19,
+     "medel_pe": 0.05,
+     "andel_slår_univ_%": 48.9
+    },
+    "63": {
+     "n": 33258,
+     "median_pe": -0.98,
+     "medel_pe": -0.16,
+     "andel_slår_univ_%": 46.9
+    },
+    "126": {
+     "n": 32104,
+     "median_pe": -1.62,
+     "medel_pe": -0.02,
+     "andel_slår_univ_%": 46.1
+    },
+    "bruten_3m_%": null
+   },
+   "ZON+": {
+    "21": {
+     "n": 474,
+     "median_pe": -0.5,
+     "medel_pe": 0.46,
+     "andel_slår_univ_%": 48.3
+    },
+    "63": {
+     "n": 460,
+     "median_pe": -0.64,
+     "medel_pe": 1.26,
+     "andel_slår_univ_%": 48.5
+    },
+    "126": {
+     "n": 443,
+     "median_pe": -3.18,
+     "medel_pe": 0.27,
+     "andel_slår_univ_%": 42.9
+    },
+    "bruten_3m_%": 70.8
+   },
+   "TOPP+": {
+    "21": {
+     "n": 33917,
+     "median_pe": -0.19,
+     "medel_pe": 0.05,
+     "andel_slår_univ_%": 48.9
+    },
+    "63": {
+     "n": 33254,
+     "median_pe": -0.98,
+     "medel_pe": -0.16,
+     "andel_slår_univ_%": 46.9
+    },
+    "126": {
+     "n": 32100,
+     "median_pe": -1.62,
+     "medel_pe": -0.03,
+     "andel_slår_univ_%": 46.1
+    },
+    "bruten_3m_%": null
+   }
+  },
+  "regel": {
+   "1": false,
+   "2": true,
+   "3": true,
+   "4": false,
+   "klarar": false
+  }
+ }
+}
