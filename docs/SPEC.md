@@ -196,6 +196,8 @@ Appen visar, utan att något av det ändrar en rad i förslaget: exponering per 
 vikt per innehav; portföljens realiserade volatilitet (60 dagar); största nedgång från tidigare topp; antal innehav i samma sektor.
 Varning visas vid hög koncentration (t.ex. fler än 8 av 20 i en sektor). Riskprofil hanteras utanför modellen: användaren bestämmer
 hur stor del av kapitalet som ligger i strategin och lägger resten i indexfond/räntor.
+*T13/T14 2026-11-25:* 2.0 blandad 70/30 eller 50/50 med Berkshire, S&P 500 eller en defensiv lågvolatilitetsportfölj gav ingen högre Sharpe 2015–2026 –
+blandning späder ut risk och avkastning i samma proportion (TESTPLAN_3.0). Fördelningen är ett risknivåval, inte en förbättring av modellen.
 
 *Byggt 2026-11-16 (app aw), modulen RISK i portföljvyn:* exponering per marknad/valuta/sektor, vikt per innehav mot målvikt och band, volatilitet 60 d (årstakt),
 nedgång från topp (nu och största) och värsta/bästa dag ur appens dagliga ögonblicksbilder rensade för registrerade köp/sälj; hållvillkorens läge (⏳);

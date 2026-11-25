@@ -184,6 +184,29 @@ T14 ensam blir kandidat till en egen regelstyrd portfölj bara om den dessutom h
 **Kända snedvridningar:** perioden 2015–2026 gynnade momentum och missgynnade värde (se forskningsgenomgången) – en blandning ser därför sämre ut här än den
 kan vara framåt; Berkshire är ett enda bolag valt i efterhand; överlevnadsbias gynnar både 2.0 och T14; ingen valutaeffekt räknas.
 
+### T13/T14 utfall (Actions `test3.yml` #45630682199, gren `test3-combo`, 2026-11-25; 2015-11-17 – 2026-11-24, lokal valuta)
+
+| Portfölj | CAGR | Sharpe | Nedgång | Calmar | Volatilitet | Sharpe halvor | Korr. med 2.0 (mån) | Covid 2020 | Björn 2022 | Våren 2025 | Jämnare resa |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **A. Modell 2.0** | 44,2 | 1,20 | −42,0 | 1,05 | 34,7 | 1,27 / 1,13 | 1,00 | −36,5 | −15,6 | −25,4 | referens |
+| Berkshire (BRK-B) | 14,2 | 0,78 | −29,6 | 0,48 | 18,9 | 0,76 / 0,82 | 0,11 | −29,3 | −12,2 | +1,8 | nej |
+| 70/30 2.0 / Berkshire | 36,0 | 1,21 | −35,4 | 1,02 | 27,8 | 1,26 / 1,18 | – | −34,6 | −14,6 | −17,4 | nej (Sharpe +0,01) |
+| 50/50 2.0 / Berkshire | 30,2 | 1,21 | −33,2 | 0,91 | 23,4 | 1,24 / 1,20 | – | −33,2 | −13,9 | −12,0 | nej (Sharpe +0,01, H1 lägre) |
+| Index S&P 500 (SPY) | 13,9 | 0,81 | −33,7 | 0,41 | 17,5 | 0,87 / 0,75 | 0,44 | −33,7 | −24,5 | −18,8 | nej |
+| 70/30 2.0 / SPY | 35,5 | 1,17 | −36,5 | 0,97 | 28,7 | 1,25 / 1,09 | – | −35,7 | −18,2 | −23,5 | nej |
+| 50/50 2.0 / SPY | 29,6 | 1,14 | −35,2 | 0,84 | 24,7 | 1,23 / 1,05 | – | −35,2 | −20,0 | −22,2 | nej |
+| T14 Defensiv (20 lägst volatilitet) | 6,4 | 0,52 | −42,9 | 0,15 | 13,2 | 0,45 / 0,68 | 0,20 | −42,5 | −11,3 | −3,3 | nej |
+| 70/30 2.0 / T14 | 34,1 | 1,19 | −38,3 | 0,89 | 27,2 | 1,24 / 1,14 | – | −38,1 | −14,3 | −19,0 | nej |
+| 50/50 2.0 / T14 | 26,9 | 1,16 | −39,4 | 0,68 | 22,0 | 1,20 / 1,16 | – | −39,3 | −13,5 | −14,6 | nej |
+| Universumet likaviktat | 18,3 | 1,02 | −39,2 | 0,47 | 17,5 | 1,15 / 0,88 | 0,43 | −39,1 | −20,5 | −16,5 | – |
+
+**Ingen blandning klarar regeln.** Berkshire-blandningarna kommer närmast: nedgången 7–9 pe grundare och volatiliteten 7–11 pe lägre, men Sharpe oförändrad (1,21 mot 1,20)
+och CAGR 8–14 pe lägre. Blandning späder alltså ut både risk och avkastning i samma proportion under den här perioden – ingen "gratis" riskminskning, trots att
+Berkshires månadsavkastningar nästan inte samvarierar med 2.0 (0,11). I covidfallet föll allt samtidigt. T14 (enkel lågvolatilitetsportfölj på kursdata) är svag
+i sig: 6,4 % per år och −42,5 % i covid – låg volatilitet utan lönsamhets-/värderingsdata fångar inte Buffetts stil. 2.0 slog index och Berkshire med ca 30 pe per år
+i backtestet, men den siffran bär överlevnadsbias (räkna med hälften, SPEC § 14) och perioden gynnade momentum. **Modell 2.0 och allokeringsvyn oförändrade;**
+hur stor del av kapitalet som ligger i strategin förblir ägarens beslut (SPEC § 15). En riktig kvalitets-/värdestrategi återstår otestad (kräver bokslutshistorik).
+
 ## Utfall – körda 2026-11-23 (Actions `test3.yml` #45177208027, grenarna `test3-after`, `test3-pullback`, `test3-sectorsale`)
 
 **Slutsats: ingen ändring av modell 2.0.** T6 stryks enligt T5, T7 faller på beslutsregeln, T8 har för få signaler för att avgöras.
