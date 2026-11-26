@@ -1,11 +1,11 @@
-# Datakontroll 2026-11-25T08:55:24Z – WARN
+# Datakontroll 2026-11-26T06:11:39Z – WARN
 
 
 | Marknad | Aktier | Senaste stängning | Tysta | Flaggade |
 |---|---|---|---|---|
-| Norden | 201 | 2026-11-24 | 0 | 0 |
-| USA | 1595 | 2026-11-24 | 9 | 13 |
-| Europa | 497 | 2026-11-24 | 2 | 2 |
+| Norden | 201 | 2026-11-25 | 0 | 0 |
+| USA | 1595 | 2026-11-25 | 7 | 13 |
+| Europa | 497 | 2026-11-25 | 2 | 2 |
 
 **Flaggade aktier (15):**
 - 1COV.DE: tyst sedan 2026-11-11
@@ -16,10 +16,10 @@
 - LQDA: dagsrörelse -57 % den 2026-09-30
 - LXP: tyst sedan 2026-10-30
 - PCRX: dagsrörelse -99 % den 2026-11-12
-- QRVO: tyst sedan 2026-10-02
+- QRVO: ingen kursdata (tom serie)
 - RAMP: tyst sedan 2026-10-30
 - SDR.L: tyst sedan 2026-10-01
 - SSNLF: nollvolym 5 dagar; stillastående 10 dagar
 - TCBI: tyst sedan 2026-11-09
-- TOELY: tyst sedan 2026-09-24
+- TOELY: ingen kursdata (tom serie)
 - VCYT: dagsrörelse -54 % den 2026-11-05
